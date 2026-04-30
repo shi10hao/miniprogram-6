@@ -1,0 +1,66 @@
+<view class="scene-container">
+  <canvas
+    type="webgl"
+    id="webgl-canvas"
+    class="webgl-canvas"
+    bindtouchstart="onTouchStart"
+    bindtouchmove="onTouchMove"
+    bindtouchend="onTouchEnd"
+  ></canvas>
+
+  <view wx:if="{{isLoading}}" class="loading-overlay">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载三维场景中...</text>
+    <view class="loading-bar">
+      <view class="loading-fill" style="width: {{loadingProgress}}%"></view>
+    </view>
+  </view>
+
+  <cover-view class="back-btn" bindtap="goBack">←</cover-view>
+
+  <cover-view wx:if="{{focusHint}}" class="focus-hint">{{focusHint}}</cover-view>
+
+  <cover-view wx:if="{{!panelOpen}}" class="legend">
+    <cover-view class="legend-item">
+      <cover-view class="legend-dot green"></cover-view>
+      <cover-view class="legend-text">可用</cover-view>
+    </cover-view>
+    <cover-view class="legend-item">
+      <cover-view class="legend-dot orange"></cover-view>
+      <cover-view class="legend-text">使用中</cover-view>
+    </cover-view>
+    <cover-view class="legend-item">
+      <cover-view class="legend-dot red"></cover-view>
+      <cover-view class="legend-text">维修中</cover-view>
+    </cover-view>
+  </cover-view>
+
+  <cover-view wx:if="{{!panelOpen}}" class="instructions">
+    单指拖拽旋转 · 双指缩放 · 点击仪器查看详情
+  </cover-view>
+
+  <cover-view wx:if="{{panelOpen}}" class="info-panel">
+    <cover-view class="panel-header">
+      <cover-view class="panel-title">{{panelData.name}}</cover-view>
+      <cover-view class="panel-close" bindtap="closePanel">关闭</cover-view>
+    </cover-view>
+
+    <cover-view wx:if="{{panelData.statusText}}" class="status-badge {{panelData.status}}">{{panelData.statusText}}</cover-view>
+
+    <cover-view class="panel-summary">
+      <cover-view wx:if="{{panelData.deviceId}}" class="summary-line">编号：{{panelData.deviceId}}</cover-view>
+      <cover-view wx:if="{{panelData.lab}}" class="summary-line">实验室：{{panelData.lab}}</cover-view>
+      <cover-view wx:if="{{panelData.model}}" class="summary-line">型号：{{panelData.model}}</cover-view>
+      <cover-view wx:if="{{panelData.description}}" class="summary-desc">{{panelData.description}}</cover-view>
+    </cover-view>
+
+    <cover-view
+      wx:if="{{panelData.canViewDetail}}"
+      class="panel-action primary"
+      bindtap="goToDeviceDetail">查看仪器详情</cover-view>
+    <cover-view
+      wx:if="{{role === 'student' && panelData.status === 'available' && panelData.canReserve}}"
+      class="panel-action secondary"
+      bindtap="goToReserve">前往预约</cover-view>
+  </cover-view>
+</view>

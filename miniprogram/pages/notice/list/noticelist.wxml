@@ -1,0 +1,26 @@
+<view class="container">
+
+  <!-- 加载状态 -->
+  <view wx:if="{{isLoading}}" class="loading">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 空状态 -->
+  <view wx:if="{{!isLoading && noticeList.length === 0}}" class="empty">
+    <text>暂无公告</text>
+  </view>
+
+  <!-- 公告列表（显示日期） -->
+  <view wx:else class="notice-list">
+    <view 
+      class="notice-item" 
+      wx:for="{{noticeList}}" 
+      wx:key="_id"
+      bindtap="goToDetail"
+      data-noticeid="{{item.notice_id || item._id}}" 
+    >
+      <text class="notice-title">{{item.title}}</text>
+      <text class="notice-date">{{item.publish_date}}</text>
+    </view>
+  </view>
+</view>

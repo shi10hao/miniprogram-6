@@ -1,0 +1,205 @@
+<page-container
+  show="{{showExitConfirm}}"
+  overlay="{{true}}"
+  position="bottom"
+  custom-style="height:auto;max-height:40vh;"
+  bindbeforeleave="onBeforeLeaveExit">
+
+  <view class="exit-confirm-panel">
+    <text class="exit-confirm-title">退出管理端</text>
+    <text class="exit-confirm-desc">确定要退出管理端吗？退出后需重新登录。</text>
+    <view class="exit-confirm-btns">
+      <button class="exit-cancel-btn" bindtap="cancelExit">取消</button>
+      <button class="exit-confirm-btn" bindtap="doLogout">退出</button>
+    </view>
+  </view>
+</page-container>
+
+<view class="container">
+  <view class="admin-header">
+    <view class="admin-avatar">⚙️</view>
+    <view class="admin-info">
+      <text class="admin-title">欢迎您，{{adminName}}</text>
+    </view>
+    <view class="admin-3d-btn" bindtap="goTo3DBoard">
+      <text class="btn-3d-icon">🌐</text>
+      <text class="btn-3d-text">三维看板</text>
+    </view>
+    <view class="admin-logout" bindtap="confirmLogout">
+      <text class="logout-text">退出</text>
+    </view>
+  </view>
+
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 0 ? 'active' : ''}}" bindtap="switchTab" data-tab="0">
+      <text class="tab-icon">🔬</text>
+      <text class="tab-label">仪器状态</text>
+    </view>
+    <view class="tab-item {{activeTab === 1 ? 'active' : ''}}" bindtap="switchTab" data-tab="1">
+      <text class="tab-icon">📋</text>
+      <text class="tab-label">预约记录</text>
+    </view>
+    <view class="tab-item {{activeTab === 2 ? 'active' : ''}}" bindtap="switchTab" data-tab="2">
+      <text class="tab-icon">📢</text>
+      <text class="tab-label">发布通知</text>
+    </view>
+  </view>
+
+  <view wx:if="{{activeTab === 0}}" class="tab-content">
+    <view wx:if="{{isLoadingDevices}}" class="center-hint">
+      <view class="loading-spin"></view>
+      <text>加载中...</text>
+    </view>
+
+    <view wx:elif="{{deviceGroups.length === 0}}" class="center-hint">
+      <text class="hint-icon">-</text>
+      <text>暂无仪器数据</text>
+    </view>
+
+    <view wx:else class="device-list">
+      <view
+        class="device-card"
+        wx:for="{{deviceGroups}}"
+        wx:key="group_key"
+        bindtap="goToDeviceDetail"
+        data-device-name="{{item.device_name}}"
+        data-lab-name="{{item.lab_name}}"
+        data-device-type="{{item.device_type}}"
+        data-model="{{item.model}}"
+        data-group-key="{{item.group_key}}">
+
+        <image class="device-img" src="{{item.picture}}" mode="aspectFill"></image>
+
+        <view class="card-body">
+          <view class="card-top">
+            <text class="d-name">{{item.device_name}}</text>
+            <text class="d-type {{item.device_type}}">{{item.device_type === 'large' ? '大型' : '小型'}}</text>
+          </view>
+          <text class="d-lab">{{item.lab_name}}</text>
+          <text wx:if="{{item.model}}" class="d-lab">型号：{{item.model}}</text>
+
+          <view class="badge-row">
+            <view class="badge available">
+              <text class="badge-num">{{item.available}}</text>
+              <text class="badge-label">可用</text>
+            </view>
+            <view class="badge {{item.using > 0 ? 'using-active' : 'using'}}">
+              <text class="badge-num">{{item.using}}</text>
+              <text class="badge-label">使用中</text>
+            </view>
+            <view class="badge {{item.maintenance > 0 ? 'maint-active' : 'maint'}}">
+              <text class="badge-num">{{item.maintenance}}</text>
+              <text class="badge-label">维护</text>
+            </view>
+          </view>
+        </view>
+
+        <text class="card-arrow">></text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{activeTab === 1}}" class="tab-content">
+    <view class="reserve-summary">
+      <view class="summary-card">
+        <text class="summary-num">{{reserveStats.upcoming}}</text>
+        <text class="summary-label">即将使用</text>
+      </view>
+      <view class="summary-card">
+        <text class="summary-num using-color">{{reserveStats.using}}</text>
+        <text class="summary-label">使用中</text>
+      </view>
+      <view class="summary-card">
+        <text class="summary-num completed-color">{{reserveStats.completed}}</text>
+        <text class="summary-label">已完成</text>
+      </view>
+      <view class="summary-card">
+        <text class="summary-num total-color">{{reserveStats.total}}</text>
+        <text class="summary-label">总预约</text>
+      </view>
+    </view>
+
+    <view wx:if="{{isLoadingReserves}}" class="center-hint">
+      <view class="loading-spin"></view>
+      <text>加载中...</text>
+    </view>
+
+    <view wx:elif="{{recentReserves.length === 0}}" class="center-hint">
+      <text class="hint-icon">📋</text>
+      <text>暂无预约记录</text>
+    </view>
+
+    <view wx:else class="reserve-list">
+      <view class="reserve-card" wx:for="{{recentReserves}}" wx:key="_id">
+        <view class="card-top">
+          <text class="d-name">{{item.device_name}}</text>
+          <view class="status-tag {{item.displayStatus}}">{{item.displayStatusText}}</view>
+        </view>
+        <view class="reserve-info">
+          <text class="reserve-person">{{item.student_name || item.user_id}}</text>
+          <text class="reserve-time">{{item.reserve_date}} {{item.start_time_display}}-{{item.end_time_display}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{recentReserves.length > 0}}" class="view-all-btn" bindtap="goToReserveList">
+      <text>查看全部预约记录</text>
+    </view>
+  </view>
+
+  <view wx:if="{{activeTab === 2}}" class="tab-content">
+    <view class="compose-card">
+      <text class="compose-heading">发布管理员通知</text>
+      <text class="compose-hint">发布后将继续写入公告流程，学生端可直接看到。</text>
+
+      <view class="input-group">
+        <text class="input-label">标题</text>
+        <input
+          class="title-input"
+          placeholder="请输入通知标题"
+          value="{{msgTitle}}"
+          bindinput="onTitleInput"
+          maxlength="50" />
+      </view>
+
+      <view class="input-group">
+        <text class="input-label">内容</text>
+        <textarea
+          class="content-textarea"
+          placeholder="请输入通知内容..."
+          value="{{msgContent}}"
+          bindinput="onContentInput"
+          maxlength="500"
+          auto-height />
+      </view>
+
+      <button
+        class="send-btn {{isSending ? 'sending' : ''}}"
+        bindtap="sendMessage"
+        disabled="{{isSending}}">
+        {{isSending ? '发布中...' : '立即发布'}}
+      </button>
+    </view>
+
+    <view class="sent-section">
+      <text class="sent-heading">历史通知</text>
+
+      <view wx:if="{{isLoadingMessages}}" class="center-hint">
+        <text>加载中...</text>
+      </view>
+      <view wx:elif="{{sentMessages.length === 0}}" class="center-hint">
+        <text class="hint-icon">-</text>
+        <text>暂无发布记录</text>
+      </view>
+      <view wx:else>
+        <view class="sent-item" wx:for="{{sentMessages}}" wx:key="_id">
+          <view class="sent-row">
+            <text class="sent-title">{{item.title}}</text>
+            <text class="sent-date">{{item.dateDisplay}}</text>
+          </view>
+          <text class="sent-content">{{item.content}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

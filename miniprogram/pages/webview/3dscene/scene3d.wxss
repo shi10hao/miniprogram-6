@@ -1,0 +1,233 @@
+.scene-container {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.webgl-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: #1a2332;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.loading-spinner {
+  width: 40px; height: 40px;
+  border: 3px solid rgba(98,188,196,0.3);
+  border-top: 3px solid #62BCC4;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+  color: #62BCC4;
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+.loading-bar {
+  width: 200px;
+  height: 4px;
+  background: rgba(98,188,196,0.2);
+  border-radius: 2px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.loading-fill {
+  height: 100%;
+  background: #62BCC4;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.back-btn {
+  position: fixed;
+  top: 12px; left: 12px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  text-align: center;
+  line-height: 36px;
+  font-size: 18px;
+  z-index: 40;
+}
+
+.focus-hint {
+  position: fixed;
+  top: 12px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(45,106,110,0.9);
+  color: white;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  line-height: 18px;
+  white-space: normal;
+  z-index: 40;
+}
+
+.legend {
+  position: fixed;
+  bottom: 12px; left: 12px;
+  background: rgba(255,255,255,0.9);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  z-index: 40;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+.legend-item {
+  position: relative;
+  padding-left: 16px;
+  margin-bottom: 4px;
+  line-height: 16px;
+}
+
+.legend-item:last-child { margin-bottom: 0; }
+
+.legend-dot {
+  position: absolute;
+  left: 0;
+  top: 3px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+
+.legend-dot.green { background: #4caf50; }
+.legend-dot.orange { background: #ff9800; }
+.legend-dot.red { background: #f44336; }
+
+.legend-text {
+  color: #333;
+}
+
+.instructions {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  z-index: 40;
+  white-space: normal;
+  line-height: 18px;
+}
+
+.info-panel {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  background: rgba(255,255,255,0.98);
+  border-radius: 16px;
+  border: 1px solid #d9e2ec;
+  padding: 14px 14px 16px;
+  z-index: 50;
+}
+
+.panel-header {
+  position: relative;
+  padding-right: 64px;
+  min-height: 30px;
+}
+
+.panel-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #222;
+  line-height: 22px;
+  white-space: normal;
+}
+
+.panel-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 52px;
+  height: 28px;
+  border-radius: 14px;
+  background: #eef2f6;
+  text-align: center;
+  line-height: 28px;
+  font-size: 12px;
+  color: #4a5568;
+}
+
+.status-badge {
+  min-width: 64px;
+  height: 24px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 24px;
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+.panel-summary {
+  border-top: 1px solid #eef2f6;
+  padding-top: 10px;
+}
+
+.summary-line {
+  font-size: 12px;
+  color: #5b6573;
+  line-height: 18px;
+  white-space: normal;
+  margin-top: 4px;
+}
+
+.status-badge.available { background: #e8f5e9; color: #2e7d32; }
+.status-badge.using { background: #fff8e1; color: #f57c00; }
+.status-badge.maintenance { background: #fce4ec; color: #c62828; }
+
+.summary-desc {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #334155;
+  line-height: 20px;
+  white-space: normal;
+}
+
+.panel-action {
+  width: 100%;
+  height: 42px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 10px;
+  line-height: 42px;
+  text-align: center;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.panel-action.primary {
+  background: #62BCC4;
+  color: white;
+}
+
+.panel-action.secondary {
+  background: #f0f4f8;
+  color: #475569;
+}

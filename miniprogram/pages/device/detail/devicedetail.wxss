@@ -1,0 +1,443 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 20rpx;
+  box-sizing: border-box;
+}
+
+/* 加载状态 */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+}
+
+.loading-spinner {
+  width: 60rpx;
+  height: 60rpx;
+  border: 4rpx solid #e9ecef;
+  border-top: 4rpx solid #62BCC4;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 30rpx;
+}
+
+.loading-text {
+  font-size: 28rpx;
+  color: #666;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 错误状态 */
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  text-align: center;
+}
+
+.error-icon {
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
+  opacity: 0.7;
+}
+
+.error-title {
+  font-size: 32rpx;
+  color: #333;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+
+.error-desc {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 40rpx;
+}
+
+.reload-btn {
+  background: #62BCC4;
+  color: white;
+  border: none;
+  border-radius: 50rpx;
+  padding: 20rpx 40rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+/* 主要内容 */
+.main-content {
+  width: 100%;
+}
+
+.content-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+/* 基本信息卡片 */
+.basic-info-card {
+  background: white;
+  border-radius: 24rpx;
+  padding: 40rpx;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.06);
+}
+
+.device-image-section {
+  margin-right: 30rpx;
+}
+
+.device-image {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 20rpx;
+  object-fit: cover;
+}
+
+.device-info-section {
+  flex: 1;
+}
+
+.device-name-row {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 20rpx;
+}
+
+.device-name {
+  display: block;
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  flex-shrink: 0;
+  margin-right: 12rpx;
+}
+
+.device-model-text {
+  font-size: 24rpx;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.device-tags {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.device-tag {
+  font-size: 22rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 48rpx;
+  line-height: 1;
+  box-sizing: border-box;
+  vertical-align: middle;
+  min-width: 100rpx;  
+}
+
+.device-tag.type {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.device-tag.status {
+  color: white;
+}
+
+.device-tag.status.using {
+  background: #ff6b6b;
+}
+
+.device-tag.status.idle {
+  background: #51cf66;
+}
+
+.device-location {
+  font-size: 26rpx;
+  color: #666;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.device-lab {
+  font-size: 26rpx;
+  color: #666;
+  display: block;
+}
+
+/* 仪器简介（内嵌在基本信息卡片底部） */
+.description-inline {
+  width: 100%;
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.description-label {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12rpx;
+}
+
+/* 卡片通用样式 */
+.description-card,
+.status-cards,
+.guide-card {
+  background: white;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.06);
+}
+
+.card-header {
+  padding: 32rpx 32rpx 0;
+  margin-bottom: 24rpx;
+}
+
+.card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.card-content {
+  padding: 0 32rpx 32rpx;
+}
+
+/* 仪器描述 */
+.description-text {
+  font-size: 28rpx;
+  color: #555;
+  line-height: 1.6;
+  text-align: justify;
+}
+
+/* 状态卡片 */
+.status-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.status-card {
+  background: white;
+  border-radius: 20rpx;
+  padding: 32rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.status-title-section {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.status-icon {
+  font-size: 32rpx;
+}
+
+.status-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.device-count {
+  font-size: 24rpx;
+  color: #999;
+  background: #f8f9fa;
+  padding: 8rpx 16rpx;
+  border-radius: 12rpx;
+}
+
+/* 仪器编号网格布局 */
+.device-codes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20rpx;
+  justify-items: center;
+}
+
+.code-item {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.device-code {
+  background: #f8f9fa;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  color: #333;
+  border: 1rpx solid #e9ecef;
+  font-family: 'Courier New', monospace;
+  text-align: center;
+  min-width: 120rpx;
+  box-sizing: border-box;
+}
+
+.no-device {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 26rpx;
+  color: #999;
+  padding: 40rpx 0;
+}
+
+/* 特定状态的颜色 */
+.status-card.available .device-code {
+  background: #e8f5e8;
+  color: #2e7d32;
+  border-color: #c8e6c9;
+}
+
+.status-card.using .device-code {
+  background: #fff3e0;
+  color: #e65100;
+  border-color: #ffcc80;
+}
+
+/* 新增：维修中状态的颜色 */
+.status-card.maintenance .device-code {
+  background: #fff3e0;
+  color: #e65100;
+  border-color: #ffcc80;
+}
+
+/* 操作指南 */
+.guide-card {
+  padding: 32rpx;
+}
+
+.guide-buttons {
+  display: flex;
+  gap: 20rpx;
+}
+
+.guide-btn {
+  flex: 1;
+  background: #f8f9fa;
+  border: none;
+  border-radius: 16rpx;
+  padding: 30rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.guide-btn:active {
+  background: #e9ecef;
+  transform: translateY(2rpx);
+}
+
+.btn-icon {
+  font-size: 44rpx;
+  margin-bottom: 16rpx;
+}
+
+.btn-text {
+  font-size: 24rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+/* 空状态 */
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 24rpx;
+  opacity: 0.6;
+}
+
+.empty-title {
+  font-size: 32rpx;
+  color: #333;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+
+.empty-desc {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.location-card {
+  display: flex;
+  align-items: center;
+  background: white;
+  border-radius: 20rpx;
+  padding: 28rpx;
+  margin-top: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.location-icon {
+  font-size: 48rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.location-info {
+  flex: 1;
+}
+
+.location-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4rpx;
+}
+
+.location-desc {
+  display: block;
+  font-size: 22rpx;
+  color: #999;
+}
+
+.location-arrow {
+  font-size: 36rpx;
+  color: #ccc;
+  flex-shrink: 0;
+  margin-left: 12rpx;
+}

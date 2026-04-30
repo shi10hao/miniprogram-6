@@ -1,0 +1,102 @@
+<view class="container">
+  <!-- 标签页 -->
+  <view class="tabs">
+    <view 
+      class="tab {{activeTab === 'reservation' ? 'tab-active' : ''}}" 
+      data-tab="reservation"
+      bindtap="switchTab"
+    >
+      预约记录
+    </view>
+    <view 
+      class="tab {{activeTab === 'usage' ? 'tab-active' : ''}}" 
+      data-tab="usage"
+      bindtap="switchTab"
+    >
+      使用记录
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view wx:if="{{isLoading}}" class="loading">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 预约历史 -->
+  <view wx:if="{{activeTab === 'reservation' && !isLoading}}" class="history-list">
+    <view wx:if="{{reservationHistory.length === 0}}" class="empty">
+      <text>暂无预约记录</text>
+    </view>
+
+    <view 
+      class="history-item" 
+      wx:for="{{reservationHistory}}" 
+      wx:key="_id"
+      wx:for-index="index"
+      data-index="{{index}}"
+      bindtap="viewReservationDetail"
+    >
+      <view class="item-header">
+        <text class="device-name">{{item.device_name}}</text>
+        <text class="status {{item.status_class}}">{{item.status_display}}</text>
+      </view>
+      <view class="item-content">
+        <view class="item-row">
+          <text class="item-label">仪器编号：</text>
+          <text class="item-value">{{item.device_id}}</text>
+        </view>
+        <view class="item-row">
+          <text class="item-label">预约日期：</text>
+          <text class="item-value">{{item.reserve_date}}</text>
+        </view>
+        <view class="item-row">
+          <text class="item-label">预约时段：</text>
+          <text class="item-value">{{item.start_time_display}} - {{item.end_time_display}}</text>
+        </view>
+        <view class="item-row">
+          <text class="item-label">提交时间：</text>
+          <text class="item-value">{{item.formatted_create_time}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 使用历史 -->
+  <view wx:if="{{activeTab === 'usage' && !isLoading}}" class="history-list">
+    <view wx:if="{{usageHistory.length === 0}}" class="empty">
+      <text>暂无使用记录</text>
+    </view>
+
+    <view 
+      class="history-item" 
+      wx:for="{{usageHistory}}" 
+      wx:key="_id"
+      wx:for-index="index"
+      data-index="{{index}}"
+      bindtap="viewUsageDetail"
+    >
+      <view class="item-header">
+        <text class="device-name">{{item.device_name}}</text>
+        <text class="status {{item.status}}">已完成</text>
+      </view>
+      <view class="item-content">
+        <view class="item-row">
+          <text class="item-label">仪器编号：</text>
+          <text class="item-value">{{item.device_id}}</text>
+        </view>
+        <view class="item-row">
+          <text class="item-label">使用日期：</text>
+          <text class="item-value">{{item.usage_date_display}}</text>
+        </view>
+        <view class="item-row">
+          <text class="item-label">使用时段：</text>
+          <text class="item-value">{{item.usage_period_display}}</text>
+        </view>
+        <view class="item-row" wx:if="{{item.usage_images && item.usage_images.length > 0}}">
+          <text class="item-label">使用照片：</text>
+          <text class="item-value">{{item.usage_images.length}}张</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

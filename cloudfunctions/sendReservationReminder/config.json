@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "openapi": ["subscribeMessage.send"]
+  },
+  "triggers": [
+    {
+      "name": "reservationReminderTimer",
+      "type": "timer",
+      "config": "0 */10 * * * *"
+    }
+  ]
+}

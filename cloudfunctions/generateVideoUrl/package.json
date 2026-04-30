@@ -1,0 +1,7 @@
+{
+  "name": "generateVideoUrl",
+  "version": "1.0.0",
+  "description": "获取视频流",
+  "main": "index.js",
+  "dependencies": {}
+}

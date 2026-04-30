@@ -1,0 +1,146 @@
+page {
+  background: #f0f4f8;
+}
+
+.container {
+  min-height: 100vh;
+  padding: 24rpx;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400rpx;
+}
+
+.loading-spinner {
+  width: 60rpx;
+  height: 60rpx;
+  border: 4rpx solid #f0f0f0;
+  border-top: 4rpx solid #62BCC4;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20rpx;
+}
+
+.loading-text {
+  font-size: 28rpx;
+  color: #666;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 500rpx;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 100rpx;
+  margin-bottom: 24rpx;
+  opacity: 0.6;
+}
+
+.empty-title {
+  display: block;
+  font-size: 32rpx;
+  color: #333;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+
+.empty-desc {
+  display: block;
+  font-size: 26rpx;
+  color: #666;
+}
+
+.message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.message-item {
+  background: white;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.message-item:active {
+  transform: translateY(2rpx);
+  box-shadow: 0 1rpx 6rpx rgba(0,0,0,0.1);
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16rpx;
+}
+
+.message-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  flex: 1;
+  margin-right: 20rpx;
+  line-height: 1.4;
+}
+
+.message-time {
+  font-size: 22rpx;
+  color: #999;
+  flex-shrink: 0;
+}
+
+.message-preview {
+  display: block;
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.5;
+  margin-bottom: 16rpx;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.message-type-tag {
+  display: inline-block;
+  font-size: 20rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 12rpx;
+  color: white;
+}
+
+.message-type-tag.reservation_success,
+.message-type-tag.reservation_remind {
+  background: #62BCC4;
+}
+
+.message-type-tag.usage_photo_remind,
+.message-type-tag.usage_end_remind {
+  background: #ffc107;
+  color: #333;
+}
+
+.message-type-tag.admin_notice {
+  background: #7c4dff;
+}
+
+.message-type-tag.system {
+  background: #6c757d;
+}

@@ -1,0 +1,76 @@
+{
+  "libVersion": "3.15.2",
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "pages/admin/login/adminlogin",
+          "pathName": "pages/admin/login/adminlogin",
+          "query": "",
+          "scene": null,
+          "launchMode": "default"
+        },
+        {
+          "name": "pages/auth/login/login",
+          "pathName": "pages/auth/login/login",
+          "query": "",
+          "launchMode": "default",
+          "scene": null
+        },
+        {
+          "name": "pages/profile/profile",
+          "pathName": "pages/profile/profile",
+          "query": "",
+          "launchMode": "default",
+          "scene": null
+        },
+        {
+          "name": "pages/notice/list/noticelist",
+          "pathName": "pages/notice/list/noticelist",
+          "query": "",
+          "launchMode": "default",
+          "scene": null
+        },
+        {
+          "name": "pages/usage/usage",
+          "pathName": "pages/usage/usage",
+          "query": "",
+          "launchMode": "default",
+          "scene": null
+        },
+        {
+          "name": "pages/reservation/reservation",
+          "pathName": "pages/reservation/reservation",
+          "query": "",
+          "launchMode": "default",
+          "scene": null
+        },
+        {
+          "name": "pages/device/list/devicelist",
+          "pathName": "pages/device/list/devicelist",
+          "query": "",
+          "launchMode": "default",
+          "scene": null
+        }
+      ]
+    }
+  },
+  "projectname": "%E9%A2%84%E7%BA%A6%E7%B3%BB%E7%BB%9F_%E5%A4%8D%E6%9F%A5%E5%8F%AF%E8%83%BD%E5%85%BC%E5%AE%B9%E9%94%99%E8%AF%AF_20260429",
+  "setting": {
+    "urlCheck": true,
+    "coverView": true,
+    "lazyloadPlaceholderEnable": false,
+    "skylineRenderEnable": false,
+    "preloadBackgroundData": false,
+    "autoAudits": false,
+    "useApiHook": true,
+    "showShadowRootInWxmlPanel": true,
+    "useStaticServer": false,
+    "useLanDebug": false,
+    "showES6CompileOption": false,
+    "compileHotReLoad": true,
+    "checkInvalidKey": true,
+    "ignoreDevUnusedFiles": true,
+    "bigPackageSizeSupport": false
+  }
+}

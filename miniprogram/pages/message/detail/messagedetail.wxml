@@ -1,0 +1,25 @@
+<view class="container">
+  <view wx:if="{{isLoading}}" class="loading-container">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view wx:elif="{{message}}" class="message-detail">
+    <view class="message-header">
+      <text class="message-title">{{message.title}}</text>
+      <view class="message-meta">
+        <text class="message-time">{{message.create_time}}</text>
+        <text class="message-type {{message.type}}">{{message.typeLabel}}</text>
+      </view>
+    </view>
+
+    <view class="message-content">
+      <text class="content-text">{{message.content}}</text>
+    </view>
+  </view>
+
+  <view wx:else class="empty-container">
+    <text class="empty-title">消息不存在</text>
+    <text class="empty-desc">该消息可能已被删除或无法访问</text>
+  </view>
+</view>

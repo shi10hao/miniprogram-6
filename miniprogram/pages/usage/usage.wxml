@@ -1,0 +1,190 @@
+<view class="container">
+  <view
+    wx:if="{{unreadReminder}}"
+    bindtap="goToReminder"
+    style="margin: 24rpx 0; padding: 24rpx; border-radius: 20rpx; background: linear-gradient(135deg, #fff8e8 0%, #fff2cc 100%); border: 1px solid #f0d48a;"
+  >
+    <view style="display: flex; justify-content: space-between; align-items: center; gap: 16rpx;">
+      <text style="font-size: 30rpx; font-weight: 600; color: #8a5a00;">未读提醒</text>
+      <text style="font-size: 22rpx; color: #8a5a00;">{{unreadReminder.create_time}}</text>
+    </view>
+    <view style="margin-top: 12rpx;">
+      <text style="display: block; font-size: 28rpx; font-weight: 600; color: #333;">{{unreadReminder.title}}</text>
+      <text style="display: block; margin-top: 8rpx; font-size: 24rpx; line-height: 1.6; color: #6b7280;">{{unreadReminder.content}}</text>
+    </view>
+  </view>
+
+  <view class="status-section">
+    <view class="section-header">
+      <text class="section-title">当前使用状态</text>
+    </view>
+
+    <view wx:if="{{!currentUsage}}" class="idle-block">
+      <view class="idle-icon">🔬</view>
+      <text class="idle-text">当前没有使用中的仪器</text>
+      <button class="primary-btn" bindtap="startUsage" disabled="{{isLoading}}">
+        <text>拍照开始使用</text>
+      </button>
+    </view>
+
+    <view wx:else class="using-block">
+      <view class="using-info-row">
+        <text class="using-label">仪器名称</text>
+        <text class="using-value">{{currentUsage.device_name}}</text>
+      </view>
+      <view class="using-info-row">
+        <text class="using-label">仪器编号</text>
+        <text class="using-value">{{currentUsage.device_id}}</text>
+      </view>
+      <view class="using-info-row">
+        <text class="using-label">开始时间</text>
+        <text class="using-value">{{currentUsage.start_time_display}}</text>
+      </view>
+
+      <view wx:if="{{!endMode}}" class="using-actions">
+        <button class="upload-mid-btn" bindtap="uploadUsagePhoto" disabled="{{isLoading}}">
+          <text>上传使用中照片</text>
+        </button>
+        <button class="end-btn" bindtap="startEndUsage" disabled="{{isLoading}}">
+          <text>结束使用</text>
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{pendingReserves.length > 0 && !currentUsage}}" class="pending-section">
+    <view class="section-header">
+      <text class="section-title">待使用预约</text>
+    </view>
+    <view class="pending-list">
+      <view class="pending-item {{item.state}}" wx:for="{{pendingReserves}}" wx:key="_id">
+        <view class="pending-header">
+          <text class="pending-device">{{item.device_name}}</text>
+          <text class="pending-state {{item.state}}">{{item.state === 'ready' ? '可开始' : item.state === 'pending' ? '未到时间' : '已过期'}}</text>
+        </view>
+        <view class="pending-row">
+          <text class="pending-label">预约时段：</text>
+          <text class="pending-val">{{item.start_display}} - {{item.end_display}}</text>
+        </view>
+        <view class="pending-row">
+          <text class="pending-label">仪器编号：</text>
+          <text class="pending-val">{{item.device_id}}</text>
+        </view>
+        <button
+          wx:if="{{item.state === 'ready'}}"
+          class="start-reserve-btn"
+          data-reserveid="{{item._id}}"
+          bindtap="startUsageFromReserve"
+          disabled="{{isLoading}}"
+        >拍照开始使用</button>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{currentUsage}}" class="photo-section">
+    <view wx:if="{{!endMode}}" class="photo-block">
+      <view class="section-header">
+        <text class="section-title">上传照片板块</text>
+      </view>
+      <text style="display: block; margin-bottom: 16rpx; color: #6b7280; font-size: 24rpx;">使用过程中拍摄的照片请在这里上传，提醒消息中的“上传照片板块”即此处。</text>
+      <view wx:if="{{currentUsage.usage_images && currentUsage.usage_images.length > 0}}" class="photos-grid">
+        <view class="photo-item" wx:for="{{currentUsage.usage_images}}" wx:key="*this">
+          <image class="photo-img" src="{{item}}" mode="aspectFill"></image>
+        </view>
+      </view>
+      <view wx:else class="empty-photos">
+        <text class="empty-photos-text">暂无使用中照片</text>
+      </view>
+    </view>
+
+    <view wx:if="{{endMode}}" class="end-photo-block">
+      <view class="section-header">
+        <text class="section-title">结束使用照片上传</text>
+        <text class="section-hint">请上传 3 张结束照片后再确认结束</text>
+      </view>
+
+      <view class="end-photo-slot">
+        <text class="slot-label">1. 值日照（实验室已清洁）</text>
+        <view class="slot-upload" bindtap="pickEndPhoto" data-slot="0">
+          <view wx:if="{{endPhotos[0]}}" class="slot-preview">
+            <image class="slot-img" src="{{endPhotos[0]}}" mode="aspectFill"></image>
+            <view class="slot-done-badge">已选</view>
+          </view>
+          <view wx:else class="slot-empty">
+            <text class="slot-plus">+</text>
+            <text class="slot-tip">点击拍照/选择</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="end-photo-slot">
+        <text class="slot-label">2. 仪器已关闭照片</text>
+        <view class="slot-upload" bindtap="pickEndPhoto" data-slot="1">
+          <view wx:if="{{endPhotos[1]}}" class="slot-preview">
+            <image class="slot-img" src="{{endPhotos[1]}}" mode="aspectFill"></image>
+            <view class="slot-done-badge">已选</view>
+          </view>
+          <view wx:else class="slot-empty">
+            <text class="slot-plus">+</text>
+            <text class="slot-tip">点击拍照/选择</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="end-photo-slot">
+        <text class="slot-label">3. 实验室已关门照片</text>
+        <view class="slot-upload" bindtap="pickEndPhoto" data-slot="2">
+          <view wx:if="{{endPhotos[2]}}" class="slot-preview">
+            <image class="slot-img" src="{{endPhotos[2]}}" mode="aspectFill"></image>
+            <view class="slot-done-badge">已选</view>
+          </view>
+          <view wx:else class="slot-empty">
+            <text class="slot-plus">+</text>
+            <text class="slot-tip">点击拍照/选择</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="end-actions">
+        <button class="cancel-end-btn" bindtap="cancelEnd" disabled="{{isLoading}}">取消</button>
+        <button
+          class="confirm-end-btn {{endPhotos[0] && endPhotos[1] && endPhotos[2] ? '' : 'disabled'}}"
+          bindtap="confirmEndUsage"
+          disabled="{{isLoading || !endPhotos[0] || !endPhotos[1] || !endPhotos[2]}}"
+        >
+          {{isLoading ? '提交中...' : '确认结束使用'}}
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <view class="history-section">
+    <view class="section-header">
+      <text class="section-title">使用记录</text>
+    </view>
+
+    <view wx:if="{{isLoading && !currentUsage}}" class="loading-text">加载中...</view>
+    <view wx:elif="{{usageHistory.length === 0}}" class="empty-history">暂无使用记录</view>
+
+    <view wx:else class="history-list">
+      <view class="history-item" wx:for="{{usageHistory}}" wx:key="_id">
+        <view class="history-header">
+          <text class="history-device">{{item.device_name}}</text>
+          <text class="history-status {{item.status}}">已完成</text>
+        </view>
+        <view class="history-row">
+          <text class="history-label">仪器编号：</text>
+          <text class="history-val">{{item.device_id}}</text>
+        </view>
+        <view class="history-row">
+          <text class="history-label">使用日期：</text>
+          <text class="history-val">{{item.usage_date_display}}</text>
+        </view>
+        <view class="history-row">
+          <text class="history-label">使用时段：</text>
+          <text class="history-val">{{item.usage_period_display}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

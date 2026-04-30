@@ -1,0 +1,192 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 30rpx;
+}
+
+/* 功能卡片 */
+.card-container {
+  margin-bottom: 40rpx;
+}
+
+.function-cards {
+  display: flex;
+  gap: 24rpx;
+}
+
+.function-card {
+  flex: 1;
+  background: white;
+  border-radius: 20rpx;
+  padding: 40rpx 30rpx;
+  text-align: center;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
+  transition: all 0.3s ease;
+}
+
+.function-card:active {
+  transform: translateY(4rpx);
+  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.12);
+}
+
+.function-card.large {
+  flex: 1;
+}
+
+.card-icon {
+  font-size: 60rpx;
+  margin-bottom: 20rpx;
+  display: block;
+}
+
+.card-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12rpx;
+}
+
+.card-desc {
+  display: block;
+  font-size: 24rpx;
+  color: #666;
+}
+
+/* 常用仪器 */
+.common-devices {
+  background: white;
+  border-radius: 20rpx;
+  padding: 40rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.section-more {
+  font-size: 24rpx;
+  color: #62BCC4;
+}
+
+.loading {
+  text-align: center;
+  padding: 50rpx 0;
+  color: #666;
+  font-size: 28rpx;
+}
+
+.device-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24rpx;
+}
+
+.device-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20rpx 0;
+  min-width: 0;
+}
+
+.device-img {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 16rpx;
+  object-fit: cover;
+  margin-bottom: 16rpx;
+}
+
+.device-name {
+  display: block;
+  font-size: 24rpx;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
+}
+
+/* 空仪器项样式 */
+.empty-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+}
+
+.empty-device-icon {
+  font-size: 40rpx;
+  margin-bottom: 12rpx;
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 16rpx;
+  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx dashed #e9ecef;
+}
+
+.empty-device-text {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 最新公告 */
+.latest-notices {
+  background: white;
+  border-radius: 20rpx;
+  padding: 40rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
+}
+
+.notice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.notice-item {
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.notice-item:last-child {
+  border-bottom: none;
+}
+
+.notice-title {
+  display: block;
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 12rpx;
+  line-height: 1.4;
+}
+
+.notice-date {
+  display: block;
+  font-size: 22rpx;
+  color: #999;
+}
+
+.no-notice {
+  text-align: center;
+  padding: 40rpx 0;
+  color: #999;
+  font-size: 26rpx;
+}

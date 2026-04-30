@@ -1,0 +1,25 @@
+<view class="container">
+  <view class="header">
+    <text class="title">{{deviceName}} - 注意事项</text>
+  </view>
+
+  <view class="content">
+    <!-- 结构化数据显示 -->
+    <view wx:if="{{isStructured}}">
+      <view wx:for="{{categories}}" wx:key="title" class="category">
+        <view class="category-title">{{item.title}}</view>
+        <view wx:for="{{item.items}}" wx:key="*this" class="item">
+          <view class="item-content">
+            <text class="item-icon">⚠️</text>
+            <text class="item-text">{{item}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 旧版纯文本显示 -->
+    <view wx:else>
+      <text class="plain-text">{{plainText}}</text>
+    </view>
+  </view>
+</view>

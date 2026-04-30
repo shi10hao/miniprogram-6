@@ -1,0 +1,47 @@
+<view class="container">
+  <view class="header">
+    <text class="title">{{deviceName}} - 操作视频</text>
+  </view>
+
+  <view class="content">
+    <!-- 加载状态 -->
+    <view wx:if="{{isLoading}}" class="loading-container">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">视频加载中...</text>
+    </view>
+
+    <!-- 视频播放器 -->
+    <view wx:elif="{{hasVideo}}" class="video-container">
+      <video 
+        src="{{videoUrl}}" 
+        controls 
+        autoplay="{{false}}"
+        class="video-player"
+        binderror="onVideoError"
+        bindplay="onVideoPlay"
+        bindended="onVideoEnded"
+        bindloadedmetadata="onVideoLoad"
+        danmu-list="{{[]}}"
+        show-center-play-btn="{{true}}"
+        show-play-btn="{{true}}"
+        enable-play-gesture="{{true}}"
+        object-fit="contain"
+      ></video>
+      <view class="video-controls">
+        <button class="reload-btn" bindtap="reloadVideo">重新加载视频</button>
+      </view>
+      <view class="video-tips">
+        <text class="tip-text">💡 提示：点击全屏按钮获得最佳观看体验</text>
+        <text class="tip-text">📱 支持手势控制播放/暂停</text>
+      </view>
+    </view>
+    
+    <!-- 无视频状态 -->
+    <view wx:else class="empty-content">
+      <text class="empty-icon">🎬</text>
+      <text class="empty-title">暂无操作视频</text>
+      <text class="empty-desc">请联系管理员上传操作视频资料</text>
+      <button class="back-btn" bindtap="navigateBack">返回上一页</button>
+    </view>
+  </view>
+</view>

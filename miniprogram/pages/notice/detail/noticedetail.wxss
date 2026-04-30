@@ -1,0 +1,57 @@
+.container {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  padding: 20rpx 0 30rpx; 
+}
+
+.loading {
+  text-align: center;
+  padding: 150rpx 0;
+  color: #666;
+  font-size: 30rpx;
+}
+
+/* 详情内容容器 */
+.detail-content {
+  background-color: white;
+  margin: 0 20rpx;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+}
+
+/* 正文标题 */
+.detail-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #eee;
+  margin-bottom: 20rpx;
+  line-height: 1.5;
+}
+
+/* 发布日期 */
+.detail-date {
+  font-size: 26rpx;
+  color: #999;
+  margin-bottom: 25rpx;
+  padding-left: 5rpx;
+}
+
+/* 正文内容 */
+.detail-content-text {
+  font-size: 30rpx;
+  color: #333;
+  line-height: 1.8;
+  padding: 10rpx 5rpx;
+  white-space: pre-line; 
+}
+
+/* 空状态 */
+.empty {
+  text-align: center;
+  padding: 150rpx 0;
+  color: #999;
+  font-size: 30rpx;
+}

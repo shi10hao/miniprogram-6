@@ -1,0 +1,167 @@
+<view class="container">
+  <view class="header">
+    <text class="device-name">{{deviceName}}</text>
+  </view>
+
+  <view wx:if="{{isLoading}}" class="center-hint">
+    <view class="loading-spin"></view>
+    <text>加载中...</text>
+  </view>
+
+  <view wx:else class="content">
+    <view class="section">
+      <text class="section-title">仪器实例（{{devices.length}}台）</text>
+      <view class="device-list">
+        <view class="device-item" wx:for="{{devices}}" wx:key="_id">
+          <view class="device-row">
+            <text class="device-id">{{item.device_id}}</text>
+            <view class="status-badge {{item.displayStatus}}">
+              {{item.displayStatus === 'available' ? '可用' : item.displayStatus === 'using' ? '使用中' : '维护中'}}
+            </view>
+          </view>
+
+          <text wx:if="{{item.usingUser}}" class="device-id-small">当前使用人：{{item.usingUser}}</text>
+
+          <button
+            class="maint-btn {{item.status === 'maintenance' ? 'active' : ''}}"
+            bindtap="toggleMaintenance"
+            data-id="{{item._id}}"
+            data-device-id="{{item.device_id}}"
+            data-display-status="{{item.displayStatus}}"
+            disabled="{{item.displayStatus === 'using'}}">
+            {{item.displayStatus === 'using' ? '使用中不可切换' : item.status === 'maintenance' ? '恢复可用' : '设为维护'}}
+          </button>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">当前使用（{{usages.length}}）</text>
+      <view wx:if="{{usages.length === 0}}" class="empty-hint">暂无正在使用记录</view>
+      <view wx:else class="usage-list">
+        <view class="usage-item" wx:for="{{usages}}" wx:key="_id" wx:for-item="usage">
+          <view class="usage-header">
+            <text class="user-name">{{usage.student_name || usage.user_id}}</text>
+            <text class="duration">已使用 {{usage.durationDisplay}}</text>
+          </view>
+          <text class="device-id-small">设备：{{usage.device_id}}</text>
+
+          <view wx:if="{{usage.startPhotoUrl}}" class="photo-section">
+            <text class="photo-label">开始照片</text>
+            <image
+              class="usage-photo"
+              src="{{usage.startPhotoUrl}}"
+              mode="aspectFill"
+              bindtap="previewPhoto"
+              data-url="{{usage.startPhotoUrl}}"
+              data-urls="{{usage.allPhotoUrls}}"></image>
+          </view>
+
+          <view wx:if="{{usage.usageImageUrls.length > 0}}" class="photo-section">
+            <text class="photo-label">使用照片（{{usage.usageImageUrls.length}}）</text>
+            <view class="photo-grid">
+              <image
+                class="usage-photo"
+                wx:for="{{usage.usageImageUrls}}"
+                wx:key="*this"
+                wx:for-item="photo"
+                src="{{photo}}"
+                mode="aspectFill"
+                bindtap="previewPhoto"
+                data-url="{{photo}}"
+                data-urls="{{usage.allPhotoUrls}}"></image>
+            </view>
+          </view>
+
+          <view wx:if="{{usage.endPhotoItems.length > 0}}" class="photo-section">
+            <text class="photo-label">结束核验照片</text>
+            <view class="photo-grid">
+              <view class="photo-item" wx:for="{{usage.endPhotoItems}}" wx:key="key" wx:for-item="endPhoto">
+                <image
+                  class="usage-photo"
+                  src="{{endPhoto.url}}"
+                  mode="aspectFill"
+                  bindtap="previewPhoto"
+                  data-url="{{endPhoto.url}}"
+                  data-urls="{{usage.allPhotoUrls}}"></image>
+                <text class="photo-tip">{{endPhoto.label}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">使用照片记录（{{usagePhotos.length}}）</text>
+      <view wx:if="{{usagePhotos.length === 0}}" class="empty-hint">暂无上传照片记录</view>
+      <view wx:else class="usage-list">
+        <view class="usage-item" wx:for="{{usagePhotos}}" wx:key="_id" wx:for-item="record">
+          <view class="usage-header">
+            <text class="user-name">{{record.student_name || record.user_id}}</text>
+            <text class="duration">{{record.status === 'using' ? '使用中' : record.status === 'completed' ? '已完成' : record.status}}</text>
+          </view>
+          <text class="device-id-small">设备：{{record.device_id}}</text>
+
+          <view wx:if="{{record.startPhotoUrl}}" class="photo-section">
+            <text class="photo-label">开始照片</text>
+            <image
+              class="usage-photo"
+              src="{{record.startPhotoUrl}}"
+              mode="aspectFill"
+              bindtap="previewPhoto"
+              data-url="{{record.startPhotoUrl}}"
+              data-urls="{{record.allPhotoUrls}}"></image>
+          </view>
+
+          <view wx:if="{{record.usageImageUrls.length > 0}}" class="photo-section">
+            <text class="photo-label">使用照片（{{record.usageImageUrls.length}}）</text>
+            <view class="photo-grid">
+              <image
+                class="usage-photo"
+                wx:for="{{record.usageImageUrls}}"
+                wx:key="*this"
+                wx:for-item="photo"
+                src="{{photo}}"
+                mode="aspectFill"
+                bindtap="previewPhoto"
+                data-url="{{photo}}"
+                data-urls="{{record.allPhotoUrls}}"></image>
+            </view>
+          </view>
+
+          <view wx:if="{{record.endPhotoItems.length > 0}}" class="photo-section">
+            <text class="photo-label">结束核验照片</text>
+            <view class="photo-grid">
+              <view class="photo-item" wx:for="{{record.endPhotoItems}}" wx:key="key" wx:for-item="endPhoto">
+                <image
+                  class="usage-photo"
+                  src="{{endPhoto.url}}"
+                  mode="aspectFill"
+                  bindtap="previewPhoto"
+                  data-url="{{endPhoto.url}}"
+                  data-urls="{{record.allPhotoUrls}}"></image>
+                <text class="photo-tip">{{endPhoto.label}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">即将到来的预约（{{reserves.length}}）</text>
+      <view wx:if="{{reserves.length === 0}}" class="empty-hint">暂无预约</view>
+      <view wx:else class="reserve-list">
+        <view class="reserve-item" wx:for="{{reserves}}" wx:key="_id">
+          <view class="reserve-header">
+            <text class="user-name">{{item.student_name || item.user_id}}</text>
+            <text class="reserve-date">{{item.dateDisplay}}</text>
+          </view>
+          <text class="reserve-time">{{item.timeDisplay}}</text>
+          <text class="device-id-small">设备：{{item.device_id}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

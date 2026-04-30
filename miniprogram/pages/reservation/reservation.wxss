@@ -1,0 +1,397 @@
+.reservation-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 20rpx 30rpx 40rpx;
+  box-sizing: border-box;
+}
+
+/* 卡片通用样式 */
+.info-card,
+.filter-card,
+.device-card,
+.time-card {
+  background: white;
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
+  margin-bottom: 24rpx;
+  overflow: hidden;
+}
+
+/* 卡片标题 */
+.info-header,
+.filter-header,
+.device-header,
+.time-header {
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.info-title,
+.filter-title,
+.device-title,
+.time-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+/* 用户信息 */
+.info-content {
+  padding: 30rpx;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.info-row:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  font-size: 28rpx;
+  color: #666;
+  min-width: 140rpx;
+}
+
+.info-value {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+/* 筛选按钮 */
+.filter-buttons {
+  display: flex;
+  padding: 30rpx;
+  gap: 20rpx;
+}
+
+.filter-btn {
+  flex: 1;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: #f8f9fa;
+  color: #666;
+  border: none;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  transition: all 0.3s;
+}
+
+.filter-btn.active {
+  background: #62BCC4;
+  color: white;
+  font-weight: 600;
+}
+
+/* 设备列表 */
+.device-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.device-count {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.loading, .empty {
+  text-align: center;
+  padding: 60rpx 0;
+  color: #666;
+  font-size: 28rpx;
+}
+
+.empty-icon {
+  font-size: 60rpx;
+  display: block;
+  margin-bottom: 20rpx;
+  opacity: 0.5;
+}
+
+.device-list {
+  max-height: 500rpx;
+}
+
+.device-item {
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.device-item:active {
+  background: #f8f9fa;
+}
+
+.device-item.selected {
+  background: #e8f4f5;
+  border-left: 4rpx solid #62BCC4;
+}
+
+.device-name {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  flex-shrink: 0;
+  margin-right: 12rpx;
+}
+
+.device-name-row {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 16rpx;
+}
+
+.device-model-inline {
+  font-size: 24rpx;
+  color: #999;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.device-remaining {
+  font-size: 22rpx;
+  color: #51cf66;
+  font-weight: 500;
+  flex-shrink: 0;
+  margin-left: 8rpx;
+}
+
+.device-remaining.hidden-when-selected {
+  display: none;
+}
+
+.device-location-row {
+  display: flex;
+  align-items: center;
+  margin-top: 4rpx;
+}
+
+.device-lab-name {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.device-room-text {
+  font-size: 24rpx;
+  color: #999;
+  margin-left: 4rpx;
+}
+
+.device-tags {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+
+.device-tag {
+  font-size: 22rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 12rpx;
+  font-weight: 500;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40rpx;
+  line-height: 1;
+  box-sizing: border-box;
+  min-width: 120rpx;
+}
+
+.device-tag.lab.public {
+  background: #62BCC4;
+}
+
+.device-tag.lab.group {
+  background: #ffc107;
+  color: #333;
+}
+
+.device-tag.type.large {
+  background: #e74c3c;
+}
+
+.device-tag.type.small {
+  background: #2ecc71;
+}
+
+.conflict-warning {
+  background: #fff3cd;
+  border: 1rpx solid #ffc107;
+  border-radius: 8rpx;
+  padding: 16rpx;
+  margin-top: 16rpx;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.warning-icon {
+  font-size: 24rpx;
+  color: #ffc107;
+}
+
+.warning-text {
+  font-size: 24rpx;
+  color: #856404;
+}
+
+.selected-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36rpx;
+  height: 36rpx;
+  background: #62BCC4;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-left: 8rpx;
+}
+
+.selected-icon {
+  color: white;
+  font-size: 22rpx;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* 时间选择 */
+.time-section {
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.time-section:last-child {
+  border-bottom: none;
+}
+
+.time-label {
+  display: block;
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 20rpx;
+}
+
+.time-picker {
+  display: block;
+}
+
+.picker-view {
+  width: 100%;
+  height: 80rpx;
+  line-height: 80rpx;
+  border: 2rpx solid #e1e1e1;
+  border-radius: 12rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: #333;
+  background: white;
+  box-sizing: border-box;
+  transition: all 0.3s;
+}
+
+.picker-view:active {
+  background: #f8f9fa;
+}
+
+/* 冲突提示 */
+.conflict-alert {
+  background: #f8d7da;
+  border: 1rpx solid #f5c6cb;
+  border-radius: 8rpx;
+  margin: 0 30rpx 30rpx;
+  padding: 20rpx;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.alert-icon {
+  font-size: 28rpx;
+  color: #721c24;
+}
+
+.alert-text {
+  font-size: 26rpx;
+  color: #721c24;
+  font-weight: 500;
+}
+
+/* 提交按钮 */
+.submit-btn {
+  width: 100%;
+  height: 96rpx;
+  line-height: 96rpx;
+  background: #62BCC4;
+  color: white;
+  border-radius: 48rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  border: none;
+  box-shadow: 0 8rpx 20rpx rgba(98, 188, 196, 0.3);
+  margin: 30rpx 0;
+  transition: all 0.3s;
+}
+
+.submit-btn:active {
+  background: #4aa8b0;
+  transform: translateY(2rpx);
+  box-shadow: 0 4rpx 12rpx rgba(98, 188, 196, 0.4);
+}
+
+.submit-btn.disabled {
+  background: #cccccc;
+  box-shadow: none;
+  transform: none;
+}
+
+/* 说明 */
+.instructions {
+  background: rgba(98, 188, 196, 0.1);
+  border-radius: 12rpx;
+  padding: 30rpx;
+  margin-top: 20rpx;
+}
+
+.instructions-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20rpx;
+}
+
+.instruction-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 12rpx;
+}
+
+.instruction-item:last-child {
+  margin-bottom: 0;
+}
+
+.bullet {
+  color: #62BCC4;
+  font-size: 24rpx;
+  margin-right: 12rpx;
+  line-height: 1.4;
+}
+
+.instruction-text {
+  flex: 1;
+  font-size: 24rpx;
+  color: #666;
+  line-height: 1.4;
+}

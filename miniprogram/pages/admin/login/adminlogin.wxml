@@ -1,0 +1,37 @@
+<view class="container">
+  <view class="header">
+    <text class="title">管理端登录</text>
+  </view>
+
+  <view class="form-card">
+    <view class="input-group">
+      <text class="input-label">账号（工号）</text>
+      <input
+        class="input-field"
+        placeholder="请输入教师/管理员账号"
+        value="{{username}}"
+        bindinput="onUsernameInput" />
+    </view>
+
+    <view class="input-group">
+      <text class="input-label">密码（手机号）</text>
+      <input
+        class="input-field"
+        type="password"
+        placeholder="请输入手机号"
+        value="{{password}}"
+        bindinput="onPasswordInput" />
+    </view>
+
+    <button
+      class="login-btn {{isLogging ? 'disabled' : ''}}"
+      bindtap="adminLogin"
+      disabled="{{isLogging}}">
+      {{isLogging ? '登录中...' : '登录'}}
+    </button>
+
+    <view class="student-link" bindtap="backToStudentAuth">
+      返回学生认证
+    </view>
+  </view>
+</view>

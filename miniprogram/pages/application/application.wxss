@@ -1,0 +1,182 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 30rpx;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 50rpx;
+  padding: 40rpx 0;
+}
+
+.page-title {
+  display: block;
+  font-size: 42rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+.page-subtitle {
+  display: block;
+  font-size: 28rpx;
+  color: #666;
+}
+
+/* 功能网格 */
+.function-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+  margin-bottom: 50rpx;
+}
+
+.function-card {
+  background: white;
+  border-radius: 20rpx;
+  padding: 40rpx 30rpx;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.function-card:active {
+  transform: translateY(4rpx);
+  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.12);
+}
+
+.function-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4rpx;
+  background: inherit;
+  border-top-left-radius: 20rpx;
+  border-top-right-radius: 20rpx;
+}
+
+.function-icon {
+  font-size: 60rpx;
+  margin-right: 30rpx;
+  width: 80rpx;
+  text-align: center;
+}
+
+.function-info {
+  flex: 1;
+}
+
+.function-name {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.function-desc {
+  display: block;
+  font-size: 24rpx;
+  color: #666;
+}
+
+.function-arrow {
+  font-size: 32rpx;
+  color: #999;
+  font-weight: bold;
+  margin-left: 20rpx;
+}
+
+/* 快速入口 */
+.quick-access {
+  background: white;
+  border-radius: 20rpx;
+  padding: 40rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 30rpx;
+  text-align: center;
+}
+
+.quick-buttons {
+  display: flex;
+  justify-content: center;
+}
+
+.quick-btn {
+  background: linear-gradient(135deg, #62BCC4, #4aa8b0);
+  color: white;
+  border: none;
+  border-radius: 50rpx;
+  padding: 24rpx 48rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  box-shadow: 0 6rpx 20rpx rgba(98, 188, 196, 0.3);
+}
+
+.quick-btn:active {
+  transform: translateY(2rpx);
+  box-shadow: 0 4rpx 12rpx rgba(98, 188, 196, 0.4);
+}
+
+.quick-icon {
+  font-size: 32rpx;
+}
+
+.quick-text {
+  font-size: 28rpx;
+}
+
+/* 使用提示 */
+.usage-tips {
+  background: white;
+  border-radius: 20rpx;
+  padding: 40rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
+}
+
+.tips-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 30rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.tips-icon {
+  font-size: 32rpx;
+  margin-right: 16rpx;
+}
+
+.tips-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.tips-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.tip-item {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.5;
+}

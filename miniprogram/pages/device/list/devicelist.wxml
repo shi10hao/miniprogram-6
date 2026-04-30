@@ -1,0 +1,145 @@
+<view class="container">
+  <!-- 统计信息卡片 -->
+  <view class="stats-card">
+    <view class="stats-grid">
+      <view class="stat-item">
+        <text class="stat-number">{{stats.total}}</text>
+        <text class="stat-label">总仪器</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-number">{{stats.public}}</text>
+        <text class="stat-label">公共实验室</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-number">{{stats.group}}</text>
+        <text class="stat-label">课题组</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-number">{{stats.large}}/{{stats.small}}</text>
+        <text class="stat-label">大型/小型</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 搜索区域 -->
+  <view class="search-section">
+    <view class="search-box">
+      <input 
+        class="search-input" 
+        placeholder="搜索仪器名称、实验室..." 
+        bindinput="onSearchInput"
+        value="{{filters.searchKeyword}}"
+      />
+      <text class="search-icon">🔍</text>
+      <text class="clear-search" wx:if="{{filters.searchKeyword}}" bindtap="clearSearch">✕</text>
+    </view>
+  </view>
+
+  <!-- 筛选区域 -->
+  <view class="filter-section">
+    <!-- 实验室类型筛选 -->
+    <view class="filter-group">
+      <text class="filter-label">实验室类型</text>
+      <view class="filter-buttons">
+        <text 
+          class="filter-btn {{filters.labType === 'all' ? 'active' : ''}}" 
+          data-type="all"
+          bindtap="onLabTypeChange"
+        >全部</text>
+        <text 
+          class="filter-btn {{filters.labType === 'public' ? 'active' : ''}}" 
+          data-type="public"
+          bindtap="onLabTypeChange"
+        >公共实验室</text>
+        <text 
+          class="filter-btn {{filters.labType === 'group' ? 'active' : ''}}" 
+          data-type="group"
+          bindtap="onLabTypeChange"
+        >课题组</text>
+      </view>
+    </view>
+
+    <!-- 仪器类型筛选 -->
+    <view class="filter-group">
+      <text class="filter-label">仪器类型</text>
+      <view class="filter-buttons">
+        <text 
+          class="filter-btn {{filters.deviceType === 'all' ? 'active' : ''}}" 
+          data-type="all"
+          bindtap="onDeviceTypeChange"
+        >全部</text>
+        <text 
+          class="filter-btn {{filters.deviceType === 'large' ? 'active' : ''}}" 
+          data-type="large"
+          bindtap="onDeviceTypeChange"
+        >大型仪器</text>
+        <text 
+          class="filter-btn {{filters.deviceType === 'small' ? 'active' : ''}}" 
+          data-type="small"
+          bindtap="onDeviceTypeChange"
+        >小型仪器</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view wx:if="{{isLoading}}" class="loading">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 仪器列表 -->
+  <view wx:else class="device-list">
+    <view wx:if="{{filteredDevices.length === 0}}" class="empty">
+      <text class="empty-icon">🔍</text>
+      <text class="empty-text">暂无符合条件的仪器</text>
+      <text class="empty-desc">请尝试调整筛选条件</text>
+    </view>
+
+    <view 
+      class="device-card" 
+      wx:for="{{filteredDevices}}" 
+      wx:key="groupKey"
+      data-deviceid="{{item.primaryDeviceId}}"
+      bindtap="goToDetail"
+    >
+      <!-- 设备头信息 -->
+      <view class="card-header">
+        <view class="device-basic">
+          <view class="device-name-row">
+            <text class="device-name">{{item.device_name}}</text>
+            <text wx:if="{{item.model}}" class="device-model">{{item.model}}</text>
+            <view class="device-count-badge">
+              <text class="count-text">{{item.totalCount}}台</text>
+            </view>
+          </view>
+          <view class="device-tags">
+            <view class="device-tag lab {{item.lab_type}}">
+              {{item.labTypeLabel}}
+            </view>
+            <view class="device-tag type {{item.device_type}}">
+              {{item.deviceTypeLabel}}
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 设备图片 -->
+      <view class="device-image">
+        <image 
+          class="device-img" 
+          src="{{item.picture}}" 
+          mode="aspectFill"
+        ></image>
+        <view class="lab-info">
+          <text class="lab-name">{{item.lab_name}}</text>
+          <text class="lab-room">{{item.device_room}}</text>
+        </view>
+      </view>
+
+      <!-- 设备描述 -->
+      <view class="device-desc">
+        <text class="desc-text">{{item.description || '暂无描述'}}</text>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,73 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/device/list/devicelist",
+    "pages/reservation/reservation",
+    "pages/usage/usage",
+    "pages/notice/list/noticelist",
+    "pages/profile/profile",
+    "pages/auth/login/login",
+    "pages/auth/auth",
+    "pages/device/detail/devicedetail",
+    "pages/device/procedure/procedure",
+    "pages/device/video/video",
+    "pages/device/precautions/precautions",
+    "pages/notice/detail/noticedetail",
+    "pages/feedback/feedback",
+    "pages/duty-upload/duty-upload",
+    "pages/about/about",
+    "pages/appointment/appointment",
+    "pages/application/application",
+    "pages/message/list/messagelist",
+    "pages/message/detail/messagedetail",
+    "pages/admin/login/adminlogin",
+    "pages/admin/admin",
+    "pages/admin/device-detail/admindevicedetail",
+    "pages/admin/reserve-list/adminreservelist"
+  ],
+  "subPackages": [
+    {
+      "root": "pages/webview",
+      "pages": [
+        "3dscene/scene3d"
+      ]
+    }
+  ],
+  "lazyCodeLoading": "requiredComponents",
+  "window": {
+    "backgroundColor": "#B9B9B9",
+    "navigationBarBackgroundColor": "#62BCC4",
+    "navigationBarTitleText": "资源与环境工程学院实验室管理系统",
+    "navigationBarTextStyle": "white",
+    "enablePullDownRefresh": true
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#62BCC4",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/application/application",
+        "text": "应用"
+      },
+      {
+        "pagePath": "pages/message/list/messagelist",
+        "text": "消息"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的"
+      }
+    ]
+  },
+  "networkTimeout": {
+    "request": 10000,
+    "downloadFile": 10000
+  },
+  "debug": false
+}

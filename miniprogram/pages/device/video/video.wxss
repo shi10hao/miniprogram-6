@@ -1,0 +1,140 @@
+.container {
+  min-height: 100vh;
+  background: #f8f9fa;
+}
+
+.header {
+  background: white;
+  padding: 30rpx;
+  text-align: center;
+  border-bottom: 1rpx solid #eee;
+}
+
+.title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.content {
+  padding: 30rpx;
+}
+
+/* 加载状态 */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400rpx;
+  background: white;
+  border-radius: 16rpx;
+}
+
+.loading-spinner {
+  width: 60rpx;
+  height: 60rpx;
+  border: 4rpx solid #f0f0f0;
+  border-top: 4rpx solid #62BCC4;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20rpx;
+}
+
+.loading-text {
+  font-size: 28rpx;
+  color: #666;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 视频容器 */
+.video-container {
+  background: white;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.video-player {
+  width: 100%;
+  height: 400rpx;
+  border-radius: 12rpx;
+  background: #000;
+}
+
+.video-controls {
+  margin: 20rpx 0;
+  text-align: center;
+}
+
+.reload-btn {
+  background: #62BCC4;
+  color: white;
+  border: none;
+  border-radius: 8rpx;
+  padding: 16rpx 32rpx;
+  font-size: 26rpx;
+}
+
+.video-tips {
+  background: #f8f9fa;
+  padding: 20rpx;
+  border-radius: 8rpx;
+  border-left: 4rpx solid #62BCC4;
+}
+
+.tip-text {
+  display: block;
+  font-size: 24rpx;
+  color: #666;
+  margin-bottom: 8rpx;
+}
+
+.tip-text:last-child {
+  margin-bottom: 0;
+}
+
+/* 空状态 */
+.empty-content {
+  background: white;
+  border-radius: 16rpx;
+  padding: 60rpx 30rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
+  display: block;
+  opacity: 0.6;
+}
+
+.empty-title {
+  font-size: 32rpx;
+  color: #333;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+  display: block;
+}
+
+.empty-desc {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 40rpx;
+  display: block;
+  line-height: 1.5;
+}
+
+.back-btn {
+  background: #62BCC4;
+  color: white;
+  border: none;
+  border-radius: 8rpx;
+  padding: 20rpx 40rpx;
+  font-size: 28rpx;
+}

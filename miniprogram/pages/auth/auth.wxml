@@ -1,0 +1,110 @@
+<view class="auth-container">
+  <view wx:if="{{showWechatModal}}" class="modal-mask" catchtap="closeModal">
+    <view class="modal-dialog" catchtap="stopPropagation">
+      <view class="modal-header">
+        <view class="wechat-icon">
+          <view class="wechat-bubble bubble-back">
+            <view class="bubble-dot dot-left"></view>
+            <view class="bubble-dot dot-center"></view>
+            <view class="bubble-dot dot-right"></view>
+          </view>
+          <view class="wechat-bubble bubble-front">
+            <view class="bubble-dot dot-left"></view>
+            <view class="bubble-dot dot-center"></view>
+            <view class="bubble-dot dot-right"></view>
+          </view>
+        </view>
+        <text class="modal-title">微信快捷登录</text>
+        <text class="modal-subtitle">请先完成微信登录，再进行身份认证</text>
+      </view>
+      <view class="modal-body">
+        <button class="wechat-login-btn" bindtap="onWechatLogin">
+          <text class="btn-text">微信快捷登录</text>
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <view class="auth-header">
+    <text class="auth-title">学生身份认证</text>
+    <text class="auth-subtitle">请完成以下信息认证</text>
+  </view>
+
+  <view class="form-card">
+    <view class="form-item">
+      <text class="form-label">学号</text>
+      <input
+        class="form-input"
+        placeholder="请输入学号"
+        value="{{studentId}}"
+        bindinput="onStudentIdInput"
+        maxlength="20"
+      />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">手机号</text>
+      <input
+        class="form-input"
+        placeholder="请输入11位手机号"
+        value="{{phone}}"
+        bindinput="onPhoneInput"
+        type="number"
+        maxlength="11"
+      />
+    </view>
+
+    <view class="form-item">
+      <button
+        class="verify-button {{isVerifying ? 'verifying' : ''}}"
+        bindtap="verifyStudent"
+        disabled="{{isVerifying || !canVerify}}"
+      >
+        {{isVerifying ? '验证中...' : '验证'}}
+      </button>
+
+      <view class="status-display">
+        <text wx:if="{{verificationStatus === 'success'}}" class="status-success">
+          学号和手机号验证成功
+        </text>
+        <text wx:if="{{verificationStatus === 'error'}}" class="status-error">
+          学号或手机号不匹配，请检查后重试
+        </text>
+      </view>
+    </view>
+
+    <view class="form-item" wx:if="{{studentInfo}}">
+      <text class="form-label">姓名</text>
+      <input class="form-input disabled" value="{{name}}" disabled />
+    </view>
+
+    <view class="form-item" wx:if="{{studentInfo}}">
+      <text class="form-label">专业</text>
+      <input class="form-input disabled" value="{{major}}" disabled />
+    </view>
+
+    <view class="form-item" wx:if="{{studentInfo}}">
+      <text class="form-label">课题组</text>
+      <input class="form-input disabled" value="{{groupName}}" disabled />
+    </view>
+  </view>
+
+  <button
+    class="submit-button {{!isStudentVerified ? 'disabled' : ''}}"
+    bindtap="submitAuth"
+    disabled="{{!isStudentVerified}}"
+  >
+    立即登录
+  </button>
+
+  <view class="info-card">
+    <view class="info-title">认证说明</view>
+    <view class="info-item">1. 请输入真实学号和手机号后点击验证按钮。</view>
+    <view class="info-item">2. 系统将自动填充您的个人信息。</view>
+    <view class="info-item">3. 请确保手机号准确无误。</view>
+  </view>
+
+  <view class="admin-entry">
+    <button class="admin-button" bindtap="navigateToAdminLogin">管理员登录</button>
+  </view>
+</view>

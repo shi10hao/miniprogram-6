@@ -1,0 +1,10 @@
+<view class="container">
+  <view class="content">
+    <view class="version-info">
+      <text class="version">版本号：{{version}} {{edition}}</text>
+    </view>
+    <view class="college-info">
+      <text class="college">仅供 {{college}} 使用</text>
+    </view>
+  </view>
+</view>

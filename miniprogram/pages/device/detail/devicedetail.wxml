@@ -1,0 +1,143 @@
+<view class="container">
+  <!-- 加载状态 -->
+  <view wx:if="{{isLoading}}" class="loading-container">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <!-- 错误状态 -->
+  <view wx:elif="{{loadError}}" class="error-container">
+    <text class="error-icon">⚠️</text>
+    <text class="error-title">加载失败</text>
+    <text class="error-desc">请检查网络连接后重试</text>
+    <button class="reload-btn" bindtap="reloadPage">重新加载</button>
+  </view>
+
+  <!-- 主要内容 -->
+  <view wx:else class="main-content">
+    <view wx:if="{{device}}" class="content-wrapper">
+
+      <!-- 基本信息卡（含仪器简介） -->
+      <view class="basic-info-card">
+        <view class="device-image-section">
+          <image class="device-image" src="{{device.picture}}" mode="aspectFill"></image>
+        </view>
+        <view class="device-info-section">
+          <view class="device-name-row">
+            <text class="device-name">{{device.device_name}}</text>
+            <text wx:if="{{deviceModel}}" class="device-model-text">{{deviceModel}}</text>
+          </view>
+          <view class="device-tags">
+            <text class="device-tag type">{{device.device_type === 'large' ? '大型仪器' : '小型仪器'}}</text>
+            <text class="device-tag status {{usageStatus}}">{{usageStatus === 'using' ? '使用中' : '可用'}}</text>
+          </view>
+          <text class="device-lab">🏛️ {{device.lab_name || '实验室未设置'}}</text>
+          <text class="device-location">📍 {{device.device_room || '位置未设置'}}</text>
+        </view>
+
+        <!-- 仪器简介（紧跟基本信息下方，位于顶端） -->
+        <view class="description-inline">
+          <text class="description-label">仪器简介</text>
+          <text class="description-text">{{device.description || '暂无仪器简介'}}</text>
+        </view>
+      </view>
+
+      <!-- 仪器状态 -->
+      <view class="status-cards">
+        <!-- 可用仪器 -->
+        <view class="status-card available">
+          <view class="status-header">
+            <view class="status-title-section">
+              <text class="status-icon">✅</text>
+              <text class="status-title">可用仪器</text>
+            </view>
+            <text class="device-count">{{availableDevices.length}}台</text>
+          </view>
+          <view class="device-codes-grid">
+            <text wx:if="{{availableDevices.length === 0}}" class="no-device">暂无可用仪器</text>
+            <view class="code-item" wx:for="{{availableDevices}}" wx:key="device_id">
+              <text class="device-code">{{item.shortId}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 正在使用 -->
+        <view class="status-card using">
+          <view class="status-header">
+            <view class="status-title-section">
+              <text class="status-icon">🔧</text>
+              <text class="status-title">正在使用</text>
+            </view>
+            <text class="device-count">{{usingDevices.length}}台</text>
+          </view>
+          <view class="device-codes-grid">
+            <text wx:if="{{usingDevices.length === 0}}" class="no-device">暂无使用中的仪器</text>
+            <view class="code-item" wx:for="{{usingDevices}}" wx:key="device_id">
+              <text class="device-code">{{item.shortId}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 维修中 -->
+        <view class="status-card maintenance">
+          <view class="status-header">
+            <view class="status-title-section">
+              <text class="status-icon">🛠️</text>
+              <text class="status-title">维修中</text>
+            </view>
+            <text class="device-count">{{maintenanceDevices.length}}台</text>
+          </view>
+          <view class="device-codes-grid">
+            <text wx:if="{{maintenanceDevices.length === 0}}" class="no-device">暂无维修中的仪器</text>
+            <view class="code-item" wx:for="{{maintenanceDevices}}" wx:key="device_id">
+              <text class="device-code">{{item.shortId}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 查看三维位置 -->
+      <view class="location-card" wx:if="{{device.lab_type === 'public'}}" bindtap="view3DLocation">
+        <view class="location-icon">🌐</view>
+        <view class="location-info">
+          <text class="location-title">查看实验室三维位置</text>
+          <text class="location-desc">在3D场景中查看仪器位置</text>
+        </view>
+        <text class="location-arrow">></text>
+      </view>
+
+      <!-- 操作指南（含规格参数） -->
+      <view class="guide-card">
+        <view class="card-header">
+          <text class="card-title">🔧 操作指南</text>
+        </view>
+        <view class="guide-buttons">
+          <button class="guide-btn" bindtap="viewProcedure">
+            <text class="btn-icon">📋</text>
+            <text class="btn-text">操作规程</text>
+          </button>
+          <button class="guide-btn" bindtap="viewVideo">
+            <text class="btn-icon">🎬</text>
+            <text class="btn-text">操作视频</text>
+          </button>
+          <button class="guide-btn" bindtap="viewPrecautions">
+            <text class="btn-icon">⚠️</text>
+            <text class="btn-text">注意事项</text>
+          </button>
+          <button class="guide-btn" bindtap="viewSpecifications">
+            <text class="btn-icon">📐</text>
+            <text class="btn-text">规格参数</text>
+          </button>
+        </view>
+      </view>
+
+    </view>
+
+    <!-- 空状态 -->
+    <view wx:else class="empty-container">
+      <text class="empty-icon">🔍</text>
+      <text class="empty-title">未找到仪器信息</text>
+      <text class="empty-desc">请检查仪器编号或联系管理员</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,105 @@
+{
+  "appid": "wxce5e14a214fab8b4",
+  "compileType": "miniprogram",
+  "libVersion": "3.15.2",
+  "cloudfunctionRoot": "cloudfunctions/",
+  "packOptions": {
+    "ignore": [
+      {
+        "value": "node_modules",
+        "type": "folder"
+      },
+      {
+        "value": "miniprogram_npm",
+        "type": "folder"
+      },
+      {
+        "value": "docs",
+        "type": "folder"
+      },
+      {
+        "value": "tests",
+        "type": "folder"
+      },
+      {
+        "value": "scripts",
+        "type": "folder"
+      },
+      {
+        "value": "交付文件",
+        "type": "folder"
+      },
+      {
+        "value": "客户发的东西",
+        "type": "folder"
+      },
+      {
+        "value": "pages/webview/3dscene/tests",
+        "type": "folder"
+      },
+      {
+        "value": "测试用例.txt",
+        "type": "file"
+      },
+      {
+        "value": "业务流程图-客户版.md",
+        "type": "file"
+      },
+      {
+        "value": "交付说明-客户版.md",
+        "type": "file"
+      },
+      {
+        "value": "小程序上线发布指引-客户版.md",
+        "type": "file"
+      },
+      {
+        "value": "package-lock.json",
+        "type": "file"
+      },
+      {
+        "value": "project.private.config.json",
+        "type": "file"
+      }
+    ],
+    "include": []
+  },
+  "setting": {
+    "coverView": true,
+    "es6": true,
+    "postcss": true,
+    "minified": true,
+    "enhance": true,
+    "showShadowRootInWxmlPanel": true,
+    "packNpmRelationList": [
+      {
+        "packageJsonPath": "./package.json",
+        "miniprogramNpmDistDir": "./"
+      }
+    ],
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    },
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": false,
+    "packNpmManually": true,
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true
+  },
+  "condition": {},
+  "editorSetting": {
+    "tabIndent": "insertSpaces",
+    "tabSize": 2
+  },
+  "cloudfunctionTemplateRoot": "cloudfunctionTemplate/",
+  "simulatorPluginLibVersion": {}
+}

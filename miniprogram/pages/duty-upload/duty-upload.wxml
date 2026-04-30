@@ -1,0 +1,31 @@
+<view class="container">
+  <view class="form-card">
+    <view class="form-item lab-name-item">
+      <text class="form-label">实验室名称</text>
+      <input class="form-input" placeholder="请输入实验室名称" value="{{dutyInfo.labName}}" bindinput="bindInputLabName" />
+    </view>
+    <view class="form-item">
+      <text class="form-label">值日人员名称</text>
+      <input class="form-input" placeholder="请输入姓名" value="{{dutyInfo.name}}" bindinput="bindInputName" />
+    </view>
+    <view class="form-item">
+      <text class="form-label">手机号</text>
+      <input class="form-input" placeholder="请输入手机号" value="{{dutyInfo.phone}}" bindinput="bindInputPhone" />
+    </view>
+    <view class="form-item upload-item">
+      <text class="form-label">值日情况说明</text>
+      <button class="upload-btn" bindtap="chooseImage">上传照片</button>
+    </view>
+    <view class="image-container">
+      <view class="image-item" wx:for="{{dutyInfo.images}}" wx:key="index">
+        <image class="preview-image" src="{{item}}" mode="aspectFill"></image>
+        <view class="delete-btn" bindtap="deleteImage" data-index="{{index}}">×</view>
+      </view>
+    </view>
+    <button
+      class="submit-btn"
+      bindtap="handleSubmit"
+      disabled="{{isSubmitting}}"
+    >{{isSubmitting ? '提交中...' : '提交信息'}}</button>
+  </view>
+</view>

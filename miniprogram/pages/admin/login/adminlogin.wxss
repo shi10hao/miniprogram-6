@@ -1,0 +1,77 @@
+page {
+  background: #f0f4f8;
+}
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 48rpx;
+}
+
+.header {
+  margin-bottom: 80rpx;
+}
+
+.title {
+  font-size: 48rpx;
+  font-weight: 700;
+  color: #2d6a6e;
+}
+
+.form-card {
+  width: 100%;
+  background: white;
+  border-radius: 20rpx;
+  padding: 48rpx 40rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
+}
+
+.input-group {
+  margin-bottom: 32rpx;
+}
+
+.input-label {
+  display: block;
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 12rpx;
+  font-weight: 500;
+}
+
+.input-field {
+  width: 100%;
+  height: 88rpx;
+  background: #f7f9fc;
+  border-radius: 12rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: #333;
+  border: 1rpx solid #e8ecf0;
+  box-sizing: border-box;
+}
+
+.login-btn {
+  width: 100%;
+  height: 96rpx;
+  background: linear-gradient(135deg, #2d6a6e, #62BCC4);
+  color: white;
+  font-size: 32rpx;
+  font-weight: 600;
+  border-radius: 16rpx;
+  border: none;
+  margin-top: 24rpx;
+}
+
+.login-btn.disabled {
+  background: #a8d8dc;
+}
+
+.student-link {
+  margin-top: 32rpx;
+  text-align: center;
+  font-size: 26rpx;
+  color: #2d6a6e;
+  font-weight: 500;
+}

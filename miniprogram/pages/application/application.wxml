@@ -1,0 +1,45 @@
+<view class="container">
+  <!-- 功能网格 -->
+  <view class="function-grid">
+    <view 
+      class="function-card" 
+      wx:for="{{functionList}}" 
+      wx:key="id"
+      data-url="{{item.url}}"
+      bindtap="navigateToFunction"
+      style="border-left: 8rpx solid {{item.color}}"
+    >
+      <view class="function-icon">{{item.icon}}</view>
+      <view class="function-info">
+        <text class="function-name">{{item.name}}</text>
+        <text class="function-desc">{{item.desc}}</text>
+      </view>
+      <view class="function-arrow">→</view>
+    </view>
+  </view>
+
+  <!-- 快速入口 -->
+  <view class="quick-access">
+    <view class="section-title">📋 快速入口</view>
+    <view class="quick-buttons">
+      <button class="quick-btn" bindtap="navigateToDeviceList">
+        <text class="quick-icon">🔬</text>
+        <text class="quick-text">查看所有仪器</text>
+      </button>
+    </view>
+  </view>
+
+  <!-- 使用提示 -->
+  <view class="usage-tips">
+    <view class="tips-header">
+      <text class="tips-icon">💡</text>
+      <text class="tips-title">使用提示</text>
+    </view>
+    <view class="tips-content">
+      <text class="tip-item">• 大型仪器需要提前预约</text>
+      <text class="tip-item">• 小型仪器可直接扫码使用</text>
+      <text class="tip-item">• 使用过程中请按要求上传照片</text>
+      <text class="tip-item">• 遵守实验室安全规范</text>
+    </view>
+  </view>
+</view>

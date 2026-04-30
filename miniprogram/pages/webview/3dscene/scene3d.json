@@ -1,0 +1,6 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "三维场景",
+  "disableScroll": true,
+  "enablePullDownRefresh": false
+}

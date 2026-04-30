@@ -1,0 +1,25 @@
+<view class="container">
+  <view class="header">
+    <text class="title">{{deviceName}} - {{pageTitle}}</text>
+  </view>
+
+  <view class="content">
+    <!-- 结构化数据显示 -->
+    <view wx:if="{{isStructured}}">
+      <view wx:for="{{sections}}" wx:key="title" class="section">
+        <view class="section-title">{{index + 1}}. {{item.title}}</view>
+        <view wx:for="{{item.content}}" wx:key="*this" class="step">
+          <view class="step-content">
+            <text class="step-icon">•</text>
+            <text class="step-text">{{item}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 旧版纯文本显示 -->
+    <view wx:else>
+      <text class="plain-text">{{plainText}}</text>
+    </view>
+  </view>
+</view>
