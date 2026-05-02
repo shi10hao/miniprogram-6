@@ -155,8 +155,8 @@ Page({
       const db = wx.cloud.database()
       const result = await db.collection('users')
         .where({
-          user_id:"X42214037" ,
-          phone:"18134687512",
+          user_id:studentId ,
+          phone,
           role: "student"
         })
         .get()
