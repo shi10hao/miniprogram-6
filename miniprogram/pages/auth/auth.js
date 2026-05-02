@@ -21,13 +21,16 @@ Page({
     const wechatUserInfo = wx.getStorageSync('wechatUserInfo')
     const userInfo = wx.getStorageSync('userInfo')
     const hasWechatLogin = Boolean(wechatUserInfo && wechatUserInfo.openid)
-
     if (userInfo && hasWechatLogin) {
+      console.log("userInfo存在")
+      console.log("userInfo:",userInfo)
+      console.log("Boolean(userInfo):",Boolean(userInfo))
       wx.switchTab({ url: '/pages/index/index' })
       return
     }
 
     if (!hasWechatLogin) {
+      console.log("hasWechatLogin为false")
       this.setData({ showWechatModal: true })
     }
   },
@@ -155,13 +158,12 @@ Page({
       const db = wx.cloud.database()
       const result = await db.collection('users')
         .where({
-          user_id:studentId ,
+          user_id: studentId,
           phone,
-          role: "student"
+          role: 'student'
         })
         .get()
-        console.log(studentId,phone)
-        console.log(result)
+
       if (result.data && result.data.length > 0) {
         const studentInfo = result.data[0]
         this.setData({
@@ -234,6 +236,7 @@ Page({
     }
 
     try {
+      console.log("开始设立userInfo:",userInfo)
       wx.setStorageSync('userInfo', userInfo)
       wx.showToast({
         title: '认证成功',

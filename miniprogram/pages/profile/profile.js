@@ -14,17 +14,18 @@ Page({
 
   onLoad() {
     this._authPromptShown = false
-    // this.loadUserInfo()
+    this.loadUserInfo()
   },
 
   onShow() {
-    // this.loadUserInfo()
+    this.loadUserInfo()
     getApp().refreshMessageBadge()
   },
 
   loadUserInfo() {
     try {
       const userInfo = wx.getStorageSync('userInfo')
+      console.log(userInfo)
       const wechatUserInfo = wx.getStorageSync('wechatUserInfo')
       const hasWechatLogin = Boolean(wechatUserInfo && wechatUserInfo.openid)
 
