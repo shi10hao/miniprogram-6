@@ -138,22 +138,20 @@ Page({
   getDevices: function() {
     var that = this
     var groupName = this.getUserGroupName()
-    var _ = db.command
-    var visibilityCondition = this.getVisibleCondition(groupName)
     this.setData({ isLoading: true })
 
-    return db.collection('devices')
-      .where(_.and([
-        { status: 'available' },
-        visibilityCondition
-      ]))
-      .orderBy('device_id', 'asc')
-      .get()
+    return wx.cloud.callFunction({
+      name: 'getDevices',
+      data: {
+        groupName: groupName
+      }
+    })
       .then(function(res) {
-        var devices = res.data || []
+        console.log("res",res)
+        var devices = res.result || []
         var groupedDevices = that.mergeDevices(devices)
         var stats = that.calculateStats(devices, groupedDevices)
-
+        console.log('原始设备数据条数:', res.result.length)
         that.setData({
           devices: groupedDevices,
           filteredDevices: groupedDevices,
