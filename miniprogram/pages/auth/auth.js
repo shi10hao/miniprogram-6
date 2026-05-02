@@ -155,12 +155,13 @@ Page({
       const db = wx.cloud.database()
       const result = await db.collection('users')
         .where({
-          user_id: studentId,
-          phone,
-          role: 'student'
+          user_id:"X42214037" ,
+          phone:"18134687512",
+          role: "student"
         })
         .get()
-
+        console.log(studentId,phone)
+        console.log(result)
       if (result.data && result.data.length > 0) {
         const studentInfo = result.data[0]
         this.setData({
