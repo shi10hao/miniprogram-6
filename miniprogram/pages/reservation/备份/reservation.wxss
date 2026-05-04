@@ -5,85 +5,6 @@
   box-sizing: border-box;
 }
 
-/* 搜索区域 */
-.search-section {
-  background: white;
-  padding: 20rpx;
-  margin-bottom: 10rpx;
-}
-.search-box {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-input {
-  flex: 1;
-  height: 80rpx;
-  background: #f8f9fa;
-  border-radius: 40rpx;
-  padding: 0 80rpx 0 30rpx;
-  font-size: 28rpx;
-  border: 1rpx solid #e9ecef;
-}
-
-.search-icon {
-  position: absolute;
-  right: 50rpx;
-  font-size: 28rpx;
-  color: #999;
-}
-.clear-search {
-  position: absolute;
-  right: 30rpx;
-  font-size: 24rpx;
-  color: #999;
-  padding: 10rpx;
-}
-
-/* 筛选区域 */
-.filter-section {
-  background: white;
-  padding: 30rpx 20rpx;
-  margin-bottom: 20rpx;
-}
-
-.filter-group {
-  margin-bottom: 30rpx;
-}
-
-.filter-group:last-child {
-  margin-bottom: 0;
-}
-
-.filter-label {
-  display: block;
-  font-size: 26rpx;
-  color: #333;
-  font-weight: 500;
-  margin-bottom: 0rpx;
-}
-
-.filter-buttons {
-  display: flex;
-  gap: 20rpx;
-}
-
-.filter-btn {
-  text-align: center;
-  padding: 0rpx 0rpx;
-  background: #f8f9fa;
-  border-radius: 40rpx;
-  font-size: 26rpx;
-  color: #666;
-  transition: all 0.3s ease;
-}
-
-.filter-btn.active {
-  background: #62BCC4;
-  color: white;
-}
-
 /* 卡片通用样式 */
 .info-card,
 .filter-card,
@@ -96,10 +17,6 @@
   overflow: hidden;
 }
 
-.device-card {
-  height: 1000rpx;
-  overflow: auto;
-}
 /* 卡片标题 */
 .info-header,
 .filter-header,

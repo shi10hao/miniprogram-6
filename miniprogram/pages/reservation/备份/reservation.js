@@ -10,32 +10,26 @@ Page({
       researchGroup: '', // 课题组
       phone: ''
     },
-
+    
     // 仪器筛选
-    // 筛选条件
-    filters: {
-      labType: 'all', // all, public, group
-      deviceType: 'all', // all, large, small
-      searchKeyword: ''
-    },
     deviceType: 'all', // all, public, group
     availableDevices: [], // 可用的仪器列表
     selectedDevice: null, // 选择的仪器
-
+    
     // 预约时间
     reserveDate: '',
     startTime: '08:00',
     endTime: '09:00',
     timeSlots: [], // 8:00-22:00的时间段
-
+    
     // 状态
     isLoading: false,
     timeConflict: false,
     isPastTime: false, // 新增：是否是过去时间
-
+    
     // 其他参数
     minDate: '', // 最小日期（今天）
-    maxDate: '' // 最大日期（30天后）
+    maxDate: ''  // 最大日期（30天后）
   },
 
   onLoad() {
@@ -50,8 +44,7 @@ Page({
     const maxDate = new Date()
     maxDate.setDate(today.getDate() + 30)
     const initialSlot = this.getInitialReservationSlot(today)
-    //   reserveDate: this.formatDate(reserveDate),
-    //   startTime: '08:00'
+    
     this.setData({
       minDate: this.formatDate(today),
       maxDate: this.formatDate(maxDate),
@@ -59,9 +52,7 @@ Page({
       startTime: initialSlot.startTime
     }, () => {
       const endTime = this.calculateEndTime(this.data.startTime)
-      this.setData({
-        endTime
-      })
+      this.setData({ endTime })
     })
 
     this.generateTimeSlots()
@@ -102,17 +93,13 @@ Page({
       startTime: `${String(nextHour).padStart(2, '0')}:${String(nextMinute).padStart(2, '0')}`
     }
   },
-  // return {
-  //   reserveDate: this.formatDate(reserveDate),
-  //   startTime: '08:00'
-  // }
 
   // 计算结束时间（默认比开始时间晚1小时）
   calculateEndTime(startTime) {
     const [hours, minutes] = startTime.split(':').map(Number)
     let endHours = hours + 1
     let endMinutes = minutes
-
+    
     // 处理进位和边界
     if (endHours > 22) {
       endHours = 22
@@ -120,7 +107,7 @@ Page({
     } else if (endHours === 22 && endMinutes > 0) {
       endMinutes = 0
     }
-
+    
     return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`
   },
 
@@ -140,66 +127,45 @@ Page({
       console.error('读取用户信息失败:', err)
     }
   },
-  onSearchInput(e) {
-    this.setData({
-      'filters.searchKeyword': e.detail.value.trim(),
-      selectedDevice: null
-    }, () => {
-      this.getAvailableDevices()
-    })
-  },
-  getDeviceModel: function (device) {
+
+  // 获取可用仪器
+  getDeviceModel: function(device) {
     var specs = device.specifications || {}
     if (specs && typeof specs === 'object') {
       return String(specs['型号'] || specs.model || '').trim()
     }
     return String(device.model || '').trim()
   },
-  // 获取可用仪器
+
   async getAvailableDevices() {
-    this.setData({
-      isLoading: true
-    })
+    this.setData({ isLoading: true })
 
     try {
-      const {
-        filters,
-        userInfo
-      } = this.data
       const userGroup = this.data.userInfo.researchGroup
       const _ = db.command
-// 基础条件：可用 + 可见性
-    let condition = _.and([
-      { status: 'available' },
-      _.or([
-        { lab_type: 'public' },
-        { lab_name: userGroup }
-      ])
-    ])
 
-    // ✅ 实验室类型筛选
-    if (filters.labType !== 'all') {
-      condition = _.and([
-        condition,
-        { lab_type: filters.labType }
-      ])
-    }
+      let query = db.collection('devices').where(
+        _.and([
+          { status: 'available' },
+          _.or([
+            { lab_type: 'public' },
+            { lab_name: userGroup }
+          ])
+        ])
+      )
 
-    // ✅ 仪器类型筛选
-    if (filters.deviceType !== 'all') {
-      condition = _.and([
-        condition,
-        { device_type: filters.deviceType }
-      ])
-    }
-
-    const res = await db.collection('devices')
-      .where(condition)
-      .get()
-
+      // 根据筛选条件调整查询
+      if (this.data.deviceType === 'public') {
+        query = db.collection('devices').where({ status: 'available', lab_type: 'public' })
+      } else if (this.data.deviceType === 'group') {
+        query = db.collection('devices').where({ status: 'available', lab_type: 'group', lab_name: userGroup })
+      }
+      
+      const res = await query.get()
+      
       var groupedMap = {}
-      var that = this;
-      (res.data || []).forEach(function (device) {
+      var that = this
+      ;(res.data || []).forEach(function(device) {
         var model = that.getDeviceModel(device)
         var key = (device.device_name || '') + '::' + model
         if (!groupedMap[key]) {
@@ -233,36 +199,14 @@ Page({
           }
         })
       )
-
-      if (filters.searchKeyword) {
-        const keyword = filters.searchKeyword.toLowerCase()
       
-        devicesWithStatus = devicesWithStatus.filter(device => {
-          const deviceName = (device.device_name || '').toLowerCase()
-          const model = (device.deviceModel || '').toLowerCase()
-          const labName = (device.lab_name || '').toLowerCase()
-          const room = (device.device_room || '').toLowerCase()
-          const description = (device.description || '').toLowerCase()
-      
-          return (
-            deviceName.includes(keyword) ||
-            model.includes(keyword) ||
-            labName.includes(keyword) ||
-            room.includes(keyword) ||
-            description.includes(keyword)
-          )
-        })
-      }
-
       this.setData({
         availableDevices: devicesWithStatus,
         isLoading: false
       })
     } catch (err) {
       console.error('获取仪器列表失败:', err)
-      this.setData({
-        isLoading: false
-      })
+      this.setData({ isLoading: false })
       wx.showToast({
         title: '加载失败',
         icon: 'none'
@@ -273,39 +217,19 @@ Page({
   // 检查仪器冲突
   async checkDeviceConflicts(deviceId) {
     try {
-      const {
-        reserveDate,
-        startTime,
-        endTime
-      } = this.data
+      const { reserveDate, startTime, endTime } = this.data
       if (!reserveDate || !startTime || !endTime) return 0
 
       const _ = db.command
       const startDT = `${reserveDate} ${startTime}`
       const endDT = `${reserveDate} ${endTime}`
-      const whereConditions = [{
-          device_id: deviceId,
-          reserve_date: reserveDate
-        },
-        {
-          status: 'approved'
-        },
+      const whereConditions = [
+        { device_id: deviceId, reserve_date: reserveDate },
+        { status: 'approved' },
         _.or([
-          _.and([{
-            start_time: _.lte(startDT)
-          }, {
-            end_time: _.gt(startDT)
-          }]),
-          _.and([{
-            start_time: _.lt(endDT)
-          }, {
-            end_time: _.gte(endDT)
-          }]),
-          _.and([{
-            start_time: _.gte(startDT)
-          }, {
-            end_time: _.lte(endDT)
-          }])
+          _.and([{ start_time: _.lte(startDT) }, { end_time: _.gt(startDT) }]),
+          _.and([{ start_time: _.lt(endDT) }, { end_time: _.gte(endDT) }]),
+          _.and([{ start_time: _.gte(startDT) }, { end_time: _.lte(endDT) }])
         ])
       ]
 
@@ -323,26 +247,12 @@ Page({
   // 仪器类型筛选
   onDeviceTypeChange(e) {
     const type = e.currentTarget.dataset.type
-    console.log('type',type)
     this.setData({
-      'filters.deviceType': type,
+      deviceType: type,
       selectedDevice: null // 清空已选仪器
     }, () => {
       this.getAvailableDevices()
     })
-    console.log("filters",this.data.filters)
-  },
-
-  onLabTypeChange(e) {
-    const type = e.currentTarget.dataset.type
-    console.log(type)
-    this.setData({
-      'filters.labType': type,
-      selectedDevice: null
-    }, () => {
-      this.getAvailableDevices()
-    })
-    console.log("filters",this.data.filters)
   },
 
   // 选择仪器
@@ -372,7 +282,7 @@ Page({
   onStartTimeChange(e) {
     const startTime = e.detail.value
     const endTime = this.calculateEndTime(startTime)
-
+    
     this.setData({
       startTime: startTime,
       endTime: endTime
@@ -395,12 +305,7 @@ Page({
 
   // 检查时间冲突
   async checkTimeConflict(showToast = true) {
-    const {
-      selectedDevice,
-      reserveDate,
-      startTime,
-      endTime
-    } = this.data
+    const { selectedDevice, reserveDate, startTime, endTime } = this.data
 
     if (!selectedDevice || !reserveDate || !startTime || !endTime) return
 
@@ -408,29 +313,13 @@ Page({
       const _ = db.command
       const startDT = `${reserveDate} ${startTime}`
       const endDT = `${reserveDate} ${endTime}`
-      const whereConditions = [{
-          device_id: selectedDevice.device_id,
-          reserve_date: reserveDate
-        },
-        {
-          status: 'approved'
-        },
+      const whereConditions = [
+        { device_id: selectedDevice.device_id, reserve_date: reserveDate },
+        { status: 'approved' },
         _.or([
-          _.and([{
-            start_time: _.lte(startDT)
-          }, {
-            end_time: _.gt(startDT)
-          }]),
-          _.and([{
-            start_time: _.lt(endDT)
-          }, {
-            end_time: _.gte(endDT)
-          }]),
-          _.and([{
-            start_time: _.gte(startDT)
-          }, {
-            end_time: _.lte(endDT)
-          }])
+          _.and([{ start_time: _.lte(startDT) }, { end_time: _.gt(startDT) }]),
+          _.and([{ start_time: _.lt(endDT) }, { end_time: _.gte(endDT) }]),
+          _.and([{ start_time: _.gte(startDT) }, { end_time: _.lte(endDT) }])
         ])
       ]
 
@@ -460,17 +349,12 @@ Page({
 
   // 检查是否是过去时间
   checkPastTime() {
-    const {
-      reserveDate,
-      startTime
-    } = this.data
-
+    const { reserveDate, startTime } = this.data
+    
     if (!reserveDate || !startTime) return
 
     if (!this.isFutureReservationStart(reserveDate, startTime)) {
-      this.setData({
-        isPastTime: true
-      })
+      this.setData({ isPastTime: true })
       wx.showToast({
         title: '预约开始时间必须晚于当前时间',
         icon: 'none',
@@ -478,10 +362,8 @@ Page({
       })
       return
     }
-
-    this.setData({
-      isPastTime: false
-    })
+    
+    this.setData({ isPastTime: false })
   },
 
   // 生成时间槽（8:00-22:00）
@@ -493,9 +375,7 @@ Page({
         slots.push(`${hour.toString().padStart(2, '0')}:30`)
       }
     }
-    this.setData({
-      timeSlots: slots
-    })
+    this.setData({ timeSlots: slots })
   },
 
   // 提交预约
@@ -506,11 +386,9 @@ Page({
     if (!this.validateForm()) return
 
     this.requestSubscribeMessage()
-
-    this.setData({
-      isLoading: true
-    })
-
+    
+    this.setData({ isLoading: true })
+    
     // 再次检查时间冲突
     const hasConflict = await this.checkTimeConflict(false)
     if (hasConflict) {
@@ -518,30 +396,22 @@ Page({
         title: '该时间段与其他人预约时间段重叠',
         icon: 'none'
       })
-      this.setData({
-        isLoading: false
-      })
+      this.setData({ isLoading: false })
       return
     }
-
+    
     // 再次检查是否是当前或过去时间
     if (!this.isFutureReservationStart(this.data.reserveDate, this.data.startTime)) {
-      this.setData({
-        isPastTime: true
-      })
+      this.setData({ isPastTime: true })
       wx.showToast({
         title: '预约开始时间必须晚于当前时间',
         icon: 'none'
       })
-      this.setData({
-        isLoading: false
-      })
+      this.setData({ isLoading: false })
       return
     }
-    this.setData({
-      isPastTime: false
-    })
-
+    this.setData({ isPastTime: false })
+    
     // 构建预约数据
     const storedUserInfo = wx.getStorageSync('userInfo') || {}
     const reserveData = {
@@ -550,13 +420,13 @@ Page({
       device_type: this.data.selectedDevice.device_type,
       lab_type: this.data.selectedDevice.lab_type,
       lab_name: this.data.selectedDevice.lab_name,
-
+      
       reserve_date: this.data.reserveDate,
       start_time: `${this.data.reserveDate} ${this.data.startTime}`,
       end_time: `${this.data.reserveDate} ${this.data.endTime}`,
       start_ts: this.getReservationTimeMs(this.data.reserveDate, this.data.startTime),
       end_ts: this.getReservationTimeMs(this.data.reserveDate, this.data.endTime),
-
+      
       user_id: this.data.userInfo.userId,
       student_name: this.data.userInfo.name,
       research_group: this.data.userInfo.researchGroup,
@@ -565,7 +435,7 @@ Page({
 
       create_time: new Date().toISOString()
     }
-
+    
     try {
       var useCloudFunction = false
       try {
@@ -595,9 +465,7 @@ Page({
                 title: '该时间段与其他人预约时间段重叠',
                 icon: 'none'
               })
-              this.setData({
-                timeConflict: true
-              })
+              this.setData({ timeConflict: true })
               return
             }
 
@@ -618,7 +486,7 @@ Page({
       } else {
         await this.createReservationDirectly(reserveData)
       }
-
+      
       wx.showToast({
         title: '预约成功！',
         icon: 'success',
@@ -627,7 +495,7 @@ Page({
       var currentDevices = this.data.availableDevices
       var currentSelected = this.data.selectedDevice
       if (currentSelected && currentDevices.length > 0) {
-        var updatedDevices = currentDevices.map(function (dev) {
+        var updatedDevices = currentDevices.map(function(dev) {
           if (dev.device_id === currentSelected.device_id) {
             var newConflict = (dev.conflictCount || 0) + 1
             var newRemaining = (dev.totalCount || 0) - newConflict
@@ -639,11 +507,9 @@ Page({
           }
           return dev
         })
-        this.setData({
-          availableDevices: updatedDevices
-        })
+        this.setData({ availableDevices: updatedDevices })
       }
-
+      
       setTimeout(() => {
         this.setData({
           selectedDevice: null,
@@ -652,7 +518,7 @@ Page({
         })
         this.getAvailableDevices()
       }, 2000)
-
+      
     } catch (err) {
       console.error('提交预约失败:', err)
       wx.showToast({
@@ -660,9 +526,7 @@ Page({
         icon: 'none'
       })
     } finally {
-      this.setData({
-        isLoading: false
-      })
+      this.setData({ isLoading: false })
     }
   },
 
@@ -672,38 +536,20 @@ Page({
     var endDT = reserveData.end_time
 
     var overlapRes = await db.collection('reserves')
-      .where(_.and([{
-          device_id: reserveData.device_id,
-          reserve_date: reserveData.reserve_date
-        },
-        {
-          status: 'approved'
-        },
+      .where(_.and([
+        { device_id: reserveData.device_id, reserve_date: reserveData.reserve_date },
+        { status: 'approved' },
         _.or([
-          _.and([{
-            start_time: _.lte(startDT)
-          }, {
-            end_time: _.gt(startDT)
-          }]),
-          _.and([{
-            start_time: _.lt(endDT)
-          }, {
-            end_time: _.gte(endDT)
-          }]),
-          _.and([{
-            start_time: _.gte(startDT)
-          }, {
-            end_time: _.lte(endDT)
-          }])
+          _.and([{ start_time: _.lte(startDT) }, { end_time: _.gt(startDT) }]),
+          _.and([{ start_time: _.lt(endDT) }, { end_time: _.gte(endDT) }]),
+          _.and([{ start_time: _.gte(startDT) }, { end_time: _.lte(endDT) }])
         ])
       ]))
       .limit(1)
       .get()
 
     if (overlapRes.data && overlapRes.data.length > 0) {
-      this.setData({
-        timeConflict: true
-      })
+      this.setData({ timeConflict: true })
       throw new Error('该时间段与其他人预约时间段重叠')
     }
 
@@ -717,9 +563,7 @@ Page({
     })
     delete record._openid
 
-    var addRes = await db.collection('reserves').add({
-      data: record
-    })
+    var addRes = await db.collection('reserves').add({ data: record })
 
     await db.collection('messages').add({
       data: {
@@ -737,14 +581,8 @@ Page({
 
   // 表单验证 - 添加时间验证
   validateForm() {
-    const {
-      selectedDevice,
-      reserveDate,
-      startTime,
-      endTime,
-      userInfo
-    } = this.data
-
+    const { selectedDevice, reserveDate, startTime, endTime, userInfo } = this.data
+    
     if (!selectedDevice) {
       wx.showToast({
         title: '请选择仪器',
@@ -752,7 +590,7 @@ Page({
       })
       return false
     }
-
+    
     if (!reserveDate) {
       wx.showToast({
         title: '请选择预约日期',
@@ -760,7 +598,7 @@ Page({
       })
       return false
     }
-
+    
     if (!startTime || !endTime) {
       wx.showToast({
         title: '请选择预约时间',
@@ -768,13 +606,13 @@ Page({
       })
       return false
     }
-
+    
     // 检查时间是否在8:00-22:00范围内
     const startHour = parseInt(startTime.split(':')[0])
     const startMinute = parseInt(startTime.split(':')[1])
     const endHour = parseInt(endTime.split(':')[0])
     const endMinute = parseInt(endTime.split(':')[1])
-
+    
     // 开始时间检查
     if (startHour < 8 || startHour > 22) {
       wx.showToast({
@@ -783,7 +621,7 @@ Page({
       })
       return false
     }
-
+    
     if (startHour === 22 && startMinute > 0) {
       wx.showToast({
         title: '开始时间不能晚于22:00',
@@ -791,7 +629,7 @@ Page({
       })
       return false
     }
-
+    
     // 结束时间检查
     if (endHour < 8 || endHour > 22) {
       wx.showToast({
@@ -800,7 +638,7 @@ Page({
       })
       return false
     }
-
+    
     if (endHour === 22 && endMinute > 0) {
       wx.showToast({
         title: '结束时间不能晚于22:00',
@@ -808,11 +646,11 @@ Page({
       })
       return false
     }
-
+    
     // 结束时间必须晚于开始时间
     const startTotalMinutes = startHour * 60 + startMinute
     const endTotalMinutes = endHour * 60 + endMinute
-
+    
     if (endTotalMinutes <= startTotalMinutes) {
       wx.showToast({
         title: '结束时间必须晚于开始时间',
@@ -820,7 +658,7 @@ Page({
       })
       return false
     }
-
+    
     // 检查是否是当前或过去时间
     if (!this.isFutureReservationStart(reserveDate, startTime)) {
       wx.showToast({
@@ -829,7 +667,7 @@ Page({
       })
       return false
     }
-
+    
     // 检查用户信息
     if (!userInfo.userId || !userInfo.name || !userInfo.researchGroup) {
       wx.showToast({
@@ -838,7 +676,7 @@ Page({
       })
       return false
     }
-
+    
     return true
   },
 
