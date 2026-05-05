@@ -166,40 +166,22 @@ Page({
         filters,
         userInfo
       } = this.data
-      const userGroup = this.data.userInfo.researchGroup
-      const _ = db.command
-// 基础条件：可用 + 可见性
-    let condition = _.and([
-      { status: 'available' },
-      _.or([
-        { lab_type: 'public' },
-        { lab_name: userGroup }
-      ])
-    ])
+      const res = await wx.cloud.callFunction({
+        name: 'getAvailableDevices',
+        data: {
+          filters: this.data.filters,
+          userInfo: this.data.userInfo
+        }
+      })
 
-    // ✅ 实验室类型筛选
-    if (filters.labType !== 'all') {
-      condition = _.and([
-        condition,
-        { lab_type: filters.labType }
-      ])
-    }
+      const devices = res.result || []
 
-    // ✅ 仪器类型筛选
-    if (filters.deviceType !== 'all') {
-      condition = _.and([
-        condition,
-        { device_type: filters.deviceType }
-      ])
-    }
-
-    const res = await db.collection('devices')
-      .where(condition)
-      .get()
-
+      console.log("res",res)
+      console.log("devices",devices)
       var groupedMap = {}
       var that = this;
-      (res.data || []).forEach(function (device) {
+
+      (devices || []).forEach(function (device) {
         var model = that.getDeviceModel(device)
         var key = (device.device_name || '') + '::' + model
         if (!groupedMap[key]) {
@@ -221,29 +203,55 @@ Page({
         }
       })
 
-      var devicesWithStatus = await Promise.all(
-        Object.values(groupedMap).map(async (device) => {
-          var conflictCount = await that.checkDeviceConflicts(device.primaryDeviceId)
-          var remaining = device.totalCount - conflictCount
-          if (remaining < 0) remaining = 0
-          return {
-            ...device,
-            conflictCount: conflictCount,
-            remainingCount: remaining
+      const deviceIds = Object.values(groupedMap).map(d => d.primaryDeviceId)
+      let conflictMap = {}
+      try {
+        const res = await wx.cloud.callFunction({
+          name: 'checkDeviceConflictsBatch',
+          data: {
+            deviceIds,
+            reserveDate: this.data.reserveDate,
+            startTime: this.data.startTime,
+            endTime: this.data.endTime
           }
         })
-      )
+        conflictMap = res.result || {}
+      } catch (err) {
+        console.error('批量检查冲突失败:', err)
+      }
+      let devicesWithStatus = Object.values(groupedMap).map(device => {
+        const conflictCount = conflictMap[device.primaryDeviceId] || 0
+        const remaining = Math.max(device.totalCount - conflictCount, 0)
+      
+        return {
+          ...device,
+          conflictCount,
+          remainingCount: remaining
+        }
+      })
+      // var devicesWithStatus = await Promise.all(
+      //   Object.values(groupedMap).map(async (device) => {
+      //     var conflictCount = await that.checkDeviceConflicts(device.primaryDeviceId)
+      //     var remaining = device.totalCount - conflictCount
+      //     if (remaining < 0) remaining = 0
+      //     return {
+      //       ...device,
+      //       conflictCount: conflictCount,
+      //       remainingCount: remaining
+      //     }
+      //   })
+      // )
 
       if (filters.searchKeyword) {
         const keyword = filters.searchKeyword.toLowerCase()
-      
+
         devicesWithStatus = devicesWithStatus.filter(device => {
           const deviceName = (device.device_name || '').toLowerCase()
           const model = (device.deviceModel || '').toLowerCase()
           const labName = (device.lab_name || '').toLowerCase()
           const room = (device.device_room || '').toLowerCase()
           const description = (device.description || '').toLowerCase()
-      
+
           return (
             deviceName.includes(keyword) ||
             model.includes(keyword) ||

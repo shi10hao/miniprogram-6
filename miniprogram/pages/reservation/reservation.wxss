@@ -87,7 +87,6 @@
 /* 卡片通用样式 */
 .info-card,
 .filter-card,
-.device-card,
 .time-card {
   background: white;
   border-radius: 16rpx;
@@ -98,7 +97,11 @@
 
 .device-card {
   height: 1000rpx;
-  overflow: auto;
+  overflow: hidden;
+  margin-bottom: 0rpx;
+  display: flex;       /* 启用 Flex 布局 */
+  flex-direction: column; /* 垂直排列 */
+  max-height: 1000rpx;
 }
 /* 卡片标题 */
 .info-header,
@@ -197,7 +200,7 @@
 }
 
 .device-list {
-  max-height: 500rpx;
+  max-height: 800rpx;
 }
 
 .device-item {

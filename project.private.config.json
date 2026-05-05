@@ -23,10 +23,17 @@
       "list": [
         {
           "name": "pages/reservation/reservation",
-          "pathName": "pages/reservation/reservation",
+          "pathName": "pages/admin/admin",
           "query": "",
           "scene": null,
           "launchMode": "default"
+        },
+        {
+          "name": "pages/reservation/reservation",
+          "pathName": "pages/reservation/reservation",
+          "query": "",
+          "launchMode": "default",
+          "scene": null
         }
       ]
     }

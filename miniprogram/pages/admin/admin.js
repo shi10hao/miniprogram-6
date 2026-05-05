@@ -8,6 +8,11 @@ const DEVICE_ID_CHUNK_SIZE = 50
 Page({
   data: {
     activeTab: 0,
+    filters: {
+      labType: 'all', // all | public | group
+      deviceType: 'all', // all | large | small
+      searchKeyword: ''
+    },
     deviceGroups: [],
     isLoadingDevices: true,
     msgTitle: '',
@@ -18,7 +23,12 @@ Page({
     adminName: '',
     showExitConfirm: false,
     recentReserves: [],
-    reserveStats: { upcoming: 0, using: 0, completed: 0, total: 0 },
+    reserveStats: {
+      upcoming: 0,
+      using: 0,
+      completed: 0,
+      total: 0
+    },
     isLoadingReserves: false
   },
 
@@ -57,25 +67,72 @@ Page({
   },
 
   onHide() {
-    this.setData({ showExitConfirm: false })
+    this.setData({
+      showExitConfirm: false
+    })
+  },
+
+  onLabTypeChange(e) {
+    const type = e.currentTarget.dataset.type
+    this.setData({
+      'filters.labType': type
+    }, () => {
+      this.loadDeviceStatus()
+    })
+  },
+
+
+  onDeviceTypeChange(e) {
+    const type = e.currentTarget.dataset.type
+    this.setData({
+      'filters.deviceType': type
+    }, () => {
+      this.loadDeviceStatus()
+    })
+  },
+  onSearchInput(e) {
+    const keyword = e.detail.value.trim()
+
+    this.setData({
+      'filters.searchKeyword': keyword
+    }, () => {
+      this.loadDeviceStatus()
+    })
+  },
+  clearSearch() {
+    this.setData({
+      'filters.searchKeyword': ''
+    }, () => {
+      this.loadDeviceStatus()
+    })
   },
 
   confirmLogout() {
-    this.setData({ showExitConfirm: true })
+    this.setData({
+      showExitConfirm: true
+    })
   },
 
   cancelExit() {
-    this.setData({ showExitConfirm: false })
+    this.setData({
+      showExitConfirm: false
+    })
   },
 
   onBeforeLeaveExit() {
-    this.setData({ showExitConfirm: false })
+    this.setData({
+      showExitConfirm: false
+    })
   },
 
   doLogout() {
-    this.setData({ showExitConfirm: false })
+    this.setData({
+      showExitConfirm: false
+    })
     wx.removeStorageSync('adminInfo')
-    wx.reLaunch({ url: '/pages/admin/login/adminlogin' })
+    wx.reLaunch({
+      url: '/pages/admin/login/adminlogin'
+    })
   },
 
   async bootstrapPage() {
@@ -84,17 +141,24 @@ Page({
 
     this.currentSession = session
     this._ready = true
-    this.setData({ adminName: session.name || '管理员' })
+    this.setData({
+      adminName: session.name || '管理员'
+    })
     this.loadDeviceStatus()
   },
 
   redirectToLogin(message) {
     wx.removeStorageSync('adminInfo')
     if (message) {
-      wx.showToast({ title: message, icon: 'none' })
+      wx.showToast({
+        title: message,
+        icon: 'none'
+      })
     }
     setTimeout(() => {
-      wx.reLaunch({ url: '/pages/admin/login/adminlogin' })
+      wx.reLaunch({
+        url: '/pages/admin/login/adminlogin'
+      })
     }, 400)
   },
 
@@ -139,20 +203,59 @@ Page({
   },
 
   buildVisibleDeviceCondition(session) {
-    if (!session) return { _id: '__DENY__' }
-
-    if (session.role === 'admin') return null
-
-    if (session.role === 'teacher') {
-      const groupName = String(session.groupName || '').trim()
-      if (!groupName) return { lab_type: 'public' }
-      return _.or([
-        { lab_type: 'public' },
-        { lab_name: groupName }
-      ])
+    if (!session) {
+      return {
+        deny: true
+      }
     }
 
-    return { _id: '__DENY__' }
+    const filters = this.data.filters
+    const result = {
+      labCondition: null,
+      deviceType: null
+    }
+
+    if (session.role === 'admin') {
+      result.labCondition = null
+    } else if (session.role === 'teacher') {
+      const groupName = String(session.groupName || '').trim()
+
+      if (!groupName) {
+        result.labCondition = {
+          lab_type: 'public'
+        }
+      } else {
+        if (filters.labType === 'all') {
+          result.labCondition = _.or([{
+              lab_type: 'public'
+            },
+            {
+              lab_name: groupName
+            }
+          ])
+        } else if (filters.labType === 'public') {
+          result.labCondition = {
+            lab_type: 'public'
+          }
+        } else if (filters.labType === 'group') {
+          result.labCondition = {
+            lab_name: groupName
+          }
+        }
+      }
+    } else {
+      return {
+        deny: true
+      }
+    }
+
+    if (filters.deviceType === 'large') {
+      result.deviceType = 'large'
+    } else if (filters.deviceType === 'small') {
+      result.deviceType = 'small'
+    }
+
+    return result
   },
 
   chunkArray(list, size) {
@@ -163,25 +266,85 @@ Page({
     return chunks
   },
 
-  async fetchAllByWhere(collectionName, whereCondition, pageSize = PAGE_SIZE) {
-    let skip = 0
-    const all = []
+  // 替代原来的 fetchAllByWhere
+  async fetchAllByCloud(
+    collectionName,
+    whereCondition = {},
+    pageSize = 100
+  ) {
+    wx.showLoading({
+      title: '加载中...'
+    })
 
-    while (true) {
-      let query = db.collection(collectionName)
-      if (whereCondition) query = query.where(whereCondition)
+    // console.log('collectionName:', collectionName)
+    // console.log('whereCondition:', whereCondition)
 
-      const res = await query.skip(skip).limit(pageSize).get()
-      const rows = res.data || []
-      all.push(...rows)
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'getCollectionData',
+        data: {
+          collectionName,
+          whereCondition,
+          pageSize
+        }
+      })
 
-      if (rows.length < pageSize) break
-      skip += pageSize
+      wx.hideLoading()
+
+      if (res.result.code !== 0) {
+        throw new Error(res.result.message)
+      }
+
+      return res.result.data
+    } catch (err) {
+      wx.hideLoading()
+      console.error('云函数查询失败:', err)
+      wx.showToast({
+        title: '加载失败',
+        icon: 'none'
+      })
+      return []
     }
-
-    return all
   },
+  async fetchAllByCloud2(
+    collectionName,
+    whereCondition = {},
+    pageSize = 100
+  ) {
+    wx.showLoading({
+      title: '加载中...'
+    })
 
+    // console.log('collectionName:', collectionName)
+    console.log('whereCondition:', whereCondition)
+
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'getCollectionData2',
+        data: {
+          collectionName,
+          whereCondition,
+          pageSize
+        }
+      })
+
+      wx.hideLoading()
+
+      if (res.result.code !== 0) {
+        throw new Error(res.result.message)
+      }
+
+      return res.result.data
+    } catch (err) {
+      wx.hideLoading()
+      console.error('云函数查询失败:', err)
+      wx.showToast({
+        title: '加载失败',
+        icon: 'none'
+      })
+      return []
+    }
+  },
   async fetchUsingRecordsByDeviceIds(deviceIds) {
     if (!deviceIds.length) return []
 
@@ -189,7 +352,7 @@ Page({
     const all = []
     for (let i = 0; i < chunks.length; i += 1) {
       const chunk = chunks[i]
-      const rows = await this.fetchAllByWhere('device_usage', {
+      const rows = await this.fetchAllByCloud('device_usage', {
         status: 'using',
         device_id: _.in(chunk)
       })
@@ -231,12 +394,40 @@ Page({
       this.currentSession = session
     }
 
-    this.setData({ isLoadingDevices: true })
+    this.setData({
+      isLoadingDevices: true
+    })
 
     try {
-      const visibleCondition = this.buildVisibleDeviceCondition(this.currentSession)
-      const allDevices = await this.fetchAllByWhere('devices', visibleCondition)
+      const devicesCondition =
+        this.buildVisibleDeviceCondition(this.currentSession)
 
+      console.log('【devices】condition:', devicesCondition)
+
+      // ✅ 2️⃣ 只查 devices（只调用一次云函数）
+      let allDevices = await this.fetchAllByCloud2(
+        'devices',
+        devicesCondition
+      )
+      const keyword = this.data.filters.searchKeyword?.toLowerCase().trim()
+
+      if (keyword) {
+        allDevices = allDevices.filter(device => {
+          const deviceName = (device.device_name || '').toLowerCase()
+          const model = (this.getDeviceModel(device) || '').toLowerCase()
+          const labName = (device.lab_name || '').toLowerCase()
+          const room = (device.device_room || '').toLowerCase()
+          const description = (device.description || '').toLowerCase()
+
+          return (
+            deviceName.includes(keyword) ||
+            model.includes(keyword) ||
+            labName.includes(keyword) ||
+            room.includes(keyword) ||
+            description.includes(keyword)
+          )
+        })
+      }
       const visibleDeviceIds = Array.from(
         new Set((allDevices || []).map(item => item.device_id).filter(Boolean))
       )
@@ -282,26 +473,37 @@ Page({
         deviceGroups,
         isLoadingDevices: false
       })
+      console.log('原始设备数:', allDevices.length)
+      console.log('分组后数量:', Object.keys(groupMap).length)
     } catch (err) {
       console.error('加载仪器状态失败:', err)
-      this.setData({ isLoadingDevices: false })
-      wx.showToast({ title: '加载失败', icon: 'none' })
+      this.setData({
+        isLoadingDevices: false
+      })
+      wx.showToast({
+        title: '加载失败',
+        icon: 'none'
+      })
     }
   },
 
   switchTab(e) {
     const tab = Number(e.currentTarget.dataset.tab)
-    this.setData({ activeTab: tab })
+    this.setData({
+      activeTab: tab
+    })
     if (tab === 0) this.loadDeviceStatus()
     if (tab === 1) this.loadReserveSummary()
     if (tab === 2) this.loadSentMessages()
   },
 
   goToReserveList() {
-    wx.navigateTo({ url: '/pages/admin/reserve-list/adminreservelist' })
+    wx.navigateTo({
+      url: '/pages/admin/reserve-list/adminreservelist'
+    })
   },
 
-  goTo3DBoard: function() {
+  goTo3DBoard: function () {
     var role = this.currentSession ? this.currentSession.role : 'admin'
     wx.navigateTo({
       url: '/pages/webview/3dscene/scene3d?role=' + encodeURIComponent(role)
@@ -316,32 +518,50 @@ Page({
     const groupKey = String(e.currentTarget.dataset.groupKey || '')
 
     const url = `/pages/admin/device-detail/admindevicedetail?deviceName=${encodeURIComponent(deviceName)}&labName=${encodeURIComponent(labName)}&deviceType=${encodeURIComponent(deviceType)}&model=${encodeURIComponent(model)}&groupKey=${encodeURIComponent(groupKey)}`
-    wx.navigateTo({ url })
+    wx.navigateTo({
+      url
+    })
   },
 
   onTitleInput(e) {
-    this.setData({ msgTitle: e.detail.value })
+    this.setData({
+      msgTitle: e.detail.value
+    })
   },
 
   onContentInput(e) {
-    this.setData({ msgContent: e.detail.value })
+    this.setData({
+      msgContent: e.detail.value
+    })
   },
 
   sendMessage() {
-    const { msgTitle, msgContent, adminName } = this.data
+    const {
+      msgTitle,
+      msgContent,
+      adminName
+    } = this.data
     const title = String(msgTitle || '').trim()
     const content = String(msgContent || '').trim()
 
     if (!title) {
-      wx.showToast({ title: '请填写标题', icon: 'none' })
+      wx.showToast({
+        title: '请填写标题',
+        icon: 'none'
+      })
       return
     }
     if (!content) {
-      wx.showToast({ title: '请填写内容', icon: 'none' })
+      wx.showToast({
+        title: '请填写内容',
+        icon: 'none'
+      })
       return
     }
 
-    this.setData({ isSending: true })
+    this.setData({
+      isSending: true
+    })
     const now = new Date()
 
     db.collection('notice')
@@ -361,21 +581,33 @@ Page({
           msgTitle: '',
           msgContent: ''
         })
-        wx.showToast({ title: '发布成功', icon: 'success' })
+        wx.showToast({
+          title: '发布成功',
+          icon: 'success'
+        })
         this.loadSentMessages()
       })
       .catch(err => {
-        this.setData({ isSending: false })
+        this.setData({
+          isSending: false
+        })
         console.error('发布失败:', err)
-        wx.showToast({ title: '发布失败，请重试', icon: 'none' })
+        wx.showToast({
+          title: '发布失败，请重试',
+          icon: 'none'
+        })
       })
   },
 
   loadSentMessages() {
-    this.setData({ isLoadingMessages: true })
+    this.setData({
+      isLoadingMessages: true
+    })
 
     db.collection('notice')
-      .where({ type: 'admin' })
+      .where({
+        type: 'admin'
+      })
       .orderBy('publish_date', 'desc')
       .limit(20)
       .get()
@@ -391,7 +623,9 @@ Page({
       })
       .catch(err => {
         console.error('加载通知历史失败:', err)
-        this.setData({ isLoadingMessages: false })
+        this.setData({
+          isLoadingMessages: false
+        })
       })
   },
 
@@ -407,42 +641,58 @@ Page({
   async loadReserveSummary() {
     if (!this.currentSession) return
 
-    this.setData({ isLoadingReserves: true })
+    this.setData({
+      isLoadingReserves: true
+    })
 
     try {
       const visibleCondition = this.buildVisibleDeviceCondition(this.currentSession)
 
       let visibleDeviceIds = null
       if (visibleCondition) {
-        const devices = await this.fetchAllByWhere('devices', visibleCondition)
+        const devices = await this.fetchAllByCloud('devices', visibleCondition)
         visibleDeviceIds = Array.from(new Set(
           (devices || []).map(d => d.device_id).filter(Boolean)
         ))
         if (visibleDeviceIds.length === 0) {
           this.setData({
             recentReserves: [],
-            reserveStats: { upcoming: 0, using: 0, completed: 0, total: 0 },
+            reserveStats: {
+              upcoming: 0,
+              using: 0,
+              completed: 0,
+              total: 0
+            },
             isLoadingReserves: false
           })
           return
         }
       }
 
-      var reserveCondition = { status: 'approved' }
+      var reserveCondition = {
+        status: 'approved'
+      }
       if (visibleDeviceIds) {
         reserveCondition.device_id = _.in(visibleDeviceIds)
       }
 
-      var allReserves = await this.fetchAllByWhere('reserves', reserveCondition)
+      var allReserves = await this.fetchAllByCloud('reserves', reserveCondition)
 
-      var activeUsages = await this.fetchAllByWhere('device_usage', { status: 'using' })
-      var usingReserveIdMap = {}
-      ;(activeUsages || []).forEach(function(u) {
+      var activeUsages = await this.fetchAllByCloud('device_usage', {
+        status: 'using'
+      })
+      var usingReserveIdMap = {};
+      (activeUsages || []).forEach(function (u) {
         if (u.reserve_id) usingReserveIdMap[u.reserve_id] = true
       })
 
       var now = new Date()
-      var stats = { upcoming: 0, using: 0, completed: 0, total: allReserves.length }
+      var stats = {
+        upcoming: 0,
+        using: 0,
+        completed: 0,
+        total: allReserves.length
+      }
 
       var processed = (allReserves || []).map(item => {
         var statusInfo = this.getReserveDisplayStatus(item, usingReserveIdMap, now)
@@ -475,7 +725,9 @@ Page({
       })
     } catch (err) {
       console.error('加载预约概览失败:', err)
-      this.setData({ isLoadingReserves: false })
+      this.setData({
+        isLoadingReserves: false
+      })
     }
   },
 
@@ -518,33 +770,54 @@ Page({
 
   getReserveDisplayStatus(item, usingReserveIdMap, now) {
     if (!item) {
-      return { displayStatus: 'past', displayStatusText: '已过期' }
+      return {
+        displayStatus: 'past',
+        displayStatusText: '已过期'
+      }
     }
 
     if (item.usage_status === 'completed') {
-      return { displayStatus: 'completed', displayStatusText: '已完成' }
+      return {
+        displayStatus: 'completed',
+        displayStatusText: '已完成'
+      }
     }
 
     if ((usingReserveIdMap && usingReserveIdMap[item._id]) || item.usage_status === 'active') {
-      return { displayStatus: 'using', displayStatusText: '使用中' }
+      return {
+        displayStatus: 'using',
+        displayStatusText: '使用中'
+      }
     }
 
     var startTs = this.resolveReserveTimestamp(item, 'start')
     var endTs = this.resolveReserveTimestamp(item, 'end')
     var nowTs = (now || new Date()).getTime()
     if (!startTs || !endTs) {
-      return { displayStatus: 'past', displayStatusText: '已过期' }
+      return {
+        displayStatus: 'past',
+        displayStatusText: '已过期'
+      }
     }
 
     if (nowTs < startTs) {
-      return { displayStatus: 'upcoming', displayStatusText: '即将使用' }
+      return {
+        displayStatus: 'upcoming',
+        displayStatusText: '即将使用'
+      }
     }
 
     if (nowTs >= startTs && nowTs < endTs) {
-      return { displayStatus: 'upcoming', displayStatusText: '可开始使用' }
+      return {
+        displayStatus: 'upcoming',
+        displayStatusText: '可开始使用'
+      }
     }
 
-    return { displayStatus: 'past', displayStatusText: '已过期' }
+    return {
+      displayStatus: 'past',
+      displayStatusText: '已过期'
+    }
   },
 
   getTimePart(dtStr) {
