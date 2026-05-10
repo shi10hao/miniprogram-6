@@ -10,7 +10,11 @@ Page({
       researchGroup: '', // 课题组
       phone: ''
     },
+    reservedDevices:[],
 
+    // 默认选中第一个
+    selectedIndex: 0,
+    device_id: null,
     // 仪器筛选
     // 筛选条件
     filters: {
@@ -148,6 +152,8 @@ Page({
       this.getAvailableDevices()
     })
   },
+
+  // 注意！这是将       Object类型        的型号转为        String类型
   getDeviceModel: function (device) {
     var specs = device.specifications || {}
     if (specs && typeof specs === 'object') {
@@ -176,8 +182,9 @@ Page({
 
       const devices = res.result || []
 
-      console.log("res",res)
-      console.log("devices",devices)
+      console.log("res:",res)
+      console.log("devices:",devices)
+
       var groupedMap = {}
       var that = this;
 
@@ -196,14 +203,21 @@ Page({
             primaryDeviceId: device.device_id,
             device_id: device.device_id,
             picture: device.picture,
-            conflictCount: 0
+            conflictCount: 0,
+            // 注意！在这里添加了所有同名设施的device_id
+            device_ids:[device.device_id]
           }
         } else {
           groupedMap[key].totalCount++
+          // 按部就班添加到数组中
+          groupedMap[key].device_ids.push(device.device_id)
         }
       })
-
+      console.log("groupedMap:",groupedMap)
+      console.log("Object.values(groupedMap):",Object.values(groupedMap))
       const deviceIds = Object.values(groupedMap).map(d => d.primaryDeviceId)
+
+      console.log("deviceIds:",deviceIds)
       let conflictMap = {}
       try {
         const res = await wx.cloud.callFunction({
@@ -215,7 +229,14 @@ Page({
             endTime: this.data.endTime
           }
         })
-        conflictMap = res.result || {}
+        console.log("res2:",res)
+        conflictMap = res.result.map || {}
+        let reservedDevices = res.result.reservedDevices 
+        this.setData({
+          reservedDevices:res.result.reservedDevices
+        })
+        // 
+        console.log("conflictMap,reservedDevices:",conflictMap,this.data.reservedDevices)
       } catch (err) {
         console.error('批量检查冲突失败:', err)
       }
@@ -229,19 +250,6 @@ Page({
           remainingCount: remaining
         }
       })
-      // var devicesWithStatus = await Promise.all(
-      //   Object.values(groupedMap).map(async (device) => {
-      //     var conflictCount = await that.checkDeviceConflicts(device.primaryDeviceId)
-      //     var remaining = device.totalCount - conflictCount
-      //     if (remaining < 0) remaining = 0
-      //     return {
-      //       ...device,
-      //       conflictCount: conflictCount,
-      //       remainingCount: remaining
-      //     }
-      //   })
-      // )
-
       if (filters.searchKeyword) {
         const keyword = filters.searchKeyword.toLowerCase()
 
@@ -885,5 +893,14 @@ Page({
         console.log('订阅消息授权失败:', err)
       }
     })
+  },
+
+  onSelectDevice(e) {
+    const index = e.currentTarget.dataset.index;
+    const device_id = e.currentTarget.dataset.id
+    this.setData({
+      selectedIndex: index,
+      device_id
+    });
   }
 })

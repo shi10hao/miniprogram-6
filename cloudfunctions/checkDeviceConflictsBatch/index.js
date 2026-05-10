@@ -24,12 +24,17 @@ exports.main = async (event) => {
       ])
     ])
   ).get()
-
+console.log("res:",res)
   // 按 device_id 统计冲突数
+  let reservedDevices = []
+  reservedDevices = res.data.map(item => {
+    return item.device_id
+  })
+  console.log("reservedDevices:",reservedDevices)
   const map = {}
   res.data.forEach(r => {
     map[r.device_id] = (map[r.device_id] || 0) + 1
   })
-
-  return map
+console.log("map:",map)
+  return {map,reservedDevices}
 }
