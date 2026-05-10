@@ -101,7 +101,7 @@
 
     <!-- 仪器列表 -->
     <scroll-view wx:else scroll-y class="device-list">
-      <view class="device-item {{selectedDevice && selectedDevice.device_id === item.device_id ? 'selected' : ''}}" wx:for="{{availableDevices}}" wx:key="device_id" data-device="{{item}}" bindtap="selectDevice">
+      <view class="device-item {{selectedDevice && selectedDevice.device_ids[0] === item.device_ids[0] ? 'selected' : ''}}" wx:for="{{availableDevices}}" wx:key="device_id" data-device="{{item}}" bindtap="selectDevice">
 
         <!-- 要在下面添加 -->
         <view class="device-info">
@@ -127,9 +127,9 @@
           </view>
 
           <!-- 点击设备才显示的内容，默认隐藏 -->
-          <view wx:if="{{selectedDevice && selectedDevice.device_id === item.device_id}}" class="your-content">
+          <view wx:if="{{selectedDevice && selectedDevice.device_ids[0] === item.device_ids[0]}}" class="your-content">
             <view class="all_devices_btns">
-              <view class="each_devices_btn {{index === selectedIndex ? 'active' : ''}}" wx:for="{{item.device_ids}}" wx:for-item="device_id" wx:key="*this" data-id="{{device_id}}" bind:tap="onSelectDevice" data-index="{{index}}">{{device_id}}</view>
+              <view class="each_devices_btn {{index === selectedIndex ? 'active' : ''}}" wx:for="{{item.device_ids}}" wx:for-item="device_id" wx:key="*this" data-id="{{device_id}}"  bindtap="onSelectDevice" catchtap data-index="{{index}}">{{device_id}}</view>
             </view>
           </view>
         </view>
@@ -137,7 +137,7 @@
         <!-- 冲突提示 -->
         <view wx:if="{{item.conflictCount > 0}}" class="conflict-warning">
           <text class="warning-icon">⚠️</text>
-          <text class="warning-text">今日已有 {{item.conflictCount}} 个预约</text>
+          <text class="warning-text">这段时间已有 {{item.conflictCount}} 个预约</text>
         </view>
       </view>
     </scroll-view>

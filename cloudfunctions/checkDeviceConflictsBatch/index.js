@@ -5,7 +5,7 @@ const db = cloud.database()
 const _ = db.command
 
 exports.main = async (event) => {
-  const { deviceIds, reserveDate, startTime, endTime } = event
+  const { valueOfGroupedMap,deviceIds, reserveDate, startTime, endTime } = event
 
   if (!deviceIds || deviceIds.length === 0) return {}
 

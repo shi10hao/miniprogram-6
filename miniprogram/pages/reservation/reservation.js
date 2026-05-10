@@ -10,7 +10,7 @@ Page({
       researchGroup: '', // 课题组
       phone: ''
     },
-    reservedDevices:[],
+    reservedDevices: [],
 
     // 默认选中第一个
     selectedIndex: 0,
@@ -182,8 +182,8 @@ Page({
 
       const devices = res.result || []
 
-      console.log("res:",res)
-      console.log("devices:",devices)
+      console.log("res:", res)
+      console.log("devices:", devices)
 
       var groupedMap = {}
       var that = this;
@@ -205,7 +205,7 @@ Page({
             picture: device.picture,
             conflictCount: 0,
             // 注意！在这里添加了所有同名设施的device_id
-            device_ids:[device.device_id]
+            device_ids: [device.device_id]
           }
         } else {
           groupedMap[key].totalCount++
@@ -213,41 +213,45 @@ Page({
           groupedMap[key].device_ids.push(device.device_id)
         }
       })
-      console.log("groupedMap:",groupedMap)
-      console.log("Object.values(groupedMap):",Object.values(groupedMap))
-      const deviceIds = Object.values(groupedMap).map(d => d.primaryDeviceId)
+      console.log("groupedMap:", groupedMap)
+      console.log("Object.values(groupedMap):", Object.values(groupedMap))
+      const valueOfGroupedMap = Object.values(groupedMap)
+      const deviceIds = valueOfGroupedMap.flatMap(d => d.device_ids)
 
-      console.log("deviceIds:",deviceIds)
+      console.log("deviceIds:", deviceIds)
       let conflictMap = {}
       try {
         const res = await wx.cloud.callFunction({
           name: 'checkDeviceConflictsBatch',
           data: {
+            valueOfGroupedMap,
             deviceIds,
             reserveDate: this.data.reserveDate,
             startTime: this.data.startTime,
             endTime: this.data.endTime
           }
         })
-        console.log("res2:",res)
+        console.log("res2:", res)
         conflictMap = res.result.map || {}
-        let reservedDevices = res.result.reservedDevices 
+        let reservedDevices = res.result.reservedDevices
         this.setData({
-          reservedDevices:res.result.reservedDevices
+          reservedDevices
         })
         // 
-        console.log("conflictMap,reservedDevices:",conflictMap,this.data.reservedDevices)
+        console.log("conflictMap,reservedDevices:", conflictMap, this.data.reservedDevices)
       } catch (err) {
         console.error('批量检查冲突失败:', err)
       }
-      let devicesWithStatus = Object.values(groupedMap).map(device => {
-        const conflictCount = conflictMap[device.primaryDeviceId] || 0
-        const remaining = Math.max(device.totalCount - conflictCount, 0)
-      
+      let devicesWithStatus = Object.values(groupedMap).map(group => {
+        let total = 0
+        group.device_ids.forEach(id => {
+          total += conflictMap[id] || 0
+        })
+
         return {
-          ...device,
-          conflictCount,
-          remainingCount: remaining
+          ...group,
+          conflictCount:total,
+          remainingCount: Math.max(group.totalCount - total, 0)
         }
       })
       if (filters.searchKeyword) {
@@ -339,14 +343,14 @@ Page({
   // 仪器类型筛选
   onDeviceTypeChange(e) {
     const type = e.currentTarget.dataset.type
-    console.log('type',type)
+    console.log('type', type)
     this.setData({
       'filters.deviceType': type,
       selectedDevice: null // 清空已选仪器
     }, () => {
       this.getAvailableDevices()
     })
-    console.log("filters",this.data.filters)
+    console.log("filters", this.data.filters)
   },
 
   onLabTypeChange(e) {
@@ -358,17 +362,19 @@ Page({
     }, () => {
       this.getAvailableDevices()
     })
-    console.log("filters",this.data.filters)
+    console.log("filters", this.data.filters)
   },
 
   // 选择仪器
   selectDevice(e) {
     const device = e.currentTarget.dataset.device
     this.setData({
-      selectedDevice: device
+      selectedDevice: device,
+      selectedIndex: 0
     }, () => {
       this.checkTimeConflict()
       this.checkPastTime()
+      console.log("selectedDevice:", this.data.selectedDevice)
     })
   },
 
@@ -393,6 +399,7 @@ Page({
       startTime: startTime,
       endTime: endTime
     }, () => {
+      this.getAvailableDevices()
       this.checkTimeConflict()
       this.checkPastTime()
     })
@@ -404,6 +411,7 @@ Page({
     this.setData({
       endTime: endTime
     }, () => {
+      this.getAvailableDevices()
       this.checkTimeConflict()
       this.checkPastTime()
     })
@@ -514,7 +522,7 @@ Page({
     })
   },
 
-  // 提交预约
+  // 提交预约                      checkTimeConflict
   async submitReservation() {
     if (this.data.isLoading) return
 
@@ -644,9 +652,9 @@ Page({
       var currentSelected = this.data.selectedDevice
       if (currentSelected && currentDevices.length > 0) {
         var updatedDevices = currentDevices.map(function (dev) {
-          if (dev.device_id === currentSelected.device_id) {
-            var newConflict = (dev.conflictCount || 0) + 1
-            var newRemaining = (dev.totalCount || 0) - newConflict
+          if (dev.device_ids.includes(currentSelected.device_id)) {
+            var newConflict = (dev.conflictCount || 0) + 1 // 已预约次数+1
+            var newRemaining = (dev.totalCount || 0) - newConflict // 剩余次数-1
             if (newRemaining < 0) newRemaining = 0
             return Object.assign({}, dev, {
               conflictCount: newConflict,
@@ -655,6 +663,7 @@ Page({
           }
           return dev
         })
+        // 更新页面设备列表
         this.setData({
           availableDevices: updatedDevices
         })
@@ -897,10 +906,18 @@ Page({
 
   onSelectDevice(e) {
     const index = e.currentTarget.dataset.index;
-    const device_id = e.currentTarget.dataset.id
+    const device_id = e.currentTarget.dataset.id;
+    const selectedDevice = this.data.selectedDevice;
     this.setData({
       selectedIndex: index,
-      device_id
+      selectedDevice: {
+        ...selectedDevice, // 保留完整设备信息
+        device_id: device_id // 覆盖成你点击的子设备ID
+      }
+    }, () => {
+      this.checkTimeConflict();
+      this.checkPastTime();
+      console.log("selectedDevice:", this.data.selectedDevice);
     });
   }
 })
