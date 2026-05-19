@@ -182,8 +182,8 @@ Page({
 
       const devices = res.result || []
 
-      console.log("res:", res)
-      console.log("devices:", devices)
+      // console.log("res:", res)
+      // console.log("devices:", devices)
 
       var groupedMap = {}
       var that = this;
@@ -213,12 +213,12 @@ Page({
           groupedMap[key].device_ids.push(device.device_id)
         }
       })
-      console.log("groupedMap:", groupedMap)
-      console.log("Object.values(groupedMap):", Object.values(groupedMap))
+      // console.log("groupedMap:", groupedMap)
+      // console.log("Object.values(groupedMap):", Object.values(groupedMap))
       const valueOfGroupedMap = Object.values(groupedMap)
       const deviceIds = valueOfGroupedMap.flatMap(d => d.device_ids)
 
-      console.log("deviceIds:", deviceIds)
+      // console.log("deviceIds:", deviceIds)
       let conflictMap = {}
       try {
         const res = await wx.cloud.callFunction({
@@ -231,14 +231,14 @@ Page({
             endTime: this.data.endTime
           }
         })
-        console.log("res2:", res)
+        // console.log("res2:", res)
         conflictMap = res.result.map || {}
         let reservedDevices = res.result.reservedDevices
         this.setData({
           reservedDevices
         })
         // 
-        console.log("conflictMap,reservedDevices:", conflictMap, this.data.reservedDevices)
+        // console.log("conflictMap,reservedDevices:", conflictMap, this.data.reservedDevices)
       } catch (err) {
         console.error('批量检查冲突失败:', err)
       }

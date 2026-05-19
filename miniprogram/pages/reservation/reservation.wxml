@@ -137,7 +137,7 @@
         <!-- 冲突提示 -->
         <view wx:if="{{item.conflictCount > 0}}" class="conflict-warning">
           <text class="warning-icon">⚠️</text>
-          <text class="warning-text">这段时间已有 {{item.conflictCount}} 个预约</text>
+          <text class="warning-text">这段时间有 {{item.conflictCount}} 个预约</text>
         </view>
       </view>
     </scroll-view>

@@ -1,6 +1,6 @@
 const db = wx.cloud.database()
 
-const TEMPLATE_ID = 'FClBgpZO9KXJ79M0ZAqqrEDoqWlXWPmRz862s6zVP4M'
+const TEMPLATE_ID = 'rMlK56GhrbjJk8SeNRIM7UNLd2X9RRnhcETNRNcQiVw'
 const BANNER_REMINDER_TYPES = ['reservation_remind', 'usage_photo_remind', 'usage_end_remind']
 const PHOTO_REMINDER_TYPES = ['usage_photo_remind', 'usage_end_remind']
 
@@ -14,7 +14,6 @@ Page({
     endPhotos: [null, null, null],
     unreadReminder: null
   },
-
   onLoad() {
     this.loadData()
     this.loadUnreadReminder()
@@ -47,6 +46,7 @@ Page({
         this.setData({
           currentUsage: usage ? this.formatUsage(usage) : null
         })
+        console.log("this.currentUsage:", this.currentUsage)
         return usage || null
       })
       .catch(err => {
@@ -70,6 +70,7 @@ Page({
       .then(res => {
         const usageHistory = (res.data || []).map(item => this.formatUsage(item))
         this.setData({ usageHistory })
+        console.log("this.usageHistory:", this.usageHistory)
         return usageHistory
       })
       .catch(err => {
@@ -100,7 +101,7 @@ Page({
       .get()
       .then(res => {
         var records = res.data || []
-        var pending = records.filter(function(item) {
+        var pending = records.filter(function (item) {
           var usageNotStarted = !item.usage_status || item.usage_status === 'not_started'
           var endTs = this.getReserveTimestamp(item, 'end')
           return usageNotStarted && endTs && endTs >= todayStartTs
@@ -111,7 +112,7 @@ Page({
             _sort_ts: startTs || 0,
             _end_ts: endTs || 0
           })
-        }).sort(function(a, b) {
+        }).sort(function (a, b) {
           return a._sort_ts - b._sort_ts
         }).map(item => {
           var startTs = item._sort_ts
@@ -137,6 +138,7 @@ Page({
           }
         })
         this.setData({ pendingReserves: pending })
+        console.log("this.pendingReserves:", this.pendingReserves)
         return pending
       })
       .catch(err => {
@@ -168,6 +170,7 @@ Page({
         this.setData({
           unreadReminder: item ? this.normalizeUnreadReminder(item) : null
         })
+        console.log("item:", item)
         return item
       })
       .catch(err => {
@@ -394,25 +397,25 @@ Page({
     }
 
     reservePromise.then(reserve => {
-        wx.hideLoading()
-        if (!reserve) {
-          wx.showToast({ title: '当前时间无可开始使用的预约', icon: 'none' })
-          return
-        }
+      wx.hideLoading()
+      if (!reserve) {
+        wx.showToast({ title: '当前时间无可开始使用的预约', icon: 'none' })
+        return
+      }
 
-        const reservePeriod = `${reserve.start_time || ''} - ${reserve.end_time || ''}`
-        wx.showModal({
-          title: '确认开始使用',
-          content: `仪器：${reserve.device_name}\n预约时段：${reservePeriod}\n确认开始使用？`,
-          confirmText: '确认',
-          cancelText: '取消',
-          success: modal => {
-            if (modal.confirm) {
-              this.createUsageRecord(reserve, tempFilePath, userInfo)
-            }
+      const reservePeriod = `${reserve.start_time || ''} - ${reserve.end_time || ''}`
+      wx.showModal({
+        title: '确认开始使用',
+        content: `仪器：${reserve.device_name}\n预约时段：${reservePeriod}\n确认开始使用？`,
+        confirmText: '确认',
+        cancelText: '取消',
+        success: modal => {
+          if (modal.confirm) {
+            this.createUsageRecord(reserve, tempFilePath, userInfo)
           }
-        })
+        }
       })
+    })
       .catch(err => {
         wx.hideLoading()
         console.error('获取预约失败:', err)
