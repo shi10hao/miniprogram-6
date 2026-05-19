@@ -358,6 +358,7 @@ Page({
       })
       all.push(...rows)
     }
+    console.log("all:",all)
     return all
   },
 
