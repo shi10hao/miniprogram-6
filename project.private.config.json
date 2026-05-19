@@ -22,39 +22,11 @@
     "miniprogram": {
       "list": [
         {
-          "name": "pages/index/index",
-          "pathName": "pages/index/index",
+          "name": "pages/reservation/reservation",
+          "pathName": "pages/reservation/reservation",
           "query": "",
           "scene": null,
           "launchMode": "default"
-        },
-        {
-          "name": "pages/admin/reserve-list/adminreservelist",
-          "pathName": "pages/admin/reserve-list/adminreservelist",
-          "query": "",
-          "launchMode": "default",
-          "scene": null
-        },
-        {
-          "name": "pages/reservation/reservation",
-          "pathName": "pages/reservation/reservation",
-          "query": "",
-          "launchMode": "default",
-          "scene": null
-        },
-        {
-          "name": "pages/device/list/devicelist",
-          "pathName": "pages/device/list/devicelist",
-          "query": "",
-          "launchMode": "default",
-          "scene": null
-        },
-        {
-          "name": "pages/reservation/reservation",
-          "pathName": "pages/reservation/reservation",
-          "query": "",
-          "launchMode": "default",
-          "scene": null
         },
         {
           "name": "pages/reservation/reservation",

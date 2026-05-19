@@ -13,9 +13,7 @@ Page({
     searchKeyword: '',
     hasMore: true,
     currentPage: 0,
-    currentSession: null,
-    pageSize: 20,
-    totalLoaded: 0
+    currentSession: null
   },
 
   onLoad() {
@@ -41,7 +39,7 @@ Page({
   async bootstrapPage() {
     const session = await this.validateAdminSession()
     if (!session) return
-    console.log("session:", session)
+
     this.currentSession = session
     this._ready = true
     this.refreshData()
@@ -49,14 +47,9 @@ Page({
 
   redirectToLogin(message) {
     wx.removeStorageSync('adminInfo')
-    if (message) wx.showToast({
-      title: message,
-      icon: 'none'
-    })
+    if (message) wx.showToast({ title: message, icon: 'none' })
     setTimeout(() => {
-      wx.redirectTo({
-        url: '/pages/admin/login/adminlogin'
-      })
+      wx.redirectTo({ url: '/pages/admin/login/adminlogin' })
     }, 400)
   },
 
@@ -97,28 +90,19 @@ Page({
   },
 
   buildVisibleDeviceIdsCondition(session) {
-    if (!session) return {
-      _id: '__DENY__'
-    }
+    if (!session) return { _id: '__DENY__' }
     if (session.role === 'admin') return null
 
     if (session.role === 'teacher') {
       const groupName = String(session.groupName || '').trim()
-      if (!groupName) return {
-        lab_type: 'public'
-      }
-      return _.or([{
-          lab_type: 'public'
-        },
-        {
-          lab_name: groupName
-        }
+      if (!groupName) return { lab_type: 'public' }
+      return _.or([
+        { lab_type: 'public' },
+        { lab_name: groupName }
       ])
     }
 
-    return {
-      _id: '__DENY__'
-    }
+    return { _id: '__DENY__' }
   },
 
   async fetchAllByWhere(collectionName, whereCondition, pageSize) {
@@ -140,44 +124,26 @@ Page({
   },
 
   async refreshData() {
-    this.setData({
-      isLoading: true,
-      currentPage: 0,
-      totalLoaded: 0,
-      hasMore: true,
-      allReserves: []
-    })
+    this.setData({ isLoading: true, currentPage: 0, hasMore: true })
     try {
-      await this.loadReserves(true)
+      await this.loadReserves()
     } catch (err) {
       console.error('加载预约数据失败:', err)
-      this.setData({
-        isLoading: false
-      })
-    } finally {
-      this.setData({
-        isLoading: false
-      })
+      this.setData({ isLoading: false })
     }
   },
 
-  async loadReserves(isRefresh = false) {
+  async loadReserves() {
     if (!this.currentSession) return
 
-    const pageSize = this.data.pageSize
-    const page = isRefresh ? 0 : this.data.currentPage
     try {
-      const visibleCondition = this.buildVisibleDeviceIdsCondition(this.currentSession) //admin返回null
+      const visibleCondition = this.buildVisibleDeviceIdsCondition(this.currentSession)
 
-      //
-      console.log("visibleCondition:", visibleCondition)
       let visibleDeviceIds = null
       if (visibleCondition) {
         const devices = await this.fetchAllByWhere('devices', visibleCondition)
         visibleDeviceIds = Array.from(new Set(
-          (devices || []).map(function (d) {
-            return d.device_id
-          }).filter(Boolean)
+          (devices || []).map(function(d) { return d.device_id }).filter(Boolean)
         ))
         if (visibleDeviceIds.length === 0) {
           this.setData({
@@ -190,50 +156,21 @@ Page({
         }
       }
 
-      var reserveCondition = {
-        status: 'approved'
-      }
+      var reserveCondition = { status: 'approved' }
       if (visibleDeviceIds) {
         reserveCondition.device_id = _.in(visibleDeviceIds)
       }
-      //
-      console.log("reserveCondition:", reserveCondition)
 
-      // var allReserves = await this.fetchAllByWhere('reserves', reserveCondition)
-      const reserveRes = await db.collection('reserves')
-        .where(reserveCondition)
-        .skip(page * pageSize)
-        .limit(pageSize)
-        .get()
+      var allReserves = await this.fetchAllByWhere('reserves', reserveCondition)
 
-      const newReserves = reserveRes.data || []
-
-      let mergedReserves = []
-
-      if (isRefresh) {
-        mergedReserves = newReserves
-      } else {
-        mergedReserves = [...this.data.allReserves, ...newReserves]
-      }
-
-      const hasMore = newReserves.length === pageSize
-
-      this.setData({
-        allReserves: mergedReserves,
-        currentPage: page + 1,
-        totalLoaded: mergedReserves.length,
-        hasMore
-      })
-      var activeUsages = await this.fetchAllByWhere('device_usage', {
-        status: 'using'
-      })
-      var usingReserveIdMap = {};
-      (activeUsages || []).forEach(function (u) {
+      var activeUsages = await this.fetchAllByWhere('device_usage', { status: 'using' })
+      var usingReserveIdMap = {}
+      ;(activeUsages || []).forEach(function(u) {
         if (u.reserve_id) usingReserveIdMap[u.reserve_id] = true
       })
 
       var now = new Date()
-      var processed  = mergedReserves.map(function (item)  {
+      var processed = (allReserves || []).map(function(item) {
         var statusInfo = getReserveDisplayStatus(item, usingReserveIdMap, now)
 
         return Object.assign({}, item, {
@@ -244,47 +181,37 @@ Page({
         })
       })
 
-      processed.sort(function (a, b) {
+      processed.sort(function(a, b) {
         return getTimeValue(b.start_time) - getTimeValue(a.start_time)
       })
 
       this.setData({
         allReserves: processed,
-        isLoading: false
+        isLoading: false,
+        hasMore: false
       })
 
       this.applyFilter()
     } catch (err) {
       console.error('加载预约列表失败:', err)
-      this.setData({
-        isLoading: false
-      })
-      wx.showToast({
-        title: '加载失败',
-        icon: 'none'
-      })
+      this.setData({ isLoading: false })
+      wx.showToast({ title: '加载失败', icon: 'none' })
     }
   },
 
   onFilterChange(e) {
     var status = e.currentTarget.dataset.status
-    this.setData({
-      filterStatus: status
-    })
+    this.setData({ filterStatus: status })
     this.applyFilter()
   },
 
   onSearchInput(e) {
-    this.setData({
-      searchKeyword: e.detail.value
-    })
+    this.setData({ searchKeyword: e.detail.value })
     this.applyFilter()
   },
 
   clearSearch() {
-    this.setData({
-      searchKeyword: ''
-    })
+    this.setData({ searchKeyword: '' })
     this.applyFilter()
   },
 
@@ -296,34 +223,29 @@ Page({
     var filtered = allReserves
 
     if (filterStatus !== 'all') {
-      filtered = filtered.filter(function (item) {
+      filtered = filtered.filter(function(item) {
         return item.displayStatus === filterStatus
       })
     }
 
     if (searchKeyword) {
-      filtered = filtered.filter(function (item) {
+      filtered = filtered.filter(function(item) {
         var name = String(item.device_name || '').toLowerCase()
         var person = String(item.student_name || '').toLowerCase()
         var userId = String(item.user_id || '').toLowerCase()
         var deviceId = String(item.device_id || '').toLowerCase()
         return name.indexOf(searchKeyword) !== -1 ||
-          person.indexOf(searchKeyword) !== -1 ||
-          userId.indexOf(searchKeyword) !== -1 ||
-          deviceId.indexOf(searchKeyword) !== -1
+               person.indexOf(searchKeyword) !== -1 ||
+               userId.indexOf(searchKeyword) !== -1 ||
+               deviceId.indexOf(searchKeyword) !== -1
       })
     }
 
-    this.setData({
-      filteredReserves: filtered
-    })
+    this.setData({ filteredReserves: filtered })
   },
 
-  async loadMore() {
-    if (!this.data.hasMore || this.data.isLoading) return
-    this.setData({ isLoading: true })
-    await this.loadReserves(false)
-    this.setData({ isLoading: false })
+  loadMore() {
+    wx.showToast({ title: '已加载全部', icon: 'none' })
   },
 
   getReserveDisplayStatus(item, usingReserveIdMap, now) {
@@ -371,54 +293,33 @@ function resolveReserveTimestamp(reserve, field) {
 
 function getReserveDisplayStatus(item, usingReserveIdMap, now) {
   if (!item) {
-    return {
-      displayStatus: 'past',
-      displayStatusText: '已过期'
-    }
+    return { displayStatus: 'past', displayStatusText: '已过期' }
   }
 
   if (item.usage_status === 'completed') {
-    return {
-      displayStatus: 'completed',
-      displayStatusText: '已完成'
-    }
+    return { displayStatus: 'completed', displayStatusText: '已完成' }
   }
 
   if ((usingReserveIdMap && usingReserveIdMap[item._id]) || item.usage_status === 'active') {
-    return {
-      displayStatus: 'using',
-      displayStatusText: '使用中'
-    }
+    return { displayStatus: 'using', displayStatusText: '使用中' }
   }
 
   var startTs = resolveReserveTimestamp(item, 'start')
   var endTs = resolveReserveTimestamp(item, 'end')
   var nowTs = (now || new Date()).getTime()
   if (!startTs || !endTs) {
-    return {
-      displayStatus: 'past',
-      displayStatusText: '已过期'
-    }
+    return { displayStatus: 'past', displayStatusText: '已过期' }
   }
 
   if (nowTs < startTs) {
-    return {
-      displayStatus: 'upcoming',
-      displayStatusText: '即将使用'
-    }
+    return { displayStatus: 'upcoming', displayStatusText: '即将使用' }
   }
 
   if (nowTs >= startTs && nowTs < endTs) {
-    return {
-      displayStatus: 'upcoming',
-      displayStatusText: '可开始使用'
-    }
+    return { displayStatus: 'upcoming', displayStatusText: '可开始使用' }
   }
 
-  return {
-    displayStatus: 'past',
-    displayStatusText: '已过期'
-  }
+  return { displayStatus: 'past', displayStatusText: '已过期' }
 }
 
 function getTimePart(dtStr) {
