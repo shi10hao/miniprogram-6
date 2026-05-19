@@ -3,7 +3,7 @@ const db = wx.cloud.database()
 const TEMPLATE_ID = 'FClBgpZO9KXJ79M0ZAqqrEDoqWlXWPmRz862s6zVP4M'
 const BANNER_REMINDER_TYPES = ['reservation_remind', 'usage_photo_remind', 'usage_end_remind']
 const PHOTO_REMINDER_TYPES = ['usage_photo_remind', 'usage_end_remind']
-
+//我是revert1.3.3.0为基础变成的1.3.3.1，现在我要回退到base1.0
 Page({
   data: {
     currentUsage: null,
