@@ -3,10 +3,9 @@ const db = wx.cloud.database()
 const TEMPLATE_ID = 'FClBgpZO9KXJ79M0ZAqqrEDoqWlXWPmRz862s6zVP4M'
 const BANNER_REMINDER_TYPES = ['reservation_remind', 'usage_photo_remind', 'usage_end_remind']
 const PHOTO_REMINDER_TYPES = ['usage_photo_remind', 'usage_end_remind']
-//我是revert1.3.3.0为基础变成的1.3.3.1，现在我要回退到base1.0
+
 Page({
   data: {
-    testList: [],//这是一个测试，我是revertbase1.0变成的1.3.3.2，现在我要回退到base1.0
     currentUsage: null,
     pendingReserves: [],
     usageHistory: [],
@@ -101,7 +100,7 @@ Page({
       .get()
       .then(res => {
         var records = res.data || []
-        var pending = records.filter(function(item) {
+        var pending = records.filter(function (item) {
           var usageNotStarted = !item.usage_status || item.usage_status === 'not_started'
           var endTs = this.getReserveTimestamp(item, 'end')
           return usageNotStarted && endTs && endTs >= todayStartTs
@@ -112,7 +111,7 @@ Page({
             _sort_ts: startTs || 0,
             _end_ts: endTs || 0
           })
-        }).sort(function(a, b) {
+        }).sort(function (a, b) {
           return a._sort_ts - b._sort_ts
         }).map(item => {
           var startTs = item._sort_ts
@@ -395,25 +394,25 @@ Page({
     }
 
     reservePromise.then(reserve => {
-        wx.hideLoading()
-        if (!reserve) {
-          wx.showToast({ title: '当前时间无可开始使用的预约', icon: 'none' })
-          return
-        }
+      wx.hideLoading()
+      if (!reserve) {
+        wx.showToast({ title: '当前时间无可开始使用的预约', icon: 'none' })
+        return
+      }
 
-        const reservePeriod = `${reserve.start_time || ''} - ${reserve.end_time || ''}`
-        wx.showModal({
-          title: '确认开始使用',
-          content: `仪器：${reserve.device_name}\n预约时段：${reservePeriod}\n确认开始使用？`,
-          confirmText: '确认',
-          cancelText: '取消',
-          success: modal => {
-            if (modal.confirm) {
-              this.createUsageRecord(reserve, tempFilePath, userInfo)
-            }
+      const reservePeriod = `${reserve.start_time || ''} - ${reserve.end_time || ''}`
+      wx.showModal({
+        title: '确认开始使用',
+        content: `仪器：${reserve.device_name}\n预约时段：${reservePeriod}\n确认开始使用？`,
+        confirmText: '确认',
+        cancelText: '取消',
+        success: modal => {
+          if (modal.confirm) {
+            this.createUsageRecord(reserve, tempFilePath, userInfo)
           }
-        })
+        }
       })
+    })
       .catch(err => {
         wx.hideLoading()
         console.error('获取预约失败:', err)
