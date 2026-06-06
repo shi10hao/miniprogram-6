@@ -337,3 +337,24 @@
 .admin-button::after {
   border: none;
 }
+
+/* 新增隐私弹窗样式 */
+.privacy-mask {
+  position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);
+  display:flex;align-items:center;justify-content:center;z-index:99999;
+}
+.privacy-box {
+  width:620rpx;background:#fff;border-radius:24rpx;padding:40rpx;
+}
+.privacy-title {
+  font-size:32rpx;font-weight:bold;text-align:center;margin-bottom:30rpx;
+}
+.privacy-content {
+  font-size:28rpx;color:#555;line-height:48rpx;margin-bottom:30rpx;
+}
+.privacy-check {
+  display:flex;align-items:center;margin-bottom:30rpx;font-size:28rpx;
+}
+.privacy-confirm-btn {
+  background:#62BCC4;color:#fff;border-radius:12rpx;
+}

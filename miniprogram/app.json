@@ -23,7 +23,9 @@
     "pages/admin/login/adminlogin",
     "pages/admin/admin",
     "pages/admin/device-detail/admindevicedetail",
-    "pages/admin/reserve-list/adminreservelist"
+    "pages/admin/reserve-list/adminreservelist",
+    "pages/privacy/privacy",
+    "pages/agreement/agreement"
   ],
   "subPackages": [
     {

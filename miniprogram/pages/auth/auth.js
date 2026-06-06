@@ -10,7 +10,11 @@ Page({
     verificationStatus: '',
     showWechatModal: false,
     canVerify: false,
-    isStudentVerified: false
+    isStudentVerified: false,
+    //=====新增3行隐私字段=====
+    showPrivacyModal: true,
+    privacyChecked: false,
+    privacyAgreed: false
   },
   //
   onLoad() {
@@ -25,13 +29,17 @@ Page({
       console.log("userInfo存在")
       console.log("userInfo:", userInfo)
       console.log("Boolean(userInfo):", Boolean(userInfo))
-      wx.switchTab({ url: '/pages/index/index' })
+      wx.switchTab({
+        url: '/pages/index/index'
+      })
       return
     }
 
     if (!hasWechatLogin) {
       console.log("hasWechatLogin为false")
-      this.setData({ showWechatModal: true })
+      this.setData({
+        showWechatModal: true
+      })
     }
   },
   //
@@ -70,7 +78,9 @@ Page({
   },
   //
   onWechatLogin() {
-    wx.showLoading({ title: '正在登录' })
+    wx.showLoading({
+      title: '正在登录'
+    })
     wx.login({
       success: async () => {
         try {
@@ -79,7 +89,9 @@ Page({
             openid,
             wechatLoginTime: new Date().toISOString()
           })
-          this.setData({ showWechatModal: false })
+          this.setData({
+            showWechatModal: false
+          })
           wx.hideLoading()
           wx.showToast({
             title: '微信登录成功',
@@ -209,12 +221,21 @@ Page({
         icon: 'none'
       })
     } finally {
-      this.setData({ isVerifying: false })
+      this.setData({
+        isVerifying: false
+      })
     }
   },
   //
   async submitAuth() {
-    const { studentId, name, phone, major, groupName, studentInfo } = this.data
+    const {
+      studentId,
+      name,
+      phone,
+      major,
+      groupName,
+      studentInfo
+    } = this.data
 
     if (!this.validateForm()) {
       return
@@ -223,7 +244,9 @@ Page({
     const wechatUserInfo = wx.getStorageSync('wechatUserInfo') || {}
     if (!wechatUserInfo.openid) {
       this.showError('请先完成微信登录')
-      this.setData({ showWechatModal: true })
+      this.setData({
+        showWechatModal: true
+      })
       return
     }
 
@@ -246,7 +269,9 @@ Page({
         duration: 2000
       })
       setTimeout(() => {
-        wx.switchTab({ url: '/pages/index/index' })
+        wx.switchTab({
+          url: '/pages/index/index'
+        })
       }, 2000)
     } catch (error) {
       console.error('保存用户信息失败:', error)
@@ -258,7 +283,12 @@ Page({
   },
   //
   validateForm() {
-    const { studentId, phone, studentInfo, isStudentVerified } = this.data
+    const {
+      studentId,
+      phone,
+      studentInfo,
+      isStudentVerified
+    } = this.data
 
     if (!studentId.trim()) {
       this.showError('请输入学号')
@@ -293,6 +323,32 @@ Page({
   },
   //
   navigateToAdminLogin() {
-    wx.navigateTo({ url: '/pages/admin/login/adminlogin' })
+    wx.navigateTo({
+      url: '/pages/admin/login/adminlogin'
+    })
+  },
+  onCheckPrivacy(e) {
+    const checked = e.detail.value.length > 0
+    this.setData({
+      privacyChecked: checked
+    })
+  },
+  confirmPrivacy() {
+    this.setData({
+      showPrivacyModal: false,
+      privacyAgreed: true
+    })
+  },
+  //跳转隐私政策页面（新建空白page放协议文本）
+  openPrivacyPage() {
+    wx.navigateTo({
+      url: "/pages/privacy/privacy"
+    })
+  },
+  //跳转用户协议页面
+  openAgreementPage() {
+    wx.navigateTo({
+      url: "/pages/agreement/agreement"
+    })
   }
 })

@@ -1,0 +1,3 @@
+.container{padding:30rpx;}
+.title{font-size:36rpx;font-weight:bold;margin-bottom:30rpx;}
+.content{font-size:28rpx;line-height:1.8;color:#333;}
