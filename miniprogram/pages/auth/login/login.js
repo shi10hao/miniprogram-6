@@ -6,15 +6,15 @@ Page({
   onShow() {
     this.updateCanNavigateBack()
   },
-
+  //
   updateCanNavigateBack() {
     this.canNavigateBack = getCurrentPages().length > 1
   },
-
+  //
   stopPropagation() {
     // 阻止点击弹窗内容时触发遮罩层关闭。
   },
-
+  //
   async fetchOpenId() {
     const res = await wx.cloud.callFunction({
       name: 'getOpenId'
@@ -25,7 +25,7 @@ Page({
     }
     return openid
   },
-
+  //
   getLoginErrorMessage(error) {
     const errorText = String(
       (error && (error.errMsg || error.message)) || error || ''
@@ -40,7 +40,7 @@ Page({
 
     return '获取账号标识失败，请稍后重试'
   },
-
+  //
   onWechatLogin() {
     wx.showLoading({ title: '正在登录' })
     wx.login({
@@ -78,7 +78,7 @@ Page({
       }
     })
   },
-
+  //
   handleBack() {
     if (this.canNavigateBack) {
       wx.navigateBack()

@@ -227,11 +227,11 @@ Page({
       } else {
         if (filters.labType === 'all') {
           result.labCondition = _.or([{
-              lab_type: 'public'
-            },
-            {
-              lab_name: groupName
-            }
+            lab_type: 'public'
+          },
+          {
+            lab_name: groupName
+          }
           ])
         } else if (filters.labType === 'public') {
           result.labCondition = {
@@ -358,7 +358,7 @@ Page({
       })
       all.push(...rows)
     }
-    console.log("all:",all)
+    console.log("all:", all)
     return all
   },
 

@@ -32,6 +32,12 @@ Page({
     this.loadUsageHistory()
   },
 
+  /*
+    输入：无参数，依赖本地缓存userInfo
+    输出：Promise，成功返回记录对象/null，失败返回null
+    依赖函数： this.formatUage()  格式化使用记录数据
+    使用API：云数据库查询
+  */
   loadCurrentUsage() {
     const userInfo = wx.getStorageSync('userInfo')
     if (!userInfo || !userInfo.userId) {
@@ -54,7 +60,7 @@ Page({
         return null
       })
   },
-
+  //
   loadUsageHistory() {
     const userInfo = wx.getStorageSync('userInfo')
     if (!userInfo || !userInfo.userId) {
@@ -77,7 +83,7 @@ Page({
         return []
       })
   },
-
+  //
   loadPendingReserves() {
     const userInfo = wx.getStorageSync('userInfo')
     if (!userInfo || !userInfo.userId) {
@@ -145,7 +151,7 @@ Page({
         return []
       })
   },
-
+  //
   loadUnreadReminder() {
     const userInfo = wx.getStorageSync('userInfo') || {}
     if (!userInfo.userId) {
@@ -176,7 +182,7 @@ Page({
         return null
       })
   },
-
+  //
   normalizeUnreadReminder(item) {
     return {
       _id: item._id,
@@ -187,14 +193,14 @@ Page({
       create_time: this.formatTime(item.create_time)
     }
   },
-
+  //
   getReminderSummary(item) {
     if (PHOTO_REMINDER_TYPES.indexOf(item.type) !== -1) {
       return '请前往“仪器使用”页的“上传照片板块”完成照片上传。'
     }
     return this.truncateText(item.content || '', 48)
   },
-
+  // 1
   goToReminder() {
     const reminder = this.data.unreadReminder
     if (!reminder) return
@@ -208,7 +214,7 @@ Page({
       url: `/pages/message/detail/messagedetail?messageId=${reminder._id}&source=message`
     })
   },
-
+  //
   formatUsage(usage) {
     const startDisplay = usage.start_time ? this.formatTime(usage.start_time) : ''
     const endDisplay = usage.end_time ? this.formatTime(usage.end_time) : ''
@@ -222,7 +228,7 @@ Page({
         : ''
     })
   },
-
+  //
   formatTime(isoStr) {
     if (!isoStr) return ''
     const d = this.parseDateValue(isoStr)
@@ -230,7 +236,7 @@ Page({
     const pad = n => String(n).padStart(2, '0')
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
   },
-
+  //
   formatDateOnly(isoStr) {
     if (!isoStr) return ''
     const d = this.parseDateValue(isoStr)
@@ -238,7 +244,7 @@ Page({
     const pad = n => String(n).padStart(2, '0')
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
   },
-
+  //
   formatClock(isoStr) {
     if (!isoStr) return ''
     const d = this.parseDateValue(isoStr)
@@ -246,7 +252,7 @@ Page({
     const pad = n => String(n).padStart(2, '0')
     return `${pad(d.getHours())}:${pad(d.getMinutes())}`
   },
-
+  //
   parseDateValue(value) {
     if (!value) return null
     if (typeof value === 'number') {
@@ -266,7 +272,7 @@ Page({
     const date = new Date(normalized)
     return Number.isNaN(date.getTime()) ? null : date
   },
-
+  //
   parseBeijingDateTimeMs(text) {
     const match = String(text || '').match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T-](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/)
     if (!match) return 0
@@ -281,11 +287,11 @@ Page({
 
     return Date.UTC(year, month - 1, day, hour - 8, minute, second, 0)
   },
-
+  //
   getReservationTimeMs(dateStr, timeStr) {
     return this.parseBeijingDateTimeMs(`${dateStr} ${timeStr}`)
   },
-
+  //
   getReserveTimestamp(reserve, field) {
     const tsKey = `${field}_ts`
     const timeKey = `${field}_time`
@@ -297,19 +303,19 @@ Page({
     const date = this.parseDateValue(reserve && reserve[timeKey])
     return date ? date.getTime() : 0
   },
-
+  // 2
   isReserveReady(reserve, now = new Date()) {
     const startTs = this.getReserveTimestamp(reserve, 'start')
     const endTs = this.getReserveTimestamp(reserve, 'end')
     const nowTs = now.getTime()
     return !!(startTs && endTs && nowTs >= startTs && nowTs < endTs)
   },
-
+  // 3
   formatReserveDateTime(date) {
     const pad = n => String(n).padStart(2, '0')
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
   },
-
+  // 4
   findCurrentValidReserve(userId) {
     const now = new Date()
 
@@ -329,7 +335,7 @@ Page({
         }) || null
       })
   },
-
+  // 5
   startUsage() {
     if (this.data.isLoading) return
 
@@ -348,7 +354,7 @@ Page({
       }
     })
   },
-
+  // 6
   startUsageFromReserve(e) {
     if (this.data.isLoading) return
 
@@ -368,7 +374,7 @@ Page({
       }
     })
   },
-
+  // 7
   handleStartPhoto(tempFilePath, specificReserveId) {
     const userInfo = wx.getStorageSync('userInfo') || {}
     if (!userInfo.userId) {
@@ -419,7 +425,7 @@ Page({
         wx.showToast({ title: '获取预约信息失败', icon: 'none' })
       })
   },
-
+  // 8
   createUsageRecord(reserve, startPhotoPath, userInfo) {
     this.setData({ isLoading: true })
 
@@ -470,7 +476,7 @@ Page({
       }
     })
   },
-
+  // 9
   getStartUsageErrorMessage(result) {
     const code = result && result.code ? result.code : ''
     if (code === 'ALREADY_STARTED') {
@@ -484,7 +490,7 @@ Page({
     }
     return (result && result.error) || '开始使用失败'
   },
-
+  // 10
   cleanupCloudFiles(fileList) {
     const validFiles = (fileList || []).filter(Boolean)
     if (validFiles.length === 0) {
@@ -496,7 +502,7 @@ Page({
         console.error('清理云文件失败:', err)
       })
   },
-
+  // 11
   requestSubscribeMessage() {
     if (!TEMPLATE_ID || TEMPLATE_ID === 'YOUR_TEMPLATE_ID_HERE') return
     wx.requestSubscribeMessage({
@@ -506,7 +512,7 @@ Page({
       }
     })
   },
-
+  // 12
   uploadUsagePhoto() {
     if (!this.data.currentUsage) return
 
@@ -548,7 +554,7 @@ Page({
       }
     })
   },
-
+  // 13
   startEndUsage() {
     wx.chooseMedia({
       count: 1,
@@ -563,7 +569,7 @@ Page({
       }
     })
   },
-
+  // 14
   writeUsageEndReminder() {
     const currentUsage = this.data.currentUsage
     const userInfo = wx.getStorageSync('userInfo') || {}
@@ -595,7 +601,7 @@ Page({
         console.error('写入结束使用提醒失败:', err)
       })
   },
-
+  // 15
   pickEndPhoto(e) {
     const slot = e.currentTarget.dataset.slot
 
@@ -614,7 +620,7 @@ Page({
       }
     })
   },
-
+  // 16
   confirmEndUsage() {
     const endPhotos = this.data.endPhotos
     if (!endPhotos[0] || !endPhotos[1] || !endPhotos[2]) {
@@ -625,7 +631,7 @@ Page({
     this.setData({ isLoading: true })
     this.uploadEndPhotos(endPhotos)
   },
-
+  // 17
   uploadEndPhotos(localPaths) {
     const currentUsage = this.data.currentUsage
     const labels = ['duty', 'device_off', 'door_closed']
@@ -671,7 +677,7 @@ Page({
         wx.showToast({ title: '结束失败，请重试', icon: 'none' })
       })
   },
-
+  // 18
   completeUsageAndReserve(usage, usageCompletionData) {
     let reserveUpdated = false
 
@@ -717,11 +723,11 @@ Page({
           })
       })
   },
-
+  // 19
   cancelEnd() {
     this.setData({ endMode: false, endPhotos: [null, null, null] })
   },
-
+  // 20
   truncateText(text, maxLength) {
     const value = String(text || '')
     if (value.length <= maxLength) {

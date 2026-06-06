@@ -12,19 +12,19 @@ Page({
     canVerify: false,
     isStudentVerified: false
   },
-
+  //
   onLoad() {
     this.checkWechatLogin()
   },
-
+  //
   checkWechatLogin() {
     const wechatUserInfo = wx.getStorageSync('wechatUserInfo')
     const userInfo = wx.getStorageSync('userInfo')
     const hasWechatLogin = Boolean(wechatUserInfo && wechatUserInfo.openid)
     if (userInfo && hasWechatLogin) {
       console.log("userInfo存在")
-      console.log("userInfo:",userInfo)
-      console.log("Boolean(userInfo):",Boolean(userInfo))
+      console.log("userInfo:", userInfo)
+      console.log("Boolean(userInfo):", Boolean(userInfo))
       wx.switchTab({ url: '/pages/index/index' })
       return
     }
@@ -34,15 +34,15 @@ Page({
       this.setData({ showWechatModal: true })
     }
   },
-
+  //
   stopPropagation() {
     // 阻止点击弹窗内容时触发遮罩层关闭。
   },
-
+  //
   closeModal() {
     // 身份认证前不允许手动关闭微信登录弹窗。
   },
-
+  //
   async fetchOpenId() {
     const res = await wx.cloud.callFunction({
       name: 'getOpenId'
@@ -53,7 +53,7 @@ Page({
     }
     return openid
   },
-
+  //
   getLoginErrorMessage(error) {
     const errorText = String(
       (error && (error.errMsg || error.message)) || error || ''
@@ -68,7 +68,7 @@ Page({
 
     return '获取账号标识失败，请稍后重试'
   },
-
+  //
   onWechatLogin() {
     wx.showLoading({ title: '正在登录' })
     wx.login({
@@ -103,7 +103,7 @@ Page({
       }
     })
   },
-
+  //
   onStudentIdInput(e) {
     const studentId = e.detail.value
     const canVerify = Boolean(studentId.trim() && this.data.phone.trim())
@@ -118,7 +118,7 @@ Page({
       isStudentVerified: false
     })
   },
-
+  //
   onPhoneInput(e) {
     const phone = e.detail.value
     const canVerify = Boolean(this.data.studentId.trim() && phone.trim())
@@ -133,7 +133,7 @@ Page({
       isStudentVerified: false
     })
   },
-
+  //
   async verifyStudent() {
     const studentId = this.data.studentId.trim()
     const phone = this.data.phone.trim()
@@ -156,6 +156,8 @@ Page({
 
     try {
       const db = wx.cloud.database()
+      console.log("studentId:", studentId)
+      console.log("phone:", phone)
       const result = await db.collection('users')
         .where({
           user_id: studentId,
@@ -163,7 +165,7 @@ Page({
           role: 'student'
         })
         .get()
-
+      console.log("result:", result)
       if (result.data && result.data.length > 0) {
         const studentInfo = result.data[0]
         this.setData({
@@ -210,7 +212,7 @@ Page({
       this.setData({ isVerifying: false })
     }
   },
-
+  //
   async submitAuth() {
     const { studentId, name, phone, major, groupName, studentInfo } = this.data
 
@@ -236,7 +238,7 @@ Page({
     }
 
     try {
-      console.log("开始设立userInfo:",userInfo)
+      console.log("开始设立userInfo:", userInfo)
       wx.setStorageSync('userInfo', userInfo)
       wx.showToast({
         title: '认证成功',
@@ -254,7 +256,7 @@ Page({
       })
     }
   },
-
+  //
   validateForm() {
     const { studentId, phone, studentInfo, isStudentVerified } = this.data
 
@@ -281,7 +283,7 @@ Page({
 
     return true
   },
-
+  //
   showError(message) {
     wx.showToast({
       title: message,
@@ -289,7 +291,7 @@ Page({
       duration: 2000
     })
   },
-
+  //
   navigateToAdminLogin() {
     wx.navigateTo({ url: '/pages/admin/login/adminlogin' })
   }

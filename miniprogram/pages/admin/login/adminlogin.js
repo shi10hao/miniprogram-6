@@ -6,15 +6,15 @@ Page({
     password: '',
     isLogging: false
   },
-
+  //
   onUsernameInput(e) {
     this.setData({ username: e.detail.value })
   },
-
+  //
   onPasswordInput(e) {
     this.setData({ password: e.detail.value })
   },
-
+  //
   adminLogin() {
     if (this.data.isLogging) return
 
@@ -74,7 +74,7 @@ Page({
         this.setData({ isLogging: false })
       })
   },
-
+  //
   backToStudentAuth() {
     wx.reLaunch({ url: '/pages/auth/auth' })
   }

@@ -22,7 +22,7 @@ Page({
     this.checkAuthStatus()
     getApp().refreshMessageBadge()
   },
-
+  //
   checkAuthStatus() {
     try {
       const userInfo = wx.getStorageSync('userInfo')
@@ -57,7 +57,7 @@ Page({
       })
     }
   },
-
+  //
   getCommonDevices() {
     const userInfo = wx.getStorageSync('userInfo') || {}
     const groupName = String(userInfo.groupName || '').trim()
@@ -80,22 +80,22 @@ Page({
       .get()
       .then(res => {
         const groupedDevices = {}
-        ;(res.data || []).forEach(device => {
-          const specs = device.specifications || {}
-          const model = specs && typeof specs === 'object'
-            ? (specs['型号'] || specs.model || '')
-            : ''
-          const key = `${device.device_name || ''}::${String(model || '').trim()}`
-          if (!groupedDevices[key]) {
-            groupedDevices[key] = {
-              device_id: device.device_id,
-              device_name: device.device_name,
-              picture: device.picture,
-              lab_name: device.lab_name,
-              device_room: device.device_room
+          ; (res.data || []).forEach(device => {
+            const specs = device.specifications || {}
+            const model = specs && typeof specs === 'object'
+              ? (specs['型号'] || specs.model || '')
+              : ''
+            const key = `${device.device_name || ''}::${String(model || '').trim()}`
+            if (!groupedDevices[key]) {
+              groupedDevices[key] = {
+                device_id: device.device_id,
+                device_name: device.device_name,
+                picture: device.picture,
+                lab_name: device.lab_name,
+                device_room: device.device_room
+              }
             }
-          }
-        })
+          })
 
         this.setData({
           commonDevices: Object.values(groupedDevices).slice(0, 3),
@@ -112,7 +112,7 @@ Page({
         })
       })
   },
-
+  //
   getLatestNotices() {
     return db.collection('notice')
       .field({
@@ -136,7 +136,7 @@ Page({
         this.setData({ latestNotices: [] })
       })
   },
-
+  //
   loadUnreadReminder() {
     const userInfo = wx.getStorageSync('userInfo') || {}
     if (!userInfo.userId) {
@@ -167,7 +167,7 @@ Page({
         return null
       })
   },
-
+  //
   normalizeReminder(item) {
     return {
       _id: item._id,
@@ -177,7 +177,7 @@ Page({
       create_time: this.formatDateTime(item.create_time)
     }
   },
-
+  //
   getReminderSummary(item) {
     if (PHOTO_REMINDER_TYPES.indexOf(item.type) !== -1) {
       return '请前往“仪器使用”页的“上传照片板块”完成照片上传。'
@@ -200,20 +200,20 @@ Page({
       url: `/pages/message/detail/messagedetail?messageId=${reminder._id}&source=message`
     })
   },
-
+  //
   formatDate(dateStr) {
     const date = this.parseDateValue(dateStr)
     if (!date) return dateStr || '未知日期'
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
   },
-
+  //
   formatDateTime(value) {
     const date = this.parseDateValue(value)
     if (!date) return value || ''
     const pad = n => String(n).padStart(2, '0')
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
   },
-
+  //
   parseDateValue(value) {
     if (!value) return null
     const text = String(value)
@@ -301,7 +301,7 @@ Page({
       }
     })
   },
-
+  //
   truncateText(text, maxLength) {
     const value = String(text || '')
     if (value.length <= maxLength) {

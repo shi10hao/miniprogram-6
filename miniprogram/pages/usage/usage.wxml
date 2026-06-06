@@ -1,4 +1,5 @@
 <view class="container">
+  <!-- 未读提醒 -->
   <view
     wx:if="{{unreadReminder}}"
     bindtap="goToReminder"
@@ -14,11 +15,13 @@
     </view>
   </view>
 
+  <!-- 2 当前使用状态模块 -->
   <view class="status-section">
     <view class="section-header">
       <text class="section-title">当前使用状态</text>
     </view>
 
+    <!-- 2.1 如果没有正在使用的仪器 -->
     <view wx:if="{{!currentUsage}}" class="idle-block">
       <view class="idle-icon">🔬</view>
       <text class="idle-text">当前没有使用中的仪器</text>
@@ -26,7 +29,8 @@
         <text>拍照开始使用</text>
       </button>
     </view>
-
+    
+    <!-- 2.2 如果有正在使用的仪器 -->
     <view wx:else class="using-block">
       <view class="using-info-row">
         <text class="using-label">仪器名称</text>
@@ -41,6 +45,7 @@
         <text class="using-value">{{currentUsage.start_time_display}}</text>
       </view>
 
+      <!-- 2.3 如果没结束 -->
       <view wx:if="{{!endMode}}" class="using-actions">
         <button class="upload-mid-btn" bindtap="uploadUsagePhoto" disabled="{{isLoading}}">
           <text>上传使用中照片</text>
@@ -52,10 +57,13 @@
     </view>
   </view>
 
+  <!-- 3 待使用的预约 -->
   <view wx:if="{{pendingReserves.length > 0 && !currentUsage}}" class="pending-section">
     <view class="section-header">
       <text class="section-title">待使用预约</text>
     </view>
+
+    <!-- 预约列表 -->
     <view class="pending-list">
       <view class="pending-item {{item.state}}" wx:for="{{pendingReserves}}" wx:key="_id">
         <view class="pending-header">
@@ -81,28 +89,37 @@
     </view>
   </view>
 
+  <!-- 4 上传照片模块 -->
   <view wx:if="{{currentUsage}}" class="photo-section">
+
+    <!-- 4.1 上传正在使用 -->
     <view wx:if="{{!endMode}}" class="photo-block">
       <view class="section-header">
         <text class="section-title">上传照片板块</text>
       </view>
       <text style="display: block; margin-bottom: 16rpx; color: #6b7280; font-size: 24rpx;">使用过程中拍摄的照片请在这里上传，提醒消息中的“上传照片板块”即此处。</text>
+
+      <!-- 4.1.1 如果有正在使用的，就进行正在使用的仪器照片循环 -->
       <view wx:if="{{currentUsage.usage_images && currentUsage.usage_images.length > 0}}" class="photos-grid">
         <view class="photo-item" wx:for="{{currentUsage.usage_images}}" wx:key="*this">
           <image class="photo-img" src="{{item}}" mode="aspectFill"></image>
         </view>
       </view>
+
+      <!-- 4.1.2 如果没有正在使用的 -->
       <view wx:else class="empty-photos">
         <text class="empty-photos-text">暂无使用中照片</text>
       </view>
     </view>
 
+    <!-- 4.2 上传使用结束 -->
     <view wx:if="{{endMode}}" class="end-photo-block">
       <view class="section-header">
         <text class="section-title">结束使用照片上传</text>
         <text class="section-hint">请上传 3 张结束照片后再确认结束</text>
       </view>
 
+      <!-- 末尾拍照插槽1 -->
       <view class="end-photo-slot">
         <text class="slot-label">1. 值日照（实验室已清洁）</text>
         <view class="slot-upload" bindtap="pickEndPhoto" data-slot="0">
@@ -117,6 +134,7 @@
         </view>
       </view>
 
+      <!-- 末尾拍照插槽2 -->
       <view class="end-photo-slot">
         <text class="slot-label">2. 仪器已关闭照片</text>
         <view class="slot-upload" bindtap="pickEndPhoto" data-slot="1">
@@ -131,6 +149,7 @@
         </view>
       </view>
 
+      <!-- 末尾拍照插槽3 -->
       <view class="end-photo-slot">
         <text class="slot-label">3. 实验室已关门照片</text>
         <view class="slot-upload" bindtap="pickEndPhoto" data-slot="2">
@@ -145,6 +164,7 @@
         </view>
       </view>
 
+      <!-- 提交按钮 -->
       <view class="end-actions">
         <button class="cancel-end-btn" bindtap="cancelEnd" disabled="{{isLoading}}">取消</button>
         <button
