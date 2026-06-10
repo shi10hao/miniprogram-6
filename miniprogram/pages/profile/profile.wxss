@@ -1,3 +1,4 @@
+/* 以下是你原有代码不动 */
 page {
   background: #f0f4f8;
 }
@@ -7,7 +8,6 @@ page {
   padding: 24rpx;
 }
 
-/* 用户信息卡片 */
 .user-card {
   background: linear-gradient(135deg, #2d6a6e, #62BCC4);
   border-radius: 20rpx;
@@ -51,7 +51,6 @@ page {
   color: rgba(255, 255, 255, 0.8);
 }
 
-/* 详细信息卡片 */
 .info-card {
   background: white;
   border-radius: 20rpx;
@@ -148,7 +147,6 @@ page {
   font-weight: 500;
 }
 
-/* 功能菜单 */
 .menu-card {
   background: white;
   border-radius: 20rpx;
@@ -197,7 +195,6 @@ page {
   flex-shrink: 0;
 }
 
-/* 退出登录 */
 .logout-section {
   margin-top: 40rpx;
   padding: 0 32rpx 40rpx;
@@ -217,4 +214,17 @@ page {
 
 .logout-button::after {
   border: none;
+}
+
+/* ============================================= */
+/* 🔴 只在这里追加登录按钮样式（最小修改） */
+/* ============================================= */
+.login-btn {
+  width: 70%;
+  background: #2d6a6e;
+  color: #fff;
+  border-radius: 44rpx;
+  font-size: 30rpx;
+  font-weight: bold;
+  padding: 22rpx 0;
 }

@@ -29,7 +29,6 @@ Page({
       const wechatUserInfo = wx.getStorageSync('wechatUserInfo')
 
       if (userInfo && wechatUserInfo) {
-        this._authPromptShown = false
         this.setData({
           isAuthenticated: true,
           currentGroupName: String(userInfo.groupName || '').trim()
@@ -38,16 +37,14 @@ Page({
         this.getLatestNotices()
         this.loadUnreadReminder()
       } else {
+        // 不跳登录！不跳登录！
         this.setData({
           isAuthenticated: false,
           unreadReminder: null
         })
-        if (!this._authPromptShown) {
-          this._authPromptShown = true
-          wx.redirectTo({
-            url: '/pages/auth/login/login'
-          })
-        }
+        // 加载公开数据（仪器、公告）
+        this.getCommonDevices()
+        this.getLatestNotices()
       }
     } catch (err) {
       console.error('检查认证状态失败:', err)
@@ -55,6 +52,8 @@ Page({
         isAuthenticated: false,
         unreadReminder: null
       })
+      this.getCommonDevices()
+      this.getLatestNotices()
     }
   },
   //
@@ -295,7 +294,7 @@ Page({
       success: res => {
         if (res.confirm) {
           wx.redirectTo({
-            url: '/pages/auth/login/login'
+            url: '/pages/auth/auth' 
           })
         }
       }

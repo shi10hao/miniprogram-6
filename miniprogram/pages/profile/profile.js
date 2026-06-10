@@ -25,7 +25,6 @@ Page({
   loadUserInfo() {
     try {
       const userInfo = wx.getStorageSync('userInfo')
-      console.log(userInfo)
       const wechatUserInfo = wx.getStorageSync('wechatUserInfo')
       const hasWechatLogin = Boolean(wechatUserInfo && wechatUserInfo.openid)
 
@@ -52,13 +51,6 @@ Page({
           isAuthenticated: false,
           adminContacts: []
         })
-
-        if (!this._authPromptShown) {
-          this._authPromptShown = true
-          wx.redirectTo({
-            url: '/pages/auth/login/login'
-          })
-        }
       }
     } catch (err) {
       console.error('读取用户信息失败:', err)
@@ -67,6 +59,12 @@ Page({
         icon: 'none'
       })
     }
+  },
+
+  goToLogin() {
+    wx.redirectTo({
+      url: '/pages/auth/auth'
+    })
   },
 
   loadAdminContacts(userGroupName) {
@@ -101,6 +99,21 @@ Page({
       })
   },
 
+  showAuthPrompt() {
+    wx.showModal({
+      title: '未登录',
+      content: '请先完成登录认证',
+      showCancel: false,
+      success: res => {
+        if (res.confirm) {
+          wx.redirectTo({
+            url: '/pages/auth/login/login'
+          })
+        }
+      }
+    })
+  },
+
   callAdmin(e) {
     const phone = e.currentTarget.dataset.phone
     if (!phone) return
@@ -125,13 +138,13 @@ Page({
   },
 
   navigateToFeedback() {
+    if (!this.data.isAuthenticated) { this.showAuthPrompt(); return }
     wx.navigateTo({ url: '/pages/feedback/feedback' })
   },
 
   navigateToDutyUpload() {
-    wx.navigateTo({
-      url: '/pages/duty-upload/duty-upload'
-    })
+    if (!this.data.isAuthenticated) { this.showAuthPrompt(); return }
+    wx.navigateTo({ url: '/pages/duty-upload/duty-upload' })
   },
 
   navigateToAbout() {
@@ -139,6 +152,7 @@ Page({
   },
 
   navigateToAppointment() {
+    if (!this.data.isAuthenticated) { this.showAuthPrompt(); return }
     wx.navigateTo({ url: '/pages/appointment/appointment' })
   },
 
@@ -149,7 +163,7 @@ Page({
       success: (res) => {
         if (res.confirm) {
           wx.clearStorageSync()
-          wx.reLaunch({ url: '/pages/auth/auth' })
+          wx.reLaunch({ url: '/pages/index/index' })
         }
       }
     })

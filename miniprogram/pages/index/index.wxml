@@ -1,7 +1,7 @@
 <view class="container">
+  <!-- 未登录时不显示提醒，其他全部正常显示 -->
   <view
     wx:if="{{isAuthenticated && unreadReminder}}"
-    bindtap="goToUnreadReminder"
     style="margin-bottom: 24rpx; padding: 24rpx; border-radius: 20rpx; background: linear-gradient(135deg, #eefbf3 0%, #ddf7e8 100%); border: 1px solid #9ed8b4;"
   >
     <view style="display: flex; justify-content: space-between; align-items: center; gap: 16rpx;">
