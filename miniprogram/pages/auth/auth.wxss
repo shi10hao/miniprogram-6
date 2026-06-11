@@ -358,3 +358,28 @@
 .privacy-confirm-btn {
   background:#62BCC4;color:#fff;border-radius:12rpx;
 }
+
+/* ✅ 常驻隐私勾选区域 */
+.privacy-static {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 24rpx;
+  padding: 20rpx 24rpx;
+  background: #f7f9fb;
+  border-radius: 12rpx;
+  margin: 24rpx 0;
+}
+
+.privacy-text {
+  color: #666;
+}
+
+.privacy-link {
+  color: #007aff;
+  margin: 0 4rpx;
+}
+
+.privacy-static checkbox-group {
+  margin-right: 12rpx;
+}

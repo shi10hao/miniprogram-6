@@ -43,6 +43,15 @@ Page({
   },
 
   onLoad() {
+    // 登录态校验
+    const userInfo = wx.getStorageSync('userInfo')
+    if (!userInfo) {
+      wx.redirectTo({
+        url: '/pages/auth/auth'
+      })
+      return
+    }
+
     this.initData()
     this.getUserInfo()
     this.getAvailableDevices()
@@ -141,7 +150,7 @@ Page({
         })
       }
     } catch (err) {
-      console.error('读取用户信息失败:', err)
+      // console.error('读取用户信息失败:', err)
     }
   },
   onSearchInput(e) {
@@ -182,8 +191,8 @@ Page({
 
       const devices = res.result || []
 
-      console.log("res:", res)
-      console.log("devices:", devices)
+      // console.log("res:", res)
+      // console.log("devices:", devices)
 
       var groupedMap = {}
       var that = this;
@@ -213,12 +222,12 @@ Page({
           groupedMap[key].device_ids.push(device.device_id)
         }
       })
-      console.log("groupedMap:", groupedMap)
-      console.log("Object.values(groupedMap):", Object.values(groupedMap))
+      // console.log("groupedMap:", groupedMap)
+      // console.log("Object.values(groupedMap):", Object.values(groupedMap))
       const valueOfGroupedMap = Object.values(groupedMap)
       const deviceIds = valueOfGroupedMap.flatMap(d => d.device_ids)
 
-      console.log("deviceIds:", deviceIds)
+      // console.log("deviceIds:", deviceIds)
       let conflictMap = {}
       try {
         const res = await wx.cloud.callFunction({
@@ -231,16 +240,16 @@ Page({
             endTime: this.data.endTime
           }
         })
-        console.log("res2:", res)
+        // console.log("res2:", res)
         conflictMap = res.result.map || {}
         let reservedDevices = res.result.reservedDevices
         this.setData({
           reservedDevices
         })
         // 
-        console.log("conflictMap,reservedDevices:", conflictMap, this.data.reservedDevices)
+        // console.log("conflictMap,reservedDevices:", conflictMap, this.data.reservedDevices)
       } catch (err) {
-        console.error('批量检查冲突失败:', err)
+        // console.error('批量检查冲突失败:', err)
       }
       let devicesWithStatus = Object.values(groupedMap).map(group => {
         let total = 0
@@ -250,7 +259,7 @@ Page({
 
         return {
           ...group,
-          conflictCount:total,
+          conflictCount: total,
           remainingCount: Math.max(group.totalCount - total, 0)
         }
       })
@@ -279,7 +288,7 @@ Page({
         isLoading: false
       })
     } catch (err) {
-      console.error('获取仪器列表失败:', err)
+      // console.error('获取仪器列表失败:', err)
       this.setData({
         isLoading: false
       })
@@ -335,7 +344,7 @@ Page({
 
       return res.total || 0
     } catch (err) {
-      console.error('检查冲突失败:', err)
+      // console.error('检查冲突失败:', err)
       return 0
     }
   },
@@ -343,26 +352,26 @@ Page({
   // 仪器类型筛选
   onDeviceTypeChange(e) {
     const type = e.currentTarget.dataset.type
-    console.log('type', type)
+    // console.log('type', type)
     this.setData({
       'filters.deviceType': type,
       selectedDevice: null // 清空已选仪器
     }, () => {
       this.getAvailableDevices()
     })
-    console.log("filters", this.data.filters)
+    // console.log("filters", this.data.filters)
   },
 
   onLabTypeChange(e) {
     const type = e.currentTarget.dataset.type
-    console.log(type)
+    // console.log(type)
     this.setData({
       'filters.labType': type,
       selectedDevice: null
     }, () => {
       this.getAvailableDevices()
     })
-    console.log("filters", this.data.filters)
+    // console.log("filters", this.data.filters)
   },
 
   // 选择仪器
@@ -374,7 +383,7 @@ Page({
     }, () => {
       this.checkTimeConflict()
       this.checkPastTime()
-      console.log("selectedDevice:", this.data.selectedDevice)
+      // console.log("selectedDevice:", this.data.selectedDevice)
     })
   },
 
@@ -477,7 +486,7 @@ Page({
 
       return hasConflict
     } catch (err) {
-      console.error('检查时间冲突失败:', err)
+      // console.error('检查时间冲突失败:', err)
       return false
     }
   },
@@ -636,7 +645,7 @@ Page({
             throw new Error(result.error || '预约失败，请重试')
           }
         } catch (cloudErr) {
-          console.warn('云函数调用失败，降级为前端直接写入:', cloudErr)
+          // console.warn('云函数调用失败，降级为前端直接写入:', cloudErr)
           await this.createReservationDirectly(reserveData)
         }
       } else {
@@ -679,7 +688,7 @@ Page({
       }, 2000)
 
     } catch (err) {
-      console.error('提交预约失败:', err)
+      // console.error('提交预约失败:', err)
       wx.showToast({
         title: '预约失败，请重试',
         icon: 'none'
@@ -896,10 +905,10 @@ Page({
     wx.requestSubscribeMessage({
       tmplIds: [RESERVATION_TEMPLATE_ID],
       success(res) {
-        console.log('订阅消息授权结果:', res)
+        // console.log('订阅消息授权结果:', res)
       },
       fail(err) {
-        console.log('订阅消息授权失败:', err)
+        // console.log('订阅消息授权失败:', err)
       }
     })
   },
@@ -917,7 +926,7 @@ Page({
     }, () => {
       this.checkTimeConflict();
       this.checkPastTime();
-      console.log("selectedDevice:", this.data.selectedDevice);
+      // console.log("selectedDevice:", this.data.selectedDevice);
     });
   }
 })

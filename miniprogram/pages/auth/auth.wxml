@@ -13,37 +13,14 @@
       </checkbox-group>
       <text>我已阅读并同意以上协议</text>
     </view>
-    <button bindtap="confirmPrivacy" disabled="{{!privacyChecked}}" class="privacy-confirm-btn">确认同意</button>
+    <button bindtap="confirmPrivacy" disabled="{{!privacyChecked}}" class="privacy-confirm-btn">
+      确认同意
+    </button>
+    <button bindtap="skipPrivacy">暂不登录</button>
   </view>
 </view>
 
 <view class="auth-container">
-  <view wx:if="{{showWechatModal}}" class="modal-mask" catchtap="closeModal">
-    <view class="modal-dialog" catchtap="stopPropagation">
-      <view class="modal-header">
-        <view class="wechat-icon">
-          <view class="wechat-bubble bubble-back">
-            <view class="bubble-dot dot-left"></view>
-            <view class="bubble-dot dot-center"></view>
-            <view class="bubble-dot dot-right"></view>
-          </view>
-          <view class="wechat-bubble bubble-front">
-            <view class="bubble-dot dot-left"></view>
-            <view class="bubble-dot dot-center"></view>
-            <view class="bubble-dot dot-right"></view>
-          </view>
-        </view>
-        <text class="modal-title">微信快捷登录</text>
-        <text class="modal-subtitle">请先完成微信登录，再进行身份认证</text>
-      </view>
-      <view class="modal-body">
-        <button class="wechat-login-btn" bindtap="onWechatLogin">
-          <text class="btn-text">微信快捷登录</text>
-        </button>
-      </view>
-    </view>
-  </view>
-
   <view class="auth-header">
     <text class="auth-title">学生身份认证</text>
     <text class="auth-subtitle">请完成以下信息认证</text>
@@ -100,6 +77,16 @@
     <view class="info-item">1. 请输入真实学号和手机号后点击验证按钮。</view>
     <view class="info-item">2. 系统将自动填充您的个人信息。</view>
     <view class="info-item">3. 请确保手机号准确无误。</view>
+  </view>
+
+  <view class="privacy-static">
+    <checkbox-group bindchange="onCheckPrivacy">
+      <checkbox checked="{{privacyChecked}}" />
+    </checkbox-group>
+    <text class="privacy-text">我已阅读并同意</text>
+    <text class="privacy-link" bindtap="openPrivacyPage">《隐私政策》</text>
+    <text class="privacy-text">与</text>
+    <text class="privacy-link" bindtap="openAgreementPage">《用户协议》</text>
   </view>
 
   <view class="admin-entry">

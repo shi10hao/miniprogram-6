@@ -1,10 +1,10 @@
 <view class="container">
+  <view wx:if="{{!isAuthenticated}}" class="login-tip">
+    <text>登录后可查看使用记录、预约及上传照片</text>
+    <button bindtap="goAuth">去登录</button>
+  </view>
   <!-- 未读提醒 -->
-  <view
-    wx:if="{{unreadReminder}}"
-    bindtap="goToReminder"
-    style="margin: 24rpx 0; padding: 24rpx; border-radius: 20rpx; background: linear-gradient(135deg, #fff8e8 0%, #fff2cc 100%); border: 1px solid #f0d48a;"
-  >
+  <view wx:if="{{unreadReminder}}" bindtap="goToReminder" style="margin: 24rpx 0; padding: 24rpx; border-radius: 20rpx; background: linear-gradient(135deg, #fff8e8 0%, #fff2cc 100%); border: 1px solid #f0d48a;">
     <view style="display: flex; justify-content: space-between; align-items: center; gap: 16rpx;">
       <text style="font-size: 30rpx; font-weight: 600; color: #8a5a00;">未读提醒</text>
       <text style="font-size: 22rpx; color: #8a5a00;">{{unreadReminder.create_time}}</text>
@@ -25,11 +25,11 @@
     <view wx:if="{{!currentUsage}}" class="idle-block">
       <view class="idle-icon">🔬</view>
       <text class="idle-text">当前没有使用中的仪器</text>
-      <button class="primary-btn" bindtap="startUsage" disabled="{{isLoading}}">
+      <button class="primary-btn" bindtap="startUsage" disabled="{{isLoading || !isAuthenticated}}">
         <text>拍照开始使用</text>
       </button>
     </view>
-    
+
     <!-- 2.2 如果有正在使用的仪器 -->
     <view wx:else class="using-block">
       <view class="using-info-row">
@@ -47,10 +47,10 @@
 
       <!-- 2.3 如果没结束 -->
       <view wx:if="{{!endMode}}" class="using-actions">
-        <button class="upload-mid-btn" bindtap="uploadUsagePhoto" disabled="{{isLoading}}">
+        <button class="upload-mid-btn" bindtap="uploadUsagePhoto" disabled="{{isLoading || !isAuthenticated}}">
           <text>上传使用中照片</text>
         </button>
-        <button class="end-btn" bindtap="startEndUsage" disabled="{{isLoading}}">
+        <button class="end-btn" bindtap="startEndUsage" disabled="{{isLoading || !isAuthenticated}}">
           <text>结束使用</text>
         </button>
       </view>
@@ -78,13 +78,7 @@
           <text class="pending-label">仪器编号：</text>
           <text class="pending-val">{{item.device_id}}</text>
         </view>
-        <button
-          wx:if="{{item.state === 'ready'}}"
-          class="start-reserve-btn"
-          data-reserveid="{{item._id}}"
-          bindtap="startUsageFromReserve"
-          disabled="{{isLoading}}"
-        >拍照开始使用</button>
+        <button wx:if="{{item.state === 'ready'}}" class="start-reserve-btn" data-reserveid="{{item._id}}" bindtap="startUsageFromReserve" disabled="{{isLoading || !isAuthenticated}}">拍照开始使用</button>
       </view>
     </view>
   </view>
@@ -167,11 +161,7 @@
       <!-- 提交按钮 -->
       <view class="end-actions">
         <button class="cancel-end-btn" bindtap="cancelEnd" disabled="{{isLoading}}">取消</button>
-        <button
-          class="confirm-end-btn {{endPhotos[0] && endPhotos[1] && endPhotos[2] ? '' : 'disabled'}}"
-          bindtap="confirmEndUsage"
-          disabled="{{isLoading || !endPhotos[0] || !endPhotos[1] || !endPhotos[2]}}"
-        >
+        <button class="confirm-end-btn {{endPhotos[0] && endPhotos[1] && endPhotos[2] ? '' : 'disabled'}}" bindtap="confirmEndUsage" disabled="{{isLoading || !endPhotos[0] || !endPhotos[1] || !endPhotos[2]}}">
           {{isLoading ? '提交中...' : '确认结束使用'}}
         </button>
       </view>

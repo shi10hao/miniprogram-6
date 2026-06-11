@@ -26,9 +26,8 @@ Page({
   checkAuthStatus() {
     try {
       const userInfo = wx.getStorageSync('userInfo')
-      const wechatUserInfo = wx.getStorageSync('wechatUserInfo')
 
-      if (userInfo && wechatUserInfo) {
+      if (userInfo) {
         this.setData({
           isAuthenticated: true,
           currentGroupName: String(userInfo.groupName || '').trim()
@@ -47,7 +46,7 @@ Page({
         this.getLatestNotices()
       }
     } catch (err) {
-      console.error('检查认证状态失败:', err)
+      // console.error('检查认证状态失败:', err)
       this.setData({
         isAuthenticated: false,
         unreadReminder: null
@@ -103,7 +102,7 @@ Page({
         })
       })
       .catch(err => {
-        console.error('获取常用仪器失败:', err)
+        // console.error('获取常用仪器失败:', err)
         this.setData({
           isLoading: false,
           commonDevices: [],
@@ -131,7 +130,7 @@ Page({
         this.setData({ latestNotices: formattedList })
       })
       .catch(err => {
-        console.error('获取公告列表失败:', err)
+        // console.error('获取公告列表失败:', err)
         this.setData({ latestNotices: [] })
       })
   },
@@ -161,7 +160,7 @@ Page({
         return item
       })
       .catch(err => {
-        console.error('获取首页未读提醒失败:', err)
+        // console.error('获取首页未读提醒失败:', err)
         this.setData({ unreadReminder: null })
         return null
       })
@@ -222,10 +221,6 @@ Page({
   },
 
   gotoDeviceList(e) {
-    if (!this.data.isAuthenticated) {
-      this.showAuthPrompt()
-      return
-    }
     const deviceId = e && e.currentTarget && e.currentTarget.dataset
       ? e.currentTarget.dataset.deviceid
       : ''
@@ -236,65 +231,61 @@ Page({
     wx.navigateTo({
       url,
       fail(err) {
-        console.error('跳转仪器列表失败:', err)
+        // console.error('跳转仪器列表失败:', err)
       }
     })
   },
 
   gotoNoticeList() {
-    if (!this.data.isAuthenticated) {
-      this.showAuthPrompt()
-      return
-    }
     wx.navigateTo({
       url: '/pages/notice/list/noticelist',
       fail(err) {
-        console.error('跳转公告列表失败:', err)
+        // console.error('跳转公告列表失败:', err)
       }
     })
   },
 
   gotoDeviceDetail(e) {
-    if (!this.data.isAuthenticated) {
-      this.showAuthPrompt()
-      return
-    }
     const deviceId = e.currentTarget.dataset.deviceid
     if (deviceId) {
       wx.navigateTo({
         url: `/pages/device/detail/devicedetail?deviceId=${deviceId}`,
         fail(err) {
-          console.error('跳转仪器详情失败:', err)
+          // console.error('跳转仪器详情失败:', err)
         }
       })
     }
   },
 
   gotoNoticeDetail(e) {
-    if (!this.data.isAuthenticated) {
-      this.showAuthPrompt()
-      return
-    }
     const noticeId = e.currentTarget.dataset.noticeid
     if (noticeId) {
       wx.navigateTo({
         url: `/pages/notice/detail/noticedetail?noticeId=${noticeId}`,
         fail(err) {
-          console.error('跳转公告详情失败:', err)
+          // console.error('跳转公告详情失败:', err)
         }
       })
     }
   },
 
+  gotoAuth() {
+    wx.navigateTo({
+      url: '/pages/auth/auth'
+    })
+  },
+
   showAuthPrompt() {
     wx.showModal({
-      title: '未登录',
-      content: '请先完成登录认证',
-      showCancel: false,
+      title: '提示',
+      content: '该功能需要登录后使用',
+      showCancel: true,
+      confirmText: '去登录',
+      cancelText: '取消',
       success: res => {
         if (res.confirm) {
-          wx.redirectTo({
-            url: '/pages/auth/auth' 
+          wx.navigateTo({
+            url: '/pages/auth/auth'
           })
         }
       }

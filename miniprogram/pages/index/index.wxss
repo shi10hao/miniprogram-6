@@ -3,7 +3,24 @@
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   padding: 30rpx;
 }
-
+.login-tip {
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  background: #fff8e1;
+  border-radius: 16rpx;
+  font-size: 26rpx;
+  color: #8a6d3b;
+  text-align: center;
+}
+.login-btn {
+  margin-top: 16rpx;
+  display: inline-block;
+  padding: 12rpx 32rpx;
+  background: #62BCC4;
+  color: #fff;
+  font-size: 26rpx;
+  border-radius: 24rpx;
+}
 /* 功能卡片 */
 .card-container {
   margin-bottom: 40rpx;

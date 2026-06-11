@@ -25,19 +25,13 @@ Page({
   loadUserInfo() {
     try {
       const userInfo = wx.getStorageSync('userInfo')
-      const wechatUserInfo = wx.getStorageSync('wechatUserInfo')
-      const hasWechatLogin = Boolean(wechatUserInfo && wechatUserInfo.openid)
+      const isAuth = !!(userInfo && userInfo.userId)
 
-      if (userInfo && hasWechatLogin) {
-        this._authPromptShown = false
-        var name = userInfo.name || '未设置'
-        var avatarText = '👤'
-        if (name && name !== '未设置' && name !== '未认证') {
-          avatarText = name.charAt(0)
-        }
+      if (isAuth) {
+        const avatarText = userInfo.name ? userInfo.name.charAt(0) : '👤'
         this.setData({
           userInfo: {
-            name: name,
+            name: userInfo.name || '未设置',
             userId: userInfo.userId || '未设置',
             major: userInfo.major || '未设置',
             groupName: userInfo.groupName || '未设置'
@@ -53,11 +47,7 @@ Page({
         })
       }
     } catch (err) {
-      console.error('读取用户信息失败:', err)
-      wx.showToast({
-        title: '用户信息加载失败',
-        icon: 'none'
-      })
+      // console.error('读取用户信息失败:', err)
     }
   },
 
@@ -95,7 +85,7 @@ Page({
         this.setData({ adminContacts: contacts })
       })
       .catch(err => {
-        console.error('获取管理员信息失败:', err)
+        // console.error('获取管理员信息失败:', err)
       })
   },
 
@@ -107,21 +97,21 @@ Page({
       success: res => {
         if (res.confirm) {
           wx.redirectTo({
-            url: '/pages/auth/login/login'
+            url: '/pages/auth/auth'
           })
         }
       }
     })
   },
 
-  callAdmin(e) {
-    const phone = e.currentTarget.dataset.phone
-    if (!phone) return
-    wx.makePhoneCall({
-      phoneNumber: phone,
-      fail: () => {}
-    })
-  },
+  // callAdmin(e) {
+  //   const phone = e.currentTarget.dataset.phone
+  //   if (!phone) return
+  //   wx.makePhoneCall({
+  //     phoneNumber: phone,
+  //     fail: () => {}
+  //   })
+  // },
 
   reAuth() {
     wx.showModal({
@@ -162,7 +152,7 @@ Page({
       content: '确定要退出登录吗？',
       success: (res) => {
         if (res.confirm) {
-          wx.clearStorageSync()
+          wx.removeStorageSync('userInfo')
           wx.reLaunch({ url: '/pages/index/index' })
         }
       }

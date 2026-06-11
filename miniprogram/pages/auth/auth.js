@@ -8,150 +8,87 @@ Page({
     isVerifying: false,
     studentInfo: null,
     verificationStatus: '',
-    showWechatModal: false,
     canVerify: false,
     isStudentVerified: false,
-    //=====新增3行隐私字段=====
-    showPrivacyModal: true,
+    showPrivacyModal: false,
     privacyChecked: false,
     privacyAgreed: false
   },
-  //
+
   onLoad() {
-    this.checkWechatLogin()
-  },
-  //
-  checkWechatLogin() {
-    const wechatUserInfo = wx.getStorageSync('wechatUserInfo')
     const userInfo = wx.getStorageSync('userInfo')
-    const hasWechatLogin = Boolean(wechatUserInfo && wechatUserInfo.openid)
-    if (userInfo && hasWechatLogin) {
-      console.log("userInfo存在")
-      console.log("userInfo:", userInfo)
-      console.log("Boolean(userInfo):", Boolean(userInfo))
-      wx.switchTab({
-        url: '/pages/index/index'
+    if (userInfo && userInfo.userId) {
+      wx.showToast({
+        title: '您已登录',
+        icon: 'success'
       })
+      setTimeout(() => {
+        wx.switchTab({
+          url: '/pages/index/index'
+        })
+      }, 1500)
+    }
+
+    this.setData({
+      privacyChecked: false,
+      privacyAgreed: false
+    })
+  },
+
+  onCheckPrivacy(e) {
+    this.setData({
+      privacyChecked: e.detail.value.length > 0
+    })
+  },
+
+  confirmPrivacy() {
+    this.setData({
+      showPrivacyModal: false,
+      privacyAgreed: true,
+      privacyChecked: true
+    })
+  },
+
+  skipPrivacy() {
+    this.setData({
+      showPrivacyModal: false,
+      privacyChecked: false 
+    })
+  },
+
+  onStudentIdInput(e) {
+    const studentId = e.detail.value
+    this.setData({
+      studentId,
+      canVerify: Boolean(studentId.trim() && this.data.phone.trim()),
+      studentInfo: null,
+      isStudentVerified: false,
+      verificationStatus: ''
+    })
+  },
+
+  onPhoneInput(e) {
+    const phone = e.detail.value
+    this.setData({
+      phone,
+      canVerify: Boolean(this.data.studentId.trim() && phone.trim()),
+      studentInfo: null,
+      isStudentVerified: false,
+      verificationStatus: ''
+    })
+  },
+
+  async verifyStudent() {
+    if (!this.data.privacyChecked) {
+      this.setData({ showPrivacyModal: true })
       return
     }
 
-    if (!hasWechatLogin) {
-      console.log("hasWechatLogin为false")
-      this.setData({
-        showWechatModal: true
-      })
-    }
-  },
-  //
-  stopPropagation() {
-    // 阻止点击弹窗内容时触发遮罩层关闭。
-  },
-  //
-  closeModal() {
-    // 身份认证前不允许手动关闭微信登录弹窗。
-  },
-  //
-  async fetchOpenId() {
-    const res = await wx.cloud.callFunction({
-      name: 'getOpenId'
-    })
-    const openid = res && res.result && res.result.openid
-    if (!openid) {
-      throw new Error('未获取到 openid')
-    }
-    return openid
-  },
-  //
-  getLoginErrorMessage(error) {
-    const errorText = String(
-      (error && (error.errMsg || error.message)) || error || ''
-    )
-
-    if (errorText.indexOf('Env Not Exists') !== -1 || errorText.indexOf('INVALID_ENV') !== -1) {
-      return '当前云环境未绑定，请先在开发者工具切换正确云环境'
-    }
-    if (errorText.indexOf('FunctionName') !== -1 || errorText.indexOf('getOpenId') !== -1) {
-      return '缺少 getOpenId 云函数，请先上传并部署'
-    }
-
-    return '获取账号标识失败，请稍后重试'
-  },
-  //
-  onWechatLogin() {
-    wx.showLoading({
-      title: '正在登录'
-    })
-    wx.login({
-      success: async () => {
-        try {
-          const openid = await this.fetchOpenId()
-          wx.setStorageSync('wechatUserInfo', {
-            openid,
-            wechatLoginTime: new Date().toISOString()
-          })
-          this.setData({
-            showWechatModal: false
-          })
-          wx.hideLoading()
-          wx.showToast({
-            title: '微信登录成功',
-            icon: 'success'
-          })
-        } catch (error) {
-          console.error('微信登录后获取 openid 失败:', error)
-          wx.hideLoading()
-          wx.showToast({
-            title: this.getLoginErrorMessage(error),
-            icon: 'none'
-          })
-        }
-      },
-      fail: () => {
-        wx.hideLoading()
-        wx.showToast({
-          title: '登录失败，请稍后重试',
-          icon: 'none'
-        })
-      }
-    })
-  },
-  //
-  onStudentIdInput(e) {
-    const studentId = e.detail.value
-    const canVerify = Boolean(studentId.trim() && this.data.phone.trim())
-    this.setData({
-      studentId,
-      canVerify,
-      studentInfo: null,
-      name: '',
-      major: '',
-      groupName: '',
-      verificationStatus: '',
-      isStudentVerified: false
-    })
-  },
-  //
-  onPhoneInput(e) {
-    const phone = e.detail.value
-    const canVerify = Boolean(this.data.studentId.trim() && phone.trim())
-    this.setData({
-      phone,
-      canVerify,
-      studentInfo: null,
-      name: '',
-      major: '',
-      groupName: '',
-      verificationStatus: '',
-      isStudentVerified: false
-    })
-  },
-  //
-  async verifyStudent() {
     const studentId = this.data.studentId.trim()
     const phone = this.data.phone.trim()
 
     if (!studentId || !phone) {
-      this.showError('请先输入学号和手机号')
+      this.showError('请输入学号和手机号')
       return
     }
 
@@ -161,73 +98,44 @@ Page({
       return
     }
 
-    this.setData({
-      isVerifying: true,
-      verificationStatus: ''
-    })
+    this.setData({ isVerifying: true })
 
     try {
       const db = wx.cloud.database()
-      console.log("studentId:", studentId)
-      console.log("phone:", phone)
-      const result = await db.collection('users')
-        .where({
-          user_id: studentId,
-          phone,
-          role: 'student'
-        })
+      const res = await db.collection('users')
+        .where({ user_id: studentId, phone, role: 'student' })
         .get()
-      console.log("result:", result)
-      if (result.data && result.data.length > 0) {
-        const studentInfo = result.data[0]
+
+      if (res.data.length) {
+        const info = res.data[0]
         this.setData({
-          studentInfo,
-          name: studentInfo.name || '',
-          major: studentInfo.major || '',
-          groupName: studentInfo.group_name || '',
+          studentInfo: info,
+          name: info.name,
+          major: info.major,
+          groupName: info.group_name,
           verificationStatus: 'success',
           isStudentVerified: true
         })
-        wx.showToast({
-          title: '学号和手机号验证成功',
-          icon: 'success'
-        })
       } else {
         this.setData({
-          studentInfo: null,
-          name: '',
-          major: '',
-          groupName: '',
           verificationStatus: 'error',
           isStudentVerified: false
         })
-        wx.showToast({
-          title: '学号或手机号不匹配',
-          icon: 'none'
-        })
       }
-    } catch (error) {
-      console.error('验证失败:', error)
-      this.setData({
-        studentInfo: null,
-        name: '',
-        major: '',
-        groupName: '',
-        verificationStatus: 'error',
-        isStudentVerified: false
-      })
-      wx.showToast({
-        title: '验证失败，请稍后再试',
-        icon: 'none'
-      })
     } finally {
-      this.setData({
-        isVerifying: false
-      })
+      this.setData({ isVerifying: false })
     }
   },
-  //
+
   async submitAuth() {
+    const cachedUser = wx.getStorageSync('userInfo')
+    if (cachedUser && cachedUser.userId) {
+      wx.showToast({ title: '您已登录', icon: 'none' })
+      return
+    }
+
+    if (!this.validateForm()) return
+
     const {
       studentId,
       name,
@@ -237,118 +145,49 @@ Page({
       studentInfo
     } = this.data
 
-    if (!this.validateForm()) {
-      return
-    }
-
     const wechatUserInfo = wx.getStorageSync('wechatUserInfo') || {}
-    if (!wechatUserInfo.openid) {
-      this.showError('请先完成微信登录')
-      this.setData({
-        showWechatModal: true
-      })
-      return
-    }
 
-    const userInfo = {
-      userId: (studentInfo && studentInfo.user_id) || studentId.trim(),
+    const userInfoPayload = {
+      userId: studentInfo?.user_id || studentId.trim(),
       name: name.trim(),
       phone: phone.trim(),
       major: major.trim(),
       groupName: groupName.trim(),
       role: 'student',
-      openid: wechatUserInfo.openid
+      openid: wechatUserInfo.openid || ''
     }
 
-    try {
-      console.log("开始设立userInfo:", userInfo)
-      wx.setStorageSync('userInfo', userInfo)
-      wx.showToast({
-        title: '认证成功',
-        icon: 'success',
-        duration: 2000
-      })
-      setTimeout(() => {
-        wx.switchTab({
-          url: '/pages/index/index'
-        })
-      }, 2000)
-    } catch (error) {
-      console.error('保存用户信息失败:', error)
-      wx.showToast({
-        title: '认证失败，请稍后重试',
-        icon: 'none'
-      })
-    }
+    wx.setStorageSync('userInfo', userInfoPayload)
+    wx.showToast({ title: '认证成功', icon: 'success' })
+
+    setTimeout(() => {
+      wx.switchTab({ url: '/pages/index/index' })
+    }, 1500)
   },
-  //
+
   validateForm() {
-    const {
-      studentId,
-      phone,
-      studentInfo,
-      isStudentVerified
-    } = this.data
-
-    if (!studentId.trim()) {
-      this.showError('请输入学号')
-      return false
-    }
-
-    if (!phone.trim()) {
-      this.showError('请输入手机号')
-      return false
-    }
-
-    const phoneRegex = /^1[3-9]\d{9}$/
-    if (!phoneRegex.test(phone.trim())) {
-      this.showError('请输入11位手机号')
-      return false
-    }
-
-    if (!isStudentVerified || !studentInfo) {
-      this.showError('请先完成学号和手机号验证')
-      return false
-    }
-
+    const { studentId, phone, isStudentVerified } = this.data
+    if (!studentId.trim()) return this.showError('请输入学号'), false
+    if (!phone.trim()) return this.showError('请输入手机号'), false
+    if (!isStudentVerified) return this.showError('请先完成验证'), false
     return true
   },
-  //
-  showError(message) {
-    wx.showToast({
-      title: message,
-      icon: 'none',
-      duration: 2000
-    })
+
+  showError(msg) {
+    wx.showToast({ title: msg, icon: 'none' })
   },
-  //
+
   navigateToAdminLogin() {
     wx.navigateTo({
       url: '/pages/admin/login/adminlogin'
     })
   },
-  onCheckPrivacy(e) {
-    const checked = e.detail.value.length > 0
-    this.setData({
-      privacyChecked: checked
-    })
-  },
-  confirmPrivacy() {
-    this.setData({
-      showPrivacyModal: false,
-      privacyAgreed: true
-    })
-  },
-  //跳转隐私政策页面（新建空白page放协议文本）
+
   openPrivacyPage() {
-    wx.navigateTo({
-      url: "/pages/privacy/privacy"
-    })
+    wx.navigateTo({ url: '/pages/privacy/privacy' })
   },
-  //跳转用户协议页面
+
   openAgreementPage() {
-    wx.navigateTo({
-      url: "/pages/agreement/agreement"
-    })
+    wx.navigateTo({ url: '/pages/agreement/agreement' })
   }
 })

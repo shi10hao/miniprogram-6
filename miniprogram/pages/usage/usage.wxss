@@ -440,3 +440,25 @@
   background: #a8d8dc;
   color: #f0f0f0;
 }
+
+/* ✅ 未登录提示条 */
+.login-tip {
+  background: #fff8e1;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  margin-bottom: 24rpx;
+  font-size: 26rpx;
+  color: #8a6d3b;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tip-login-btn {
+  background: #62BCC4;
+  color: #fff;
+  font-size: 24rpx;
+  padding: 8rpx 24rpx;
+  border-radius: 24rpx;
+  border: none;
+}

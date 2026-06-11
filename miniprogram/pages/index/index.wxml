@@ -1,9 +1,12 @@
 <view class="container">
   <!-- 未登录时不显示提醒，其他全部正常显示 -->
-  <view
-    wx:if="{{isAuthenticated && unreadReminder}}"
-    style="margin-bottom: 24rpx; padding: 24rpx; border-radius: 20rpx; background: linear-gradient(135deg, #eefbf3 0%, #ddf7e8 100%); border: 1px solid #9ed8b4;"
-  >
+  <view wx:if="{{!isAuthenticated}}" class="login-tip">
+    <text>如需预约或使用仪器，请先登录</text>
+    <view class="login-btn" bindtap="gotoAuth">
+      去登录
+    </view>
+  </view>
+  <view wx:if="{{isAuthenticated && unreadReminder}}" style="margin-bottom: 24rpx; padding: 24rpx; border-radius: 20rpx; background: linear-gradient(135deg, #eefbf3 0%, #ddf7e8 100%); border: 1px solid #9ed8b4;">
     <view style="display: flex; justify-content: space-between; align-items: center; gap: 16rpx;">
       <text style="font-size: 30rpx; font-weight: 600; color: #1d6b44;">最新未读提醒</text>
       <text style="font-size: 22rpx; color: #1d6b44;">{{unreadReminder.create_time}}</text>
@@ -38,23 +41,12 @@
     <view wx:if="{{isLoading}}" class="loading">加载中...</view>
 
     <view wx:else class="device-grid">
-      <view
-        class="device-item"
-        wx:for="{{commonDevices}}"
-        wx:key="device_id"
-        bindtap="gotoDeviceDetail"
-        data-deviceid="{{item.device_id}}"
-      >
+      <view class="device-item" wx:for="{{commonDevices}}" wx:key="device_id" bindtap="gotoDeviceDetail" data-deviceid="{{item.device_id}}">
         <image class="device-img" src="{{item.picture}}" mode="aspectFill"></image>
         <text class="device-name">{{item.device_name}}</text>
       </view>
 
-      <view
-        class="device-item empty-item"
-        wx:for="{{3 - commonDevices.length}}"
-        wx:key="*this"
-        wx:if="{{commonDevices.length < 3}}"
-      >
+      <view class="device-item empty-item" wx:for="{{3 - commonDevices.length}}" wx:key="*this" wx:if="{{commonDevices.length < 3}}">
         <view class="empty-device-icon">➕</view>
         <text class="empty-device-text">更多仪器</text>
       </view>
@@ -68,13 +60,7 @@
     </view>
 
     <view class="notice-list">
-      <view
-        class="notice-item"
-        wx:for="{{latestNotices}}"
-        wx:key="_id"
-        bindtap="gotoNoticeDetail"
-        data-noticeid="{{item.notice_id || item._id}}"
-      >
+      <view class="notice-item" wx:for="{{latestNotices}}" wx:key="_id" bindtap="gotoNoticeDetail" data-noticeid="{{item.notice_id || item._id}}">
         <text class="notice-title">{{item.title}}</text>
         <text class="notice-date">{{item.publish_date}}</text>
       </view>

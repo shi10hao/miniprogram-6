@@ -147,11 +147,11 @@ Page({
       }
     })
       .then(function(res) {
-        console.log("res",res)
+        // console.log("res",res)
         var devices = res.result || []
         var groupedDevices = that.mergeDevices(devices)
         var stats = that.calculateStats(devices, groupedDevices)
-        console.log('原始设备数据条数:', res.result.length)
+        // console.log('原始设备数据条数:', res.result.length)
         that.setData({
           devices: groupedDevices,
           filteredDevices: groupedDevices,
@@ -160,7 +160,7 @@ Page({
         })
       })
       .catch(function(err) {
-        console.error('加载仪器数据失败：', err)
+        // console.error('加载仪器数据失败：', err)
         that.setData({ isLoading: false })
         wx.showToast({
           title: '加载失败',

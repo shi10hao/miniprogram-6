@@ -12,18 +12,28 @@ Page({
     isLoading: false,
     endMode: false,
     endPhotos: [null, null, null],
-    unreadReminder: null
+    unreadReminder: null,
+    isAuthenticated: false
   },
 
   onLoad() {
+    this.checkAuth()
     this.loadData()
     this.loadUnreadReminder()
   },
 
   onShow() {
+    this.checkAuth()
     this.loadCurrentUsage()
     this.loadPendingReserves()
     this.loadUnreadReminder()
+  },
+
+  checkAuth() {
+    const userInfo = wx.getStorageSync('userInfo')
+    this.setData({
+      isAuthenticated: !!(userInfo && userInfo.userId)
+    })
   },
 
   loadData() {
@@ -734,5 +744,10 @@ Page({
       return value
     }
     return `${value.slice(0, maxLength - 1)}…`
+  },
+  goAuth() {
+    wx.navigateTo({
+      url: '/pages/auth/auth'
+    })
   }
 })
