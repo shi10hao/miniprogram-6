@@ -234,3 +234,252 @@
   font-weight: 500;
   margin-bottom: 8rpx;
 }
+
+/* 仪器信息卡片 */
+.info-card {
+  background: white;
+  border-radius: 20rpx;
+  margin: 24rpx 24rpx 0;
+  padding: 32rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.info-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.info-card-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.info-edit-btn {
+  height: 56rpx;
+  line-height: 56rpx;
+  font-size: 24rpx;
+  font-weight: 500;
+  color: white;
+  background: #62BCC4;
+  border: none;
+  border-radius: 28rpx;
+  padding: 0 24rpx;
+  margin: 0;
+}
+
+.info-edit-btn::after {
+  border: none;
+}
+
+.info-card-body {
+  display: flex;
+  gap: 24rpx;
+}
+
+.info-image-wrap {
+  flex-shrink: 0;
+}
+
+.info-image {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 14rpx;
+  background: #f0f0f0;
+}
+
+.info-fields {
+  flex: 1;
+  min-width: 0;
+}
+
+.info-field {
+  margin-bottom: 16rpx;
+}
+
+.info-field:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  display: block;
+  font-size: 22rpx;
+  color: #999;
+  margin-bottom: 4rpx;
+}
+
+.info-text {
+  display: block;
+  font-size: 26rpx;
+  color: #333;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+/* 编辑模式 */
+.info-card-body.edit-mode {
+  flex-direction: column;
+}
+
+.edit-field {
+  margin-bottom: 28rpx;
+}
+
+.edit-label {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 12rpx;
+}
+
+.edit-textarea {
+  width: 100%;
+  min-height: 120rpx;
+  background: #f7f9fc;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  font-size: 26rpx;
+  color: #333;
+  border: 1rpx solid #e8ecf0;
+  box-sizing: border-box;
+  line-height: 1.6;
+}
+
+.edit-hint {
+  display: block;
+  font-size: 22rpx;
+  color: #aaa;
+  margin-top: 8rpx;
+}
+
+/* 图片选择 */
+.edit-image-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 16rpx;
+  background: #f7f9fc;
+  border-radius: 12rpx;
+  border: 1rpx solid #e8ecf0;
+}
+
+.edit-image {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 10rpx;
+  background: #e0e0e0;
+  flex-shrink: 0;
+}
+
+.edit-image-hint {
+  font-size: 24rpx;
+  color: #62BCC4;
+}
+
+/* 视频选择 */
+.edit-video-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 24rpx;
+  background: #f7f9fc;
+  border-radius: 12rpx;
+  border: 1rpx solid #e8ecf0;
+}
+
+.edit-video-btn {
+  font-size: 26rpx;
+  color: #62BCC4;
+  font-weight: 500;
+}
+
+.edit-video-name {
+  font-size: 24rpx;
+  color: #999;
+  flex: 1;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 保存按钮 */
+.save-btn {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  background: linear-gradient(135deg, #62BCC4, #4da9b1);
+  color: white;
+  font-size: 30rpx;
+  font-weight: 600;
+  border-radius: 16rpx;
+  border: none;
+  margin-top: 8rpx;
+}
+
+.save-btn[disabled] {
+  background: #a8d8dc;
+  color: white;
+}
+
+/* 取消编辑按钮变灰 */
+.info-edit-btn.cancel {
+  background: #f0f0f0;
+  color: #666;
+}
+
+/* ===== 第4步：微调 ===== */
+
+/* 内容区与信息卡片之间留一点间距 */
+.content {
+  padding-top: 24rpx;
+}
+
+/* 信息卡片底部与内容区衔接 */
+.info-card {
+  margin-bottom: 0;
+}
+
+/* 编辑文本输入框获得焦点时的边框高亮 */
+.edit-textarea:focus {
+  border-color: #62BCC4;
+}
+
+/* 已选图片/视频的预览提示 */
+.edit-image-hint,
+.edit-video-btn {
+  color: #62BCC4;
+}
+
+/* 保存按钮禁用状态的样式 */
+.save-btn[disabled] {
+  background: #a8d8dc;
+  color: rgba(255,255,255,0.8);
+}
+
+/* 当编辑模式开启时，顶部按钮的文字微调 */
+.info-edit-btn.cancel {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.edit-input {
+  width: 100%;
+  height: 72rpx;
+  background: #f7f9fc;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  font-size: 26rpx;
+  color: #333;
+  border: 1rpx solid #e8ecf0;
+  box-sizing: border-box;
+}
+
+.edit-input:focus {
+  border-color: #62BCC4;
+}

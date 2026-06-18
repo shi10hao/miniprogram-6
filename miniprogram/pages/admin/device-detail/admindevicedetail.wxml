@@ -3,6 +3,106 @@
     <text class="device-name">{{deviceName}}</text>
   </view>
 
+  <!-- 仪器信息卡片（展示/编辑模式） -->
+  <view wx:if="{{deviceInfo && !isLoading}}" class="info-card">
+    <view class="info-card-header">
+      <text class="info-card-title">仪器信息</text>
+      <button class="info-edit-btn {{isEditing ? 'cancel' : ''}}" bindtap="toggleEdit">
+        {{isEditing ? '取消编辑' : '编辑仪器信息'}}
+      </button>
+    </view>
+
+    <!-- ========== 展示模式 ========== -->
+    <view wx:if="{{!isEditing}}" class="info-card-body">
+      <view class="info-image-wrap">
+        <image class="info-image" src="{{deviceInfo.picture}}" mode="aspectFill"></image>
+      </view>
+      <view class="info-fields">
+        <view class="info-field">
+          <text class="info-label">仪器名称</text>
+          <text class="info-text">{{deviceName}}</text>
+        </view>
+        <view class="info-field">
+          <text class="info-label">仪器简介</text>
+          <text class="info-text">{{deviceInfo.description || '暂无简介'}}</text>
+        </view>
+        <view class="info-field">
+          <text class="info-label">操作视频</text>
+          <text class="info-text">{{deviceInfo.video_url ? '已上传' : '暂无视频'}}</text>
+        </view>
+        <view class="info-field">
+          <text class="info-label">操作规程</text>
+          <text class="info-text">{{deviceInfo.operation_procedure ? '已设置' : '暂无'}}</text>
+        </view>
+        <view class="info-field">
+          <text class="info-label">注意事项</text>
+          <text class="info-text">{{deviceInfo.precautions ? '已设置' : '暂无'}}</text>
+        </view>
+        <view class="info-field">
+          <text class="info-label">规格参数</text>
+          <text class="info-text">{{deviceInfo.specifications && Object.keys(deviceInfo.specifications).length > 0 ? (Object.keys(deviceInfo.specifications).length + '项') : '暂无'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ========== 编辑模式 ========== -->
+    <view wx:else class="info-card-body edit-mode">
+      <!-- 图片 -->
+      <view class="edit-field">
+        <text class="edit-label">仪器图片</text>
+        <view class="edit-image-row" bindtap="chooseImage">
+          <image class="edit-image" src="{{hasNewPicture ? newPictureUrl : editForm.picture}}" mode="aspectFill"></image>
+          <text class="edit-image-hint">点击更换图片</text>
+        </view>
+      </view>
+
+      <!-- 仪器名称 -->
+      <view class="edit-field">
+        <text class="edit-label">仪器名称</text>
+        <input class="edit-input" value="{{editForm.device_name}}" data-field="device_name" bindinput="onEditInput" placeholder="请输入仪器名称" maxlength="50" />
+      </view>
+
+      <!-- 简介 -->
+      <view class="edit-field">
+        <text class="edit-label">仪器简介</text>
+        <textarea class="edit-textarea" value="{{editForm.description}}" data-field="description" bindinput="onEditInput" placeholder="请输入仪器简介" maxlength="500" auto-height />
+      </view>
+
+      <!-- 操作视频 -->
+      <view class="edit-field">
+        <text class="edit-label">操作视频</text>
+        <view class="edit-video-row" bindtap="chooseVideo">
+          <text class="edit-video-btn">选择视频文件</text>
+          <text class="edit-video-name">{{hasNewVideo ? newVideoName : (editForm.video_url ? '已选择视频' : '未选择')}}</text>
+        </view>
+      </view>
+
+      <!-- 操作规程 -->
+      <view class="edit-field">
+        <text class="edit-label">操作规程</text>
+        <textarea class="edit-textarea" value="{{editForm.operation_procedure}}" data-field="operation_procedure" bindinput="onEditInput" placeholder="请输入操作规程" maxlength="2000" auto-height />
+      </view>
+
+      <!-- 注意事项 -->
+      <view class="edit-field">
+        <text class="edit-label">注意事项</text>
+        <textarea class="edit-textarea" value="{{editForm.precautions}}" data-field="precautions" bindinput="onEditInput" placeholder="请输入注意事项" maxlength="2000" auto-height />
+      </view>
+
+      <!-- 规格参数 -->
+      <view class="edit-field">
+        <text class="edit-label">规格参数</text>
+        <textarea class="edit-textarea" value="{{editForm.specifications}}" data-field="specifications" bindinput="onEditInput" placeholder="每行一项，格式：参数名：参数值" maxlength="2000" auto-height />
+        <text class="edit-hint">每行一项，格式如「型号：GC-2014」</text>
+      </view>
+
+      <!-- 保存按钮 -->
+      <button class="save-btn" bindtap="saveDeviceInfo" disabled="{{isSaving}}">
+        {{isSaving ? '保存中...' : '保存修改'}}
+      </button>
+    </view>
+  </view>
+
   <view wx:if="{{isLoading}}" class="center-hint">
     <view class="loading-spin"></view>
     <text>加载中...</text>
@@ -22,13 +122,7 @@
 
           <text wx:if="{{item.usingUser}}" class="device-id-small">当前使用人：{{item.usingUser}}</text>
 
-          <button
-            class="maint-btn {{item.status === 'maintenance' ? 'active' : ''}}"
-            bindtap="toggleMaintenance"
-            data-id="{{item._id}}"
-            data-device-id="{{item.device_id}}"
-            data-display-status="{{item.displayStatus}}"
-            disabled="{{item.displayStatus === 'using'}}">
+          <button class="maint-btn {{item.status === 'maintenance' ? 'active' : ''}}" bindtap="toggleMaintenance" data-id="{{item._id}}" data-device-id="{{item.device_id}}" data-display-status="{{item.displayStatus}}" disabled="{{item.displayStatus === 'using'}}">
             {{item.displayStatus === 'using' ? '使用中不可切换' : item.status === 'maintenance' ? '恢复可用' : '设为维护'}}
           </button>
         </view>
@@ -48,28 +142,13 @@
 
           <view wx:if="{{usage.startPhotoUrl}}" class="photo-section">
             <text class="photo-label">开始照片</text>
-            <image
-              class="usage-photo"
-              src="{{usage.startPhotoUrl}}"
-              mode="aspectFill"
-              bindtap="previewPhoto"
-              data-url="{{usage.startPhotoUrl}}"
-              data-urls="{{usage.allPhotoUrls}}"></image>
+            <image class="usage-photo" src="{{usage.startPhotoUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{usage.startPhotoUrl}}" data-urls="{{usage.allPhotoUrls}}"></image>
           </view>
 
           <view wx:if="{{usage.usageImageUrls.length > 0}}" class="photo-section">
             <text class="photo-label">使用照片（{{usage.usageImageUrls.length}}）</text>
             <view class="photo-grid">
-              <image
-                class="usage-photo"
-                wx:for="{{usage.usageImageUrls}}"
-                wx:key="*this"
-                wx:for-item="photo"
-                src="{{photo}}"
-                mode="aspectFill"
-                bindtap="previewPhoto"
-                data-url="{{photo}}"
-                data-urls="{{usage.allPhotoUrls}}"></image>
+              <image class="usage-photo" wx:for="{{usage.usageImageUrls}}" wx:key="*this" wx:for-item="photo" src="{{photo}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{photo}}" data-urls="{{usage.allPhotoUrls}}"></image>
             </view>
           </view>
 
@@ -77,13 +156,7 @@
             <text class="photo-label">结束核验照片</text>
             <view class="photo-grid">
               <view class="photo-item" wx:for="{{usage.endPhotoItems}}" wx:key="key" wx:for-item="endPhoto">
-                <image
-                  class="usage-photo"
-                  src="{{endPhoto.url}}"
-                  mode="aspectFill"
-                  bindtap="previewPhoto"
-                  data-url="{{endPhoto.url}}"
-                  data-urls="{{usage.allPhotoUrls}}"></image>
+                <image class="usage-photo" src="{{endPhoto.url}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{endPhoto.url}}" data-urls="{{usage.allPhotoUrls}}"></image>
                 <text class="photo-tip">{{endPhoto.label}}</text>
               </view>
             </view>
@@ -105,28 +178,13 @@
 
           <view wx:if="{{record.startPhotoUrl}}" class="photo-section">
             <text class="photo-label">开始照片</text>
-            <image
-              class="usage-photo"
-              src="{{record.startPhotoUrl}}"
-              mode="aspectFill"
-              bindtap="previewPhoto"
-              data-url="{{record.startPhotoUrl}}"
-              data-urls="{{record.allPhotoUrls}}"></image>
+            <image class="usage-photo" src="{{record.startPhotoUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{record.startPhotoUrl}}" data-urls="{{record.allPhotoUrls}}"></image>
           </view>
 
           <view wx:if="{{record.usageImageUrls.length > 0}}" class="photo-section">
             <text class="photo-label">使用照片（{{record.usageImageUrls.length}}）</text>
             <view class="photo-grid">
-              <image
-                class="usage-photo"
-                wx:for="{{record.usageImageUrls}}"
-                wx:key="*this"
-                wx:for-item="photo"
-                src="{{photo}}"
-                mode="aspectFill"
-                bindtap="previewPhoto"
-                data-url="{{photo}}"
-                data-urls="{{record.allPhotoUrls}}"></image>
+              <image class="usage-photo" wx:for="{{record.usageImageUrls}}" wx:key="*this" wx:for-item="photo" src="{{photo}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{photo}}" data-urls="{{record.allPhotoUrls}}"></image>
             </view>
           </view>
 
@@ -134,13 +192,7 @@
             <text class="photo-label">结束核验照片</text>
             <view class="photo-grid">
               <view class="photo-item" wx:for="{{record.endPhotoItems}}" wx:key="key" wx:for-item="endPhoto">
-                <image
-                  class="usage-photo"
-                  src="{{endPhoto.url}}"
-                  mode="aspectFill"
-                  bindtap="previewPhoto"
-                  data-url="{{endPhoto.url}}"
-                  data-urls="{{record.allPhotoUrls}}"></image>
+                <image class="usage-photo" src="{{endPhoto.url}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{endPhoto.url}}" data-urls="{{record.allPhotoUrls}}"></image>
                 <text class="photo-tip">{{endPhoto.label}}</text>
               </view>
             </view>

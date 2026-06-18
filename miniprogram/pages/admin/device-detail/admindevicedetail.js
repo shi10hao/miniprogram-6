@@ -19,14 +19,35 @@ Page({
     usages: [],
     usagePhotos: [],
     reserves: [],
-    isLoading: true
+    isLoading: true,
+    deviceInfo: null,
+    isEditing: false,
+    editForm: {
+      device_name: this.data.deviceName || '',
+      picture: '',
+      description: '',
+      video_url: '',
+      operation_procedure: '',
+      precautions: '',
+      specifications: ''
+    },
+    newPictureUrl: '',
+    newVideoName: '',
+    hasNewPicture: false,
+    hasNewVideo: false,
+    isSaving: false
   },
 
   onLoad(options) {
     const deviceName = this.safeDecode(options.deviceName || '')
     if (!deviceName) {
-      wx.showToast({ title: '缺少设备参数', icon: 'none' })
-      this.setData({ isLoading: false })
+      wx.showToast({
+        title: '缺少设备参数',
+        icon: 'none'
+      })
+      this.setData({
+        isLoading: false
+      })
       return
     }
 
@@ -71,9 +92,14 @@ Page({
 
   redirectToLogin(message) {
     wx.removeStorageSync('adminInfo')
-    if (message) wx.showToast({ title: message, icon: 'none' })
+    if (message) wx.showToast({
+      title: message,
+      icon: 'none'
+    })
     setTimeout(() => {
-      wx.redirectTo({ url: '/pages/admin/login/adminlogin' })
+      wx.redirectTo({
+        url: '/pages/admin/login/adminlogin'
+      })
     }, 400)
   },
 
@@ -117,27 +143,46 @@ Page({
   },
 
   buildVisibleDeviceCondition(session) {
-    if (!session) return { _id: '__DENY__' }
+    if (!session) return {
+      _id: '__DENY__'
+    }
     if (session.role === 'admin') return null
 
     if (session.role === 'teacher') {
       const groupName = String(session.groupName || '').trim()
-      if (!groupName) return { lab_type: 'public' }
-      return _.or([
-        { lab_type: 'public' },
-        { lab_name: groupName }
+      if (!groupName) return {
+        lab_type: 'public'
+      }
+      return _.or([{
+          lab_type: 'public'
+        },
+        {
+          lab_name: groupName
+        }
       ])
     }
 
-    return { _id: '__DENY__' }
+    return {
+      _id: '__DENY__'
+    }
   },
 
   buildGroupCondition() {
-    const { deviceName, labName, deviceType } = this.data
+    const {
+      deviceName,
+      labName,
+      deviceType
+    } = this.data
     const conditions = []
-    if (deviceName) conditions.push({ device_name: deviceName })
-    if (labName) conditions.push({ lab_name: labName })
-    if (deviceType) conditions.push({ device_type: deviceType })
+    if (deviceName) conditions.push({
+      device_name: deviceName
+    })
+    if (labName) conditions.push({
+      lab_name: labName
+    })
+    if (deviceType) conditions.push({
+      device_type: deviceType
+    })
 
     if (!conditions.length) return null
     if (conditions.length === 1) return conditions[0]
@@ -198,7 +243,9 @@ Page({
 
     for (let i = 0; i < chunks.length; i += 1) {
       const chunk = chunks[i]
-      const idCondition = { device_id: _.in(chunk) }
+      const idCondition = {
+        device_id: _.in(chunk)
+      }
       const condition = extraCondition ? _.and([extraCondition, idCondition]) : idCondition
       const rows = await this.fetchAllByWhere(collectionName, condition)
       all.push(...rows)
@@ -222,18 +269,24 @@ Page({
 
     const nowText = this.buildNowStringForReserve()
     const nowIso = this.buildNowIsoString()
-    const futureStartCondition = _.or([
-      { start_time: _.gt(nowText) },
-      { start_time: _.gt(nowIso) }
+    const futureStartCondition = _.or([{
+        start_time: _.gt(nowText)
+      },
+      {
+        start_time: _.gt(nowIso)
+      }
     ])
 
     const chunks = this.chunkArray(deviceIds, DEVICE_ID_CHUNK_SIZE)
     const all = []
     for (let i = 0; i < chunks.length; i += 1) {
       const chunk = chunks[i]
-      const baseCondition = _.and([
-        { status: 'approved' },
-        { device_id: _.in(chunk) },
+      const baseCondition = _.and([{
+          status: 'approved'
+        },
+        {
+          device_id: _.in(chunk)
+        },
         futureStartCondition
       ])
 
@@ -264,7 +317,9 @@ Page({
 
     for (let i = 0; i < chunks.length; i += 1) {
       const chunk = chunks[i]
-      const condition = { device_id: _.in(chunk) }
+      const condition = {
+        device_id: _.in(chunk)
+      }
       try {
         const orderedRes = await db.collection('device_usage')
           .where(condition)
@@ -285,8 +340,8 @@ Page({
   },
 
   uniqueById(rows) {
-    const map = {}
-    ;(rows || []).forEach(item => {
+    const map = {};
+    (rows || []).forEach(item => {
       const key = String((item && item._id) || '')
       if (!key) return
       if (!map[key]) map[key] = item
@@ -318,7 +373,9 @@ Page({
       this.currentSession = session
     }
 
-    this.setData({ isLoading: true })
+    this.setData({
+      isLoading: true
+    })
     try {
       const condition = this.buildVisibleGroupCondition(this.currentSession)
       let devices = await this.fetchAllByWhere('devices', condition)
@@ -334,7 +391,10 @@ Page({
       }
 
       if (!devices.length) {
-        wx.showToast({ title: '设备不存在或无权限查看', icon: 'none' })
+        wx.showToast({
+          title: '设备不存在或无权限查看',
+          icon: 'none'
+        })
         this.setData({
           devices: [],
           usages: [],
@@ -348,7 +408,9 @@ Page({
       const visibleDeviceIds = Array.from(new Set(devices.map(item => item.device_id).filter(Boolean)))
 
       const [usingUsagesRaw, photoCandidatesRaw, futureReservesRaw] = await Promise.all([
-        this.fetchByDeviceIds('device_usage', visibleDeviceIds, { status: 'using' }),
+        this.fetchByDeviceIds('device_usage', visibleDeviceIds, {
+          status: 'using'
+        }),
         this.fetchRecentUsageCandidatesByDeviceIds(visibleDeviceIds),
         this.fetchFutureReservesByDeviceIds(visibleDeviceIds)
       ])
@@ -413,12 +475,26 @@ Page({
         usages,
         usagePhotos,
         reserves,
+        // 从同组第一台设备提取仪器信息用于展示
+        deviceInfo: devices.length > 0 ? {
+          picture: devices[0].picture || '',
+          description: devices[0].description || '',
+          video_url: devices[0].video_url || '',
+          operation_procedure: devices[0].operation_procedure || '',
+          precautions: devices[0].precautions || '',
+          specifications: devices[0].specifications || {}
+        } : null,
         isLoading: false
       })
     } catch (err) {
       console.error('加载设备详情失败:', err)
-      this.setData({ isLoading: false })
-      wx.showToast({ title: '加载失败', icon: 'none' })
+      this.setData({
+        isLoading: false
+      })
+      wx.showToast({
+        title: '加载失败',
+        icon: 'none'
+      })
     }
   },
 
@@ -426,7 +502,10 @@ Page({
     if (!deviceId) return false
     try {
       const res = await db.collection('device_usage')
-        .where({ device_id: deviceId, status: 'using' })
+        .where({
+          device_id: deviceId,
+          status: 'using'
+        })
         .limit(1)
         .get()
       return (res.data || []).length > 0
@@ -453,19 +532,28 @@ Page({
     const displayStatus = String(e.currentTarget.dataset.displayStatus || '')
 
     if (!docId || !deviceId) {
-      wx.showToast({ title: '缺少设备参数，无法更新', icon: 'none' })
+      wx.showToast({
+        title: '缺少设备参数，无法更新',
+        icon: 'none'
+      })
       return
     }
 
     if (displayStatus === 'using') {
-      wx.showToast({ title: '设备正在使用，无法切换维护状态', icon: 'none' })
+      wx.showToast({
+        title: '设备正在使用，无法切换维护状态',
+        icon: 'none'
+      })
       return
     }
 
     try {
       const beforeCheckUsing = await this.hasActiveUsage(deviceId)
       if (beforeCheckUsing) {
-        wx.showToast({ title: '设备正在使用，无法切换维护状态', icon: 'none' })
+        wx.showToast({
+          title: '设备正在使用，无法切换维护状态',
+          icon: 'none'
+        })
         this.loadDeviceDetail()
         return
       }
@@ -473,7 +561,10 @@ Page({
       const latestRes = await db.collection('devices').doc(docId).get()
       const latestDevice = latestRes.data || {}
       if (!latestDevice._id) {
-        wx.showToast({ title: '设备不存在或已删除', icon: 'none' })
+        wx.showToast({
+          title: '设备不存在或已删除',
+          icon: 'none'
+        })
         this.loadDeviceDetail()
         return
       }
@@ -485,7 +576,10 @@ Page({
 
       const beforeUpdateUsing = await this.hasActiveUsage(deviceId)
       if (beforeUpdateUsing) {
-        wx.showToast({ title: '设备刚进入使用中，已取消切换', icon: 'none' })
+        wx.showToast({
+          title: '设备刚进入使用中，已取消切换',
+          icon: 'none'
+        })
         this.loadDeviceDetail()
         return
       }
@@ -507,15 +601,23 @@ Page({
       } catch (cloudErr) {
         console.warn('云函数更新失败，尝试前端直接更新:', cloudErr)
         await db.collection('devices').doc(docId).update({
-          data: { status: newStatus }
+          data: {
+            status: newStatus
+          }
         })
       }
 
-      wx.showToast({ title: '状态已更新', icon: 'success' })
+      wx.showToast({
+        title: '状态已更新',
+        icon: 'success'
+      })
       this.loadDeviceDetail()
     } catch (err) {
       console.error('更新设备状态失败:', err)
-      wx.showToast({ title: '更新失败', icon: 'none' })
+      wx.showToast({
+        title: '更新失败',
+        icon: 'none'
+      })
     }
   },
 
@@ -537,11 +639,17 @@ Page({
     if (current && urls.indexOf(current) === -1) urls.unshift(current)
     if (!urls.length && current) urls = [current]
     if (!urls.length) {
-      wx.showToast({ title: '暂无可预览图片', icon: 'none' })
+      wx.showToast({
+        title: '暂无可预览图片',
+        icon: 'none'
+      })
       return
     }
 
-    wx.previewImage({ current: current || urls[0], urls })
+    wx.previewImage({
+      current: current || urls[0],
+      urls
+    })
   },
 
   normalizeImageList(raw) {
@@ -560,7 +668,8 @@ Page({
       if (this.isCloudFileId(value)) ids.push(value.trim())
     }
 
-    ;(usages || []).forEach(item => {
+    ;
+    (usages || []).forEach(item => {
       pushIfCloud(item.start_photo)
       this.normalizeImageList(item.usage_images).forEach(pushIfCloud)
 
@@ -594,7 +703,8 @@ Page({
     return Promise.all(tasks).then(results => {
       const map = {}
       results.forEach(list => {
-        ;(list || []).forEach(item => {
+        ;
+        (list || []).forEach(item => {
           if (item && item.fileID && item.tempFileURL) map[item.fileID] = item.tempFileURL
         })
       })
@@ -619,12 +729,26 @@ Page({
     let endPhotoItems = []
     const endPhotos = item.end_photos
     if (endPhotos && typeof endPhotos === 'object' && !Array.isArray(endPhotos)) {
-      endPhotoItems = [
-        { key: 'duty', label: '值班台照片', rawUrl: endPhotos.duty },
-        { key: 'device_off', label: '设备断电照片', rawUrl: endPhotos.device_off },
-        { key: 'door_closed', label: '门已关闭照片', rawUrl: endPhotos.door_closed }
-      ]
-        .map(photo => ({ ...photo, url: this.resolvePhotoUrl(photo.rawUrl, tempUrlMap) }))
+      endPhotoItems = [{
+            key: 'duty',
+            label: '值班台照片',
+            rawUrl: endPhotos.duty
+          },
+          {
+            key: 'device_off',
+            label: '设备断电照片',
+            rawUrl: endPhotos.device_off
+          },
+          {
+            key: 'door_closed',
+            label: '门已关闭照片',
+            rawUrl: endPhotos.door_closed
+          }
+        ]
+        .map(photo => ({
+          ...photo,
+          url: this.resolvePhotoUrl(photo.rawUrl, tempUrlMap)
+        }))
         .filter(photo => !!photo.url)
     }
 
@@ -708,5 +832,234 @@ Page({
 
   formatTimeRange(start, end) {
     return `${this.extractTime(start)} - ${this.extractTime(end)}`
-  }
+  },
+
+  // 切换编辑模式
+  toggleEdit() {
+    // console.log('点击切换编辑，当前isEditing：', this.data.isEditing)
+    if (!this.data.deviceInfo) return
+
+    if (!this.data.isEditing) {
+      // 进入编辑模式：把 deviceInfo 填入表单
+      const info = this.data.deviceInfo
+      // 规格参数对象转文本（每行 key：value）
+      let specsText = ''
+      if (info.specifications && typeof info.specifications === 'object') {
+        specsText = Object.entries(info.specifications)
+          .map(([k, v]) => `${k}：${v}`)
+          .join('\n')
+      }
+
+      this.setData({
+        isEditing: true,
+        editForm: {
+          picture: info.picture || '',
+          description: info.description || '',
+          video_url: info.video_url || '',
+          operation_procedure: typeof info.operation_procedure === 'object' ?
+            JSON.stringify(info.operation_procedure) : (info.operation_procedure || ''),
+          precautions: typeof info.precautions === 'object' ?
+            JSON.stringify(info.precautions) : (info.precautions || ''),
+          specifications: specsText
+        },
+        newPictureUrl: '',
+        newVideoName: '',
+        hasNewPicture: false,
+        hasNewVideo: false
+      })
+    } else {
+      // 退出编辑模式（不保存）
+      this.setData({
+        isEditing: false
+      })
+    }
+  },
+
+  // 表单输入
+  onEditInput(e) {
+    const field = e.currentTarget.dataset.field
+    const value = e.detail.value
+    // console.log("e.currentTarget.dataset.field：",e.currentTarget.dataset.field)
+    // console.log("e.detail.value",e.detail.value)
+    this.setData({
+      [`editForm.${field}`]: value
+    })
+    // console.log(this.data.editForm)
+  },
+
+  // 选择新图片
+  chooseImage() {
+    const that = this
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      sizeType: ['compressed'],
+      success(res) {
+        const tempFile = res.tempFiles[0]
+        that.setData({
+          newPictureUrl: tempFile.tempFilePath,
+          hasNewPicture: true
+        })
+      }
+    })
+  },
+
+  // 选择新视频
+  chooseVideo() {
+    const that = this
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['video'],
+      sourceType: ['album'],
+      maxDuration: 300,
+      success(res) {
+        const tempFile = res.tempFiles[0]
+        const fileName = tempFile.tempFilePath.split('/').pop() || 'video.mp4'
+        that.setData({
+          newVideoName: fileName,
+          editForm: {
+            ...that.data.editForm,
+            video_url: tempFile.tempFilePath
+          },
+          hasNewVideo: true
+        })
+      }
+    })
+  },
+
+    // 保存仪器信息
+    async saveDeviceInfo() {
+      if (this.data.isSaving) return
+      this.setData({ isSaving: true })
+  
+      try {
+        const { editForm, hasNewPicture, hasNewVideo, devices } = this.data
+        const updateData = {}
+  
+      // 1) 上传新图片（如果有）
+      if (hasNewPicture) {
+        wx.showLoading({ title: '上传图片中...' })
+        const picPath = this.data.newPictureUrl
+        const picExt = (picPath.split('.').pop() || 'jpg').toLowerCase()
+        const picRes = await wx.cloud.uploadFile({
+          cloudPath: `device_pics/${Date.now()}.${picExt}`,
+          filePath: picPath
+        })
+        wx.hideLoading()
+        updateData.picture = picRes.fileID
+      }
+  
+      // 2) 上传新视频（如果有）
+      if (hasNewVideo) {
+        wx.showLoading({ title: '上传视频中...' })
+        const vidPath = editForm.video_url
+        const vidExt = (vidPath.split('.').pop() || 'mp4').toLowerCase()
+        const vidRes = await wx.cloud.uploadFile({
+          cloudPath: `device_videos/${Date.now()}.${vidExt}`,
+          filePath: vidPath
+        })
+        wx.hideLoading()
+        updateData.video_url = vidRes.fileID
+      }
+  
+        // 3) 文本字段：简介、操作规程、注意事项
+        if (editForm.description !== undefined) {
+          updateData.description = editForm.description
+        }
+        if (editForm.operation_procedure !== undefined) {
+          updateData.operation_procedure = editForm.operation_procedure
+        }
+        if (editForm.precautions !== undefined) {
+          updateData.precautions = editForm.precautions
+        }
+        if (editForm.device_name && editForm.device_name !== this.data.deviceName) {
+          updateData.device_name = editForm.device_name
+        }
+
+        // 4) 规格参数：文本 → 对象
+        if (editForm.specifications !== undefined) {
+          const specsText = editForm.specifications.trim()
+          if (specsText) {
+            const specsObj = {}
+            specsText.split('\n').forEach(line => {
+              const sep = line.indexOf('：') > -1 ? '：' : (line.indexOf(':') > -1 ? ':' : null)
+              if (sep) {
+                const key = line.substring(0, line.indexOf(sep)).trim()
+                const val = line.substring(line.indexOf(sep) + 1).trim()
+                if (key) specsObj[key] = val
+              }
+            })
+            updateData.specifications = specsObj
+          } else {
+            updateData.specifications = {}
+          }
+        }
+  
+        // 如果没有要更新的字段，直接退出
+        if (Object.keys(updateData).length === 0) {
+          wx.showToast({ title: '没有需要保存的修改', icon: 'none' })
+          this.setData({ isSaving: false })
+          return
+        }
+  
+        // 5) 获取当前组所有设备的 _id，逐个更新
+        const deviceIds = (devices || []).map(d => d._id).filter(Boolean)
+        if (deviceIds.length === 0) {
+          wx.showToast({ title: '没有可更新的设备', icon: 'none' })
+          this.setData({ isSaving: false })
+          return
+        }
+  
+        wx.showLoading({ title: '保存中...' })
+  
+        const res = await wx.cloud.callFunction({
+          name: 'updateDeviceInfo',
+          data: {
+            deviceIds,
+            updateData
+          }
+        })
+  
+        console.log('cloud function result:', res.result)
+        if (res.result.code !== 0) {
+          wx.hideLoading()
+          wx.showModal({
+            title: '保存失败',
+            content: `错误码：${res.result.code}\n${res.result.message || '未知错误'}`,
+            showCancel: false
+          })
+          this.setData({ isSaving: false })
+          return
+        }
+
+        // if (res.result.code !== 0) {
+        //   throw new Error(res.result.message || '云函数更新失败')
+        // }
+  
+        wx.hideLoading()
+        wx.showToast({ title: '保存成功', icon: 'success' })
+  
+        // 6) 退出编辑模式，重新加载数据
+        const newName = updateData.device_name || this.data.deviceName
+        this.setData({
+          isEditing: false,
+          isSaving: false,
+          hasNewPicture: false,
+          hasNewVideo: false,
+          newPictureUrl: '',
+          newVideoName: '',
+          deviceName: newName
+        })
+        this.loadDeviceDetail()
+
+        console.log("updateData:",updateData)
+      } catch (err) {
+        wx.hideLoading()
+        console.error('保存仪器信息失败:', err)
+        wx.showToast({ title: '保存失败，请重试', icon: 'none' })
+        this.setData({ isSaving: false })
+      }
+    }
+
 })
