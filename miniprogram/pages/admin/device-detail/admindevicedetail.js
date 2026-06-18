@@ -23,7 +23,7 @@ Page({
     deviceInfo: null,
     isEditing: false,
     editForm: {
-      device_name: this.data.deviceName || '',
+      device_name: '',
       picture: '',
       description: '',
       video_url: '',
@@ -853,6 +853,7 @@ Page({
       this.setData({
         isEditing: true,
         editForm: {
+          device_name: this.data.deviceName || '',
           picture: info.picture || '',
           description: info.description || '',
           video_url: info.video_url || '',
@@ -928,18 +929,32 @@ Page({
     })
   },
 
-    // 保存仪器信息
-    async saveDeviceInfo() {
-      if (this.data.isSaving) return
-      this.setData({ isSaving: true })
-  
-      try {
-        const { editForm, hasNewPicture, hasNewVideo, devices } = this.data
-        const updateData = {}
-  
+  // 保存仪器信息
+  async saveDeviceInfo() {
+    if (this.data.isSaving) return
+    this.setData({
+      isSaving: true
+    })
+
+    try {
+      const {
+        editForm,
+        hasNewPicture,
+        hasNewVideo,
+        devices
+      } = this.data
+      const updateData = {}
+
+      // 0) 记录旧文件的 fileID（上传前记下，等保存成功后删除）
+      const oldPictureId = hasNewPicture && editForm.picture && this.isCloudFileId(editForm.picture) ?
+        editForm.picture : null
+      const oldVideoId = hasNewVideo && editForm.video_url && this.isCloudFileId(editForm.video_url) ?
+        editForm.video_url : null
       // 1) 上传新图片（如果有）
       if (hasNewPicture) {
-        wx.showLoading({ title: '上传图片中...' })
+        wx.showLoading({
+          title: '上传图片中...'
+        })
         const picPath = this.data.newPictureUrl
         const picExt = (picPath.split('.').pop() || 'jpg').toLowerCase()
         const picRes = await wx.cloud.uploadFile({
@@ -949,10 +964,12 @@ Page({
         wx.hideLoading()
         updateData.picture = picRes.fileID
       }
-  
+
       // 2) 上传新视频（如果有）
       if (hasNewVideo) {
-        wx.showLoading({ title: '上传视频中...' })
+        wx.showLoading({
+          title: '上传视频中...'
+        })
         const vidPath = editForm.video_url
         const vidExt = (vidPath.split('.').pop() || 'mp4').toLowerCase()
         const vidRes = await wx.cloud.uploadFile({
@@ -962,104 +979,137 @@ Page({
         wx.hideLoading()
         updateData.video_url = vidRes.fileID
       }
-  
-        // 3) 文本字段：简介、操作规程、注意事项
-        if (editForm.description !== undefined) {
-          updateData.description = editForm.description
-        }
-        if (editForm.operation_procedure !== undefined) {
-          updateData.operation_procedure = editForm.operation_procedure
-        }
-        if (editForm.precautions !== undefined) {
-          updateData.precautions = editForm.precautions
-        }
-        if (editForm.device_name && editForm.device_name !== this.data.deviceName) {
-          updateData.device_name = editForm.device_name
-        }
 
-        // 4) 规格参数：文本 → 对象
-        if (editForm.specifications !== undefined) {
-          const specsText = editForm.specifications.trim()
-          if (specsText) {
-            const specsObj = {}
-            specsText.split('\n').forEach(line => {
-              const sep = line.indexOf('：') > -1 ? '：' : (line.indexOf(':') > -1 ? ':' : null)
-              if (sep) {
-                const key = line.substring(0, line.indexOf(sep)).trim()
-                const val = line.substring(line.indexOf(sep) + 1).trim()
-                if (key) specsObj[key] = val
-              }
-            })
-            updateData.specifications = specsObj
-          } else {
-            updateData.specifications = {}
-          }
-        }
-  
-        // 如果没有要更新的字段，直接退出
-        if (Object.keys(updateData).length === 0) {
-          wx.showToast({ title: '没有需要保存的修改', icon: 'none' })
-          this.setData({ isSaving: false })
-          return
-        }
-  
-        // 5) 获取当前组所有设备的 _id，逐个更新
-        const deviceIds = (devices || []).map(d => d._id).filter(Boolean)
-        if (deviceIds.length === 0) {
-          wx.showToast({ title: '没有可更新的设备', icon: 'none' })
-          this.setData({ isSaving: false })
-          return
-        }
-  
-        wx.showLoading({ title: '保存中...' })
-  
-        const res = await wx.cloud.callFunction({
-          name: 'updateDeviceInfo',
-          data: {
-            deviceIds,
-            updateData
-          }
-        })
-  
-        console.log('cloud function result:', res.result)
-        if (res.result.code !== 0) {
-          wx.hideLoading()
-          wx.showModal({
-            title: '保存失败',
-            content: `错误码：${res.result.code}\n${res.result.message || '未知错误'}`,
-            showCancel: false
-          })
-          this.setData({ isSaving: false })
-          return
-        }
-
-        // if (res.result.code !== 0) {
-        //   throw new Error(res.result.message || '云函数更新失败')
-        // }
-  
-        wx.hideLoading()
-        wx.showToast({ title: '保存成功', icon: 'success' })
-  
-        // 6) 退出编辑模式，重新加载数据
-        const newName = updateData.device_name || this.data.deviceName
-        this.setData({
-          isEditing: false,
-          isSaving: false,
-          hasNewPicture: false,
-          hasNewVideo: false,
-          newPictureUrl: '',
-          newVideoName: '',
-          deviceName: newName
-        })
-        this.loadDeviceDetail()
-
-        console.log("updateData:",updateData)
-      } catch (err) {
-        wx.hideLoading()
-        console.error('保存仪器信息失败:', err)
-        wx.showToast({ title: '保存失败，请重试', icon: 'none' })
-        this.setData({ isSaving: false })
+      // 3) 文本字段：简介、操作规程、注意事项
+      if (editForm.description !== undefined) {
+        updateData.description = editForm.description
       }
+      if (editForm.operation_procedure !== undefined) {
+        updateData.operation_procedure = editForm.operation_procedure
+      }
+      if (editForm.precautions !== undefined) {
+        updateData.precautions = editForm.precautions
+      }
+      if (editForm.device_name && editForm.device_name !== this.data.deviceName) {
+        updateData.device_name = editForm.device_name
+      }
+
+      // 4) 规格参数：文本 → 对象
+      if (editForm.specifications !== undefined) {
+        const specsText = editForm.specifications.trim()
+        if (specsText) {
+          const specsObj = {}
+          specsText.split('\n').forEach(line => {
+            const sep = line.indexOf('：') > -1 ? '：' : (line.indexOf(':') > -1 ? ':' : null)
+            if (sep) {
+              const key = line.substring(0, line.indexOf(sep)).trim()
+              const val = line.substring(line.indexOf(sep) + 1).trim()
+              if (key) specsObj[key] = val
+            }
+          })
+          updateData.specifications = specsObj
+        } else {
+          updateData.specifications = {}
+        }
+      }
+
+      // 如果没有要更新的字段，直接退出
+      if (Object.keys(updateData).length === 0) {
+        wx.showToast({
+          title: '没有需要保存的修改',
+          icon: 'none'
+        })
+        this.setData({
+          isSaving: false
+        })
+        return
+      }
+
+      // 5) 获取当前组所有设备的 _id，逐个更新
+      const deviceIds = (devices || []).map(d => d._id).filter(Boolean)
+      if (deviceIds.length === 0) {
+        wx.showToast({
+          title: '没有可更新的设备',
+          icon: 'none'
+        })
+        this.setData({
+          isSaving: false
+        })
+        return
+      }
+
+      wx.showLoading({
+        title: '保存中...'
+      })
+
+      const res = await wx.cloud.callFunction({
+        name: 'updateDeviceInfo',
+        data: {
+          deviceIds,
+          updateData
+        }
+      })
+
+      console.log('cloud function result:', res.result)
+      if (res.result.code !== 0) {
+        wx.hideLoading()
+        wx.showModal({
+          title: '保存失败',
+          content: `错误码：${res.result.code}\n${res.result.message || '未知错误'}`,
+          showCancel: false
+        })
+        this.setData({
+          isSaving: false
+        })
+        return
+      }
+
+      // if (res.result.code !== 0) {
+      //   throw new Error(res.result.message || '云函数更新失败')
+      // }
+
+      wx.hideLoading()
+      wx.showToast({
+        title: '保存成功',
+        icon: 'success'
+      })
+
+      const toDelete = []
+      if (oldPictureId) toDelete.push(oldPictureId)
+      if (oldVideoId) toDelete.push(oldVideoId)
+      if (toDelete.length > 0) {
+        wx.cloud.deleteFile({
+          fileList: toDelete,
+          success: res => console.log('已删除旧文件:', res.fileList),
+          fail: err => console.warn('删除旧文件失败（不影响使用）:', err)
+        })
+      }
+
+      // 6) 退出编辑模式，重新加载数据
+      const newName = updateData.device_name || this.data.deviceName
+      this.setData({
+        isEditing: false,
+        isSaving: false,
+        hasNewPicture: false,
+        hasNewVideo: false,
+        newPictureUrl: '',
+        newVideoName: '',
+        deviceName: newName
+      })
+      this.loadDeviceDetail()
+
+      console.log("updateData:", updateData)
+    } catch (err) {
+      wx.hideLoading()
+      console.error('保存仪器信息失败:', err)
+      wx.showToast({
+        title: '保存失败，请重试',
+        icon: 'none'
+      })
+      this.setData({
+        isSaving: false
+      })
     }
+  }
 
 })
