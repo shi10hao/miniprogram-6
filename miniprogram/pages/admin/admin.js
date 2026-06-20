@@ -13,7 +13,7 @@ Page({
       deviceType: 'all', // all | large | small
       searchKeyword: ''
     },
-    deviceGroups: [],
+    allGroupTotal: 0,
     pageSize: 15,
     currentPage: 1,
     displayedGroups: [],
@@ -114,19 +114,49 @@ Page({
   },
 
   // 加载更多仪器分组
-  loadMoreDevices() {
+  async loadMoreDevices() {
     const {
-      deviceGroups,
       currentPage,
-      pageSize
+      pageSize,
+      filters
     } = this.data
-    const nextPage = currentPage + 1
-    const nextBatch = deviceGroups.slice(0, nextPage * pageSize)
-    this.setData({
-      displayedGroups: nextBatch,
-      currentPage: nextPage,
-      hasMore: nextBatch.length < deviceGroups.length
-    })
+
+    try {
+      const devicesCondition = this.buildVisibleDeviceCondition(this.currentSession)
+      const keyword = filters.searchKeyword?.toLowerCase().trim() || ''
+
+      const res = await wx.cloud.callFunction({
+        name: 'getAdminGroups',
+        data: {
+          labCondition: devicesCondition.labCondition || null,
+          deviceType: devicesCondition.deviceType || null,
+          keyword,
+          pageSize,
+          pageNum: currentPage + 1
+        }
+      })
+
+      if (res.result.code !== 0) {
+        throw new Error(res.result.message || '加载失败')
+      }
+
+      const {
+        groups,
+        hasMore
+      } = res.result.data
+
+      this.setData({
+        displayedGroups: this.data.displayedGroups.concat(groups || []),
+        currentPage: currentPage + 1,
+        hasMore
+      })
+    } catch (err) {
+      console.error('加载更多失败:', err)
+      wx.showToast({
+        title: '加载更多失败',
+        icon: 'none'
+      })
+    }
   },
 
   confirmLogout() {
@@ -241,9 +271,13 @@ Page({
       if (filters.labType === 'all') {
         result.labCondition = null
       } else if (filters.labType === 'public') {
-        result.labCondition = { lab_type: 'public' }
+        result.labCondition = {
+          lab_type: 'public'
+        }
       } else if (filters.labType === 'group') {
-        result.labCondition = { lab_type: 'group' }
+        result.labCondition = {
+          lab_type: 'group'
+        }
       }
     } else if (session.role === 'teacher') {
       const groupName = String(session.groupName || '').trim()
@@ -390,31 +424,31 @@ Page({
     return all
   },
 
-  getDeviceModel(device) {
-    const specs = (device && device.specifications) || {}
-    if (specs && typeof specs === 'object') {
-      return String(specs['型号'] || specs.model || device.model || '').trim()
-    }
-    return String((device && device.model) || '').trim()
-  },
+  // getDeviceModel(device) {
+  //   const specs = (device && device.specifications) || {}
+  //   if (specs && typeof specs === 'object') {
+  //     return String(specs['型号'] || specs.model || device.model || '').trim()
+  //   }
+  //   return String((device && device.model) || '').trim()
+  // },
 
-  buildGroupKey(device) {
-    return [
-      String(device.device_name || ''),
-      String(device.lab_name || ''),
-      String(device.device_type || ''),
-      this.getDeviceModel(device)
-    ].join('||')
-  },
+  // buildGroupKey(device) {
+  //   return [
+  //     String(device.device_name || ''),
+  //     String(device.lab_name || ''),
+  //     String(device.device_type || ''),
+  //     this.getDeviceModel(device)
+  //   ].join('||')
+  // },
 
-  compareGroups(a, b) {
-    return [
-      String(a.device_name || '').localeCompare(String(b.device_name || '')),
-      String(a.lab_name || '').localeCompare(String(b.lab_name || '')),
-      String(a.device_type || '').localeCompare(String(b.device_type || '')),
-      String(a.model || '').localeCompare(String(b.model || ''))
-    ].find(v => v !== 0) || 0
-  },
+  // compareGroups(a, b) {
+  //   return [
+  //     String(a.device_name || '').localeCompare(String(b.device_name || '')),
+  //     String(a.lab_name || '').localeCompare(String(b.lab_name || '')),
+  //     String(a.device_type || '').localeCompare(String(b.device_type || '')),
+  //     String(a.model || '').localeCompare(String(b.model || ''))
+  //   ].find(v => v !== 0) || 0
+  // },
 
   async loadDeviceStatus() {
     if (!this.currentSession) {
@@ -428,89 +462,44 @@ Page({
     })
 
     try {
-      const devicesCondition =
-        this.buildVisibleDeviceCondition(this.currentSession)
+      const devicesCondition = this.buildVisibleDeviceCondition(this.currentSession)
+      const keyword = this.data.filters.searchKeyword?.toLowerCase().trim() || ''
+      const pageSize = this.data.pageSize
 
-      console.log('【devices】condition:', devicesCondition)
-
-      // ✅ 2️⃣ 只查 devices（只调用一次云函数）
-      let allDevices = await this.fetchAllByCloud2(
-        'devices',
-        devicesCondition
-      )
-      const keyword = this.data.filters.searchKeyword?.toLowerCase().trim()
-
-      if (keyword) {
-        allDevices = allDevices.filter(device => {
-          const deviceName = (device.device_name || '').toLowerCase()
-          const model = (this.getDeviceModel(device) || '').toLowerCase()
-          const labName = (device.lab_name || '').toLowerCase()
-          const room = (device.device_room || '').toLowerCase()
-          const description = (device.description || '').toLowerCase()
-
-          return (
-            deviceName.includes(keyword) ||
-            model.includes(keyword) ||
-            labName.includes(keyword) ||
-            room.includes(keyword) ||
-            description.includes(keyword)
-          )
-        })
-      }
-      const visibleDeviceIds = Array.from(
-        new Set((allDevices || []).map(item => item.device_id).filter(Boolean))
-      )
-      const activeUsages = await this.fetchUsingRecordsByDeviceIds(visibleDeviceIds)
-      const usingDeviceSet = new Set((activeUsages || []).map(item => item.device_id).filter(Boolean))
-
-      const groupMap = {}
-      allDevices.forEach(device => {
-        const groupKey = this.buildGroupKey(device)
-        if (!groupMap[groupKey]) {
-          groupMap[groupKey] = {
-            group_key: groupKey,
-            device_name: device.device_name,
-            device_type: device.device_type,
-            lab_name: device.lab_name,
-            model: this.getDeviceModel(device),
-            picture: device.picture,
-            available: 0,
-            using: 0,
-            maintenance: 0,
-            total: 0
-          }
-        }
-
-        const group = groupMap[groupKey]
-        group.total += 1
-
-        if (usingDeviceSet.has(device.device_id)) {
-          group.using += 1
-        } else if (device.status === 'maintenance') {
-          group.maintenance += 1
-        } else {
-          group.available += 1
-        }
-
-        if (!group.picture && device.picture) {
-          group.picture = device.picture
+      wx.showLoading({
+        title: '加载中...'
+      })
+      const res = await wx.cloud.callFunction({
+        name: 'getAdminGroups',
+        data: {
+          labCondition: devicesCondition.labCondition || null,
+          deviceType: devicesCondition.deviceType || null,
+          keyword,
+          pageSize,
+          pageNum: 1
         }
       })
+      wx.hideLoading()
 
-      const deviceGroups = Object.values(groupMap).sort((a, b) => this.compareGroups(a, b))
-      const pageSize = this.data.pageSize
-      const hasMore = deviceGroups.length > pageSize
+      if (res.result.code !== 0) {
+        throw new Error(res.result.message || '加载失败')
+      }
+
+      const {
+        groups,
+        total,
+        hasMore
+      } = res.result.data
+
       this.setData({
-        deviceGroups,
-        displayedGroups: deviceGroups.slice(0, pageSize),
+        displayedGroups: groups || [],
+        allGroupTotal: total,
         currentPage: 1,
         hasMore,
         isLoadingDevices: false
       })
-
-      console.log('原始设备数:', allDevices.length)
-      console.log('分组后数量:', Object.keys(groupMap).length)
     } catch (err) {
+      wx.hideLoading()
       console.error('加载仪器状态失败:', err)
       this.setData({
         isLoadingDevices: false
@@ -551,8 +540,12 @@ Page({
     const deviceType = String(e.currentTarget.dataset.deviceType || '')
     const model = String(e.currentTarget.dataset.model || '')
     const groupKey = String(e.currentTarget.dataset.groupKey || '')
+    const rawKeyword = String(this.data.filters.searchKeyword || '').trim()
+    // 如果关键词是设备名的一部分 → 按名称搜到的 → 不传
+    // 否则 → 按房间号/编号搜到的 → 传过去过滤
+    const keyword = (rawKeyword && deviceName.toLowerCase().includes(rawKeyword.toLowerCase())) ? '' : rawKeyword
 
-    const url = `/pages/admin/device-detail/admindevicedetail?deviceName=${encodeURIComponent(deviceName)}&labName=${encodeURIComponent(labName)}&deviceType=${encodeURIComponent(deviceType)}&model=${encodeURIComponent(model)}&groupKey=${encodeURIComponent(groupKey)}`
+    const url = `/pages/admin/device-detail/admindevicedetail?deviceName=${encodeURIComponent(deviceName)}&labName=${encodeURIComponent(labName)}&deviceType=${encodeURIComponent(deviceType)}&model=${encodeURIComponent(model)}&groupKey=${encodeURIComponent(groupKey)}&keyword=${encodeURIComponent(keyword)}`
     wx.navigateTo({
       url
     })

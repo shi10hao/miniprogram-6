@@ -513,3 +513,18 @@
   color: #fff;
   box-shadow: 0 3rpx 10rpx rgba(64, 158, 255, 0.25);
 }
+
+.device-tag.lab.public {
+  background: #62BCC4;
+}
+
+.device-tag.lab.group {
+  background: #ffc107;
+  color: #333;
+}
+
+/* ↓ 追加 */
+.device-tag.lab.mixed {
+  background: #9c27b0;
+  color: white;
+}

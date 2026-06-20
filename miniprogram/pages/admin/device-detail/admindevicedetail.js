@@ -2,7 +2,7 @@ const db = wx.cloud.database()
 const _ = db.command
 
 const ALLOWED_ROLES = ['teacher', 'admin']
-const PAGE_SIZE = 100
+const PAGE_SIZE = 20
 const DEVICE_ID_CHUNK_SIZE = 50
 const PHOTO_CANDIDATE_LIMIT_PER_CHUNK = 60
 const PHOTO_DISPLAY_LIMIT = 20
@@ -21,6 +21,8 @@ Page({
     reserves: [],
     isLoading: true,
     deviceInfo: null,
+    filterKeyword: '',
+    showAllFiltered: false,
     isEditing: false,
     editForm: {
       device_name: '',
@@ -35,7 +37,16 @@ Page({
     newVideoName: '',
     hasNewPicture: false,
     hasNewVideo: false,
-    isSaving: false
+    isSaving: false,
+    // 折叠控制
+    sectionCollapsed: {
+      devices: false, // 仪器实例：默认展开
+      usages: false, // 当前使用：默认展开
+      photos: true, // 使用照片记录：默认收起
+      reserves: true // 即将到来的预约：默认收起
+    },
+    deviceDisplayLimit: 5, // 仪器实例初始只显示5条
+    showAllDevices: false, // 是否显示全部仪器实例
   },
 
   onLoad(options) {
@@ -56,7 +67,8 @@ Page({
       labName: this.safeDecode(options.labName || ''),
       deviceType: this.safeDecode(options.deviceType || ''),
       deviceModel: this.safeDecode(options.model || ''),
-      groupKey: this.safeDecode(options.groupKey || '')
+      groupKey: this.safeDecode(options.groupKey || ''),
+      filterKeyword: this.safeDecode(options.keyword || '')
     })
 
     this.bootstrapPage()
@@ -458,23 +470,59 @@ Page({
       const allPhotoFileIds = this.collectCloudFileIds(usageForTemp)
       const tempUrlMap = await this.getTempUrlMap(allPhotoFileIds)
 
+
+// C
       const usages = usagesRawSorted
         .map(item => this.decorateUsageRecord(item, tempUrlMap))
         .map(item => ({
           ...item,
           durationDisplay: this.calculateDuration(item.start_time)
         }))
-
+// D
       const usagePhotos = usagePhotoRaw
         .map(item => this.decorateUsageRecord(item, tempUrlMap))
         .filter(item => item.hasAnyPhoto)
         .slice(0, PHOTO_DISPLAY_LIMIT)
 
+// B
+      // 根据搜索关键词过滤仪器实例及关联数据
+      let finalDevices = devicesForView
+      let finalUsages = usages
+      let finalUsagePhotos = usagePhotos
+      let finalReserves = reserves
+
+      const kw = this.data.filterKeyword?.toLowerCase().trim()
+      if (kw && !this.data.showAllFiltered) {
+        finalDevices = devicesForView.filter(item => {
+          const room = (item.device_room || '').toLowerCase()
+          const name = (item.device_name || '').toLowerCase()
+          const model = (item.model || '').toLowerCase()
+          const lab = (item.lab_name || '').toLowerCase()
+          const desc = (item.description || '').toLowerCase()
+          const id = (item.device_id || '').toLowerCase()
+          return room.includes(kw) || name.includes(kw) || model.includes(kw) ||
+                 lab.includes(kw) || desc.includes(kw) || id.includes(kw)
+        })
+
+        // 用过滤后的设备 ID 同步过滤其他区域
+        const filteredIds = new Set(finalDevices.map(d => d.device_id).filter(Boolean))
+        if (filteredIds.size > 0) {
+          finalUsages = usages.filter(u => u.device_id && filteredIds.has(u.device_id))
+          finalUsagePhotos = usagePhotos.filter(p => p.device_id && filteredIds.has(p.device_id))
+          finalReserves = reserves.filter(r => r.device_id && filteredIds.has(r.device_id))
+        } else {
+          finalUsages = []
+          finalUsagePhotos = []
+          finalReserves = []
+        }
+      }
+
+// E
       this.setData({
-        devices: devicesForView,
-        usages,
-        usagePhotos,
-        reserves,
+        devices: finalDevices,
+        usages: finalUsages,
+        usagePhotos: finalUsagePhotos,
+        reserves: finalReserves,
         // 从同组第一台设备提取仪器信息用于展示
         deviceInfo: devices.length > 0 ? {
           picture: devices[0].picture || '',
@@ -876,6 +924,22 @@ Page({
     }
   },
 
+  // 切换区域折叠状态
+  toggleSection(e) {
+    const section = e.currentTarget.dataset.section
+    const key = `sectionCollapsed.${section}`
+    this.setData({
+      [key]: !this.data.sectionCollapsed[section]
+    })
+  },
+
+  // 展开全部仪器实例
+  expandDevices() {
+    this.setData({
+      showAllDevices: true
+    })
+  },
+
   // 表单输入
   onEditInput(e) {
     const field = e.currentTarget.dataset.field
@@ -1084,7 +1148,7 @@ Page({
           fail: err => console.warn('删除旧文件失败（不影响使用）:', err)
         })
       }
-// 测试
+      // 测试
       // 6) 退出编辑模式，重新加载数据
       const newName = updateData.device_name || this.data.deviceName
       this.setData({
@@ -1110,6 +1174,14 @@ Page({
         isSaving: false
       })
     }
-  }
+  },
+  // 清除筛选，显示全部
+  clearFilter() {
+    this.setData({
+      showAllFiltered: true
+    }, () => {
+      this.loadDeviceDetail()
+    })
+  },
 
 })

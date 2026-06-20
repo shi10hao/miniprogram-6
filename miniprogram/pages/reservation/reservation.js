@@ -204,8 +204,8 @@ Page({
           groupedMap[key] = {
             device_name: device.device_name,
             deviceModel: model,
-            lab_type: device.lab_type,
-            device_type: device.device_type,
+            labTypes: device.lab_type ? [device.lab_type] : [],
+            deviceTypes: device.device_type ? [device.device_type] : [],
             lab_name: device.lab_name,
             device_room: device.device_room,
             totalCount: 1,
@@ -220,11 +220,25 @@ Page({
           groupedMap[key].totalCount++
           // 按部就班添加到数组中
           groupedMap[key].device_ids.push(device.device_id)
+          if (device.lab_type && groupedMap[key].labTypes.indexOf(device.lab_type) === -1) {
+            groupedMap[key].labTypes.push(device.lab_type)
+          }
+          if (device.device_type && groupedMap[key].deviceTypes.indexOf(device.device_type) === -1) {
+            groupedMap[key].deviceTypes.push(device.device_type)
+          }
         }
       })
       // console.log("groupedMap:", groupedMap)
       // console.log("Object.values(groupedMap):", Object.values(groupedMap))
-      const valueOfGroupedMap = Object.values(groupedMap)
+      const valueOfGroupedMap = Object.values(groupedMap).map(item => {
+        var labType = item.labTypes.length === 1 ? item.labTypes[0] : 'mixed'
+        var deviceType = item.deviceTypes.length === 1 ? item.deviceTypes[0] : 'mixed'
+        return {
+          ...item,
+          lab_type: labType,
+          device_type: deviceType
+        }
+      })
       const deviceIds = valueOfGroupedMap.flatMap(d => d.device_ids)
 
       // console.log("deviceIds:", deviceIds)
@@ -251,7 +265,7 @@ Page({
       } catch (err) {
         // console.error('批量检查冲突失败:', err)
       }
-      let devicesWithStatus = Object.values(groupedMap).map(group => {
+      let devicesWithStatus = valueOfGroupedMap.map(group => {
         let total = 0
         group.device_ids.forEach(id => {
           total += conflictMap[id] || 0

@@ -115,7 +115,7 @@
           </view>
           <view class="device-tags">
             <view class="device-tag lab {{item.lab_type}}">
-              {{item.lab_type === 'public' ? '公共实验室' : '课题组'}}
+              {{item.lab_type === 'public' ? '公共实验室' : (item.lab_type === 'group' ? '课题组' : '公共/课题组')}}
             </view>
             <view class="device-tag type {{item.device_type}}">
               {{item.device_type === 'large' ? '大型仪器' : '小型仪器'}}
