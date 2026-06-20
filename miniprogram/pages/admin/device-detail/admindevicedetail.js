@@ -1084,7 +1084,7 @@ Page({
           fail: err => console.warn('删除旧文件失败（不影响使用）:', err)
         })
       }
-
+// 测试
       // 6) 退出编辑模式，重新加载数据
       const newName = updateData.device_name || this.data.deviceName
       this.setData({

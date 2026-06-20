@@ -119,7 +119,7 @@
     <view wx:else class="device-list">
       <view
         class="device-card"
-        wx:for="{{deviceGroups}}"
+        wx:for="{{displayedGroups}}"
         wx:key="group_key"
         bindtap="goToDeviceDetail"
         data-device-name="{{item.device_name}}"
@@ -157,6 +157,12 @@
         <text class="card-arrow">></text>
       </view>
     </view>
+
+    <!-- 加载更多按钮 -->
+    <view wx:if="{{hasMore && !isLoadingDevices}}" class="load-more-wrap">
+      <button class="load-more-btn" bindtap="loadMoreDevices">加载更多仪器</button>
+    </view>
+
   </view>
 
   <view wx:if="{{activeTab === 1}}" class="tab-content">

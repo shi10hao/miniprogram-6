@@ -631,3 +631,26 @@
   font-weight: 500;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
 }
+
+/* 加载更多 */
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 30rpx 0 20rpx;
+}
+
+.load-more-btn {
+  height: 72rpx;
+  line-height: 72rpx;
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #62BCC4;
+  background: white;
+  border: 1rpx solid #62BCC4;
+  border-radius: 36rpx;
+  padding: 0 48rpx;
+}
+
+.load-more-btn::after {
+  border: none;
+}

@@ -14,6 +14,10 @@ Page({
       searchKeyword: ''
     },
     deviceGroups: [],
+    pageSize: 15,
+    currentPage: 1,
+    displayedGroups: [],
+    hasMore: false,
     isLoadingDevices: true,
     msgTitle: '',
     msgContent: '',
@@ -90,6 +94,7 @@ Page({
       this.loadDeviceStatus()
     })
   },
+
   onSearchInput(e) {
     const keyword = e.detail.value.trim()
 
@@ -99,11 +104,28 @@ Page({
       this.loadDeviceStatus()
     })
   },
+
   clearSearch() {
     this.setData({
       'filters.searchKeyword': ''
     }, () => {
       this.loadDeviceStatus()
+    })
+  },
+
+  // 加载更多仪器分组
+  loadMoreDevices() {
+    const {
+      deviceGroups,
+      currentPage,
+      pageSize
+    } = this.data
+    const nextPage = currentPage + 1
+    const nextBatch = deviceGroups.slice(0, nextPage * pageSize)
+    this.setData({
+      displayedGroups: nextBatch,
+      currentPage: nextPage,
+      hasMore: nextBatch.length < deviceGroups.length
     })
   },
 
@@ -216,7 +238,13 @@ Page({
     }
 
     if (session.role === 'admin') {
-      result.labCondition = null
+      if (filters.labType === 'all') {
+        result.labCondition = null
+      } else if (filters.labType === 'public') {
+        result.labCondition = { lab_type: 'public' }
+      } else if (filters.labType === 'group') {
+        result.labCondition = { lab_type: 'group' }
+      }
     } else if (session.role === 'teacher') {
       const groupName = String(session.groupName || '').trim()
 
@@ -227,11 +255,11 @@ Page({
       } else {
         if (filters.labType === 'all') {
           result.labCondition = _.or([{
-            lab_type: 'public'
-          },
-          {
-            lab_name: groupName
-          }
+              lab_type: 'public'
+            },
+            {
+              lab_name: groupName
+            }
           ])
         } else if (filters.labType === 'public') {
           result.labCondition = {
@@ -470,10 +498,16 @@ Page({
       })
 
       const deviceGroups = Object.values(groupMap).sort((a, b) => this.compareGroups(a, b))
+      const pageSize = this.data.pageSize
+      const hasMore = deviceGroups.length > pageSize
       this.setData({
         deviceGroups,
+        displayedGroups: deviceGroups.slice(0, pageSize),
+        currentPage: 1,
+        hasMore,
         isLoadingDevices: false
       })
+
       console.log('原始设备数:', allDevices.length)
       console.log('分组后数量:', Object.keys(groupMap).length)
     } catch (err) {
