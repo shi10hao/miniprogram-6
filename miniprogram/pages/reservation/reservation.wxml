@@ -85,7 +85,7 @@
   <view class="device-card">
     <view class="device-header">
       <text class="device-title">可用仪器列表</text>
-      <text class="device-count">共 {{availableDevices.length}} 台</text>
+      <text class="device-count">共 {{availableDevices.length}} 种</text>
     </view>
 
     <!-- 加载状态 -->
@@ -176,7 +176,7 @@
     <!-- 时间冲突提示 -->
     <view wx:if="{{timeConflict}}" class="conflict-alert">
       <text class="alert-icon">🚫</text>
-      <text class="alert-text">该时段已被预约，请选择其他时间</text>
+      <text class="alert-text">该时段已被预约，请选择其他时间/仪器实例</text>
     </view>
 
     <!-- 过去时间提示 -->

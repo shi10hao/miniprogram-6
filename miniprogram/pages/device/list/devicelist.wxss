@@ -220,6 +220,10 @@
   color: #333;
 }
 
+.device-tag.lab.mixed {
+  background: #5a6abf;
+}
+
 .device-tag.type.large {
   background: #e74c3c;
 }
@@ -323,7 +327,17 @@
   height: 40rpx; /* 固定高度 */
 }
 
-.count-text {
-  line-height: 1;
-  font-size: 22rpx;
+/* ↓ 加这个 */
+.device-count-badge.mixed {
+  min-width: 120rpx;
+  background: #5a6abf;
 }
+
+.count-split-text {
+  font-size: 20rpx;
+  white-space: nowrap;
+  letter-spacing: 2rpx;
+}
+
+
+

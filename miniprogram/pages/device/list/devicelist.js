@@ -72,6 +72,7 @@ Page({
           model: that.getDeviceModel(device),
           picture: device.picture || '',
           description: device.description || '',
+          // -----------------------------------------------------
           labTypes: device.lab_type ? [device.lab_type] : [],
           deviceTypes: device.device_type ? [device.device_type] : [],
           labNames: device.lab_name ? [device.lab_name] : [],
@@ -79,6 +80,15 @@ Page({
           primaryDeviceId: device.device_id,
           device_ids: device.device_id ? [device.device_id] : [],
           totalCount: 1,
+          publicCount: device.lab_type === 'public' ? 1 : 0,
+          groupCount: device.lab_type === 'group' ? 1 : 0,
+          // labTypes: device.lab_type ? [device.lab_type] : [],
+          // deviceTypes: device.device_type ? [device.device_type] : [],
+          // labNames: device.lab_name ? [device.lab_name] : [],
+          // deviceRooms: device.device_room ? [device.device_room] : [],
+          // primaryDeviceId: device.device_id,
+          // device_ids: device.device_id ? [device.device_id] : [],
+          // totalCount: 1,
           matchesEntryDevice: device.device_id === entryDeviceId
         }
         return
@@ -86,6 +96,8 @@ Page({
 
       var item = grouped[key]
       item.totalCount++
+      if (device.lab_type === 'public') item.publicCount++
+      if (device.lab_type === 'group') item.groupCount++
       if (device.device_id) {
         item.device_ids.push(device.device_id)
       }
@@ -119,7 +131,7 @@ Page({
         ...item,
         lab_type: labType,
         device_type: deviceType,
-        labTypeLabel: labType === 'public' ? '公共实验室' : (labType === 'group' ? '课题组' : '公共+课题组'),
+        labTypeLabel: labType === 'public' ? '公共实验室' : (labType === 'group' ? '课题组' : '公共/课题组'),
         deviceTypeLabel: deviceType === 'large' ? '大型仪器' : (deviceType === 'small' ? '小型仪器' : '多类型'),
         lab_name: item.labNames.length > 0 ? item.labNames.join(' / ') : '未设置实验室',
         device_room: item.deviceRooms.length > 0 ? item.deviceRooms.join(' / ') : '未设置位置'

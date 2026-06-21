@@ -194,10 +194,24 @@ Page({
       // console.log("res:", res)
       // console.log("devices:", devices)
 
+      // 如果有搜索关键词，先过滤原始设备，再分组
+      const searchKeyword = filters.searchKeyword?.toLowerCase().trim()
+      let rawDevices = searchKeyword ? devices.filter(d => {
+        const room = (d.device_room || '').toLowerCase()
+        const name = (d.device_name || '').toLowerCase()
+        const model = (this.getDeviceModel(d) || '').toLowerCase()
+        const lab = (d.lab_name || '').toLowerCase()
+        const desc = (d.description || '').toLowerCase()
+        const id = (d.device_id || '').toLowerCase()
+        return room.includes(searchKeyword) || name.includes(searchKeyword) ||
+               model.includes(searchKeyword) || lab.includes(searchKeyword) ||
+               desc.includes(searchKeyword) || id.includes(searchKeyword)
+      }) : devices
+
       var groupedMap = {}
       var that = this;
 
-      (devices || []).forEach(function (device) {
+      (rawDevices  || []).forEach(function (device) {
         var model = that.getDeviceModel(device)
         var key = (device.device_name || '') + '::' + model
         if (!groupedMap[key]) {
@@ -277,25 +291,6 @@ Page({
           remainingCount: Math.max(group.totalCount - total, 0)
         }
       })
-      if (filters.searchKeyword) {
-        const keyword = filters.searchKeyword.toLowerCase()
-
-        devicesWithStatus = devicesWithStatus.filter(device => {
-          const deviceName = (device.device_name || '').toLowerCase()
-          const model = (device.deviceModel || '').toLowerCase()
-          const labName = (device.lab_name || '').toLowerCase()
-          const room = (device.device_room || '').toLowerCase()
-          const description = (device.description || '').toLowerCase()
-
-          return (
-            deviceName.includes(keyword) ||
-            model.includes(keyword) ||
-            labName.includes(keyword) ||
-            room.includes(keyword) ||
-            description.includes(keyword)
-          )
-        })
-      }
 
       this.setData({
         availableDevices: devicesWithStatus,
