@@ -167,19 +167,19 @@
 
   <view wx:if="{{activeTab === 1}}" class="tab-content">
     <view class="reserve-summary">
-      <view class="summary-card">
+      <view class="summary-card" bind:tap="gotoUpcoming">
         <text class="summary-num">{{reserveStats.upcoming}}</text>
         <text class="summary-label">即将使用</text>
       </view>
-      <view class="summary-card">
+      <view class="summary-card" bind:tap="gotoUsing">
         <text class="summary-num using-color">{{reserveStats.using}}</text>
         <text class="summary-label">使用中</text>
       </view>
-      <view class="summary-card">
+      <view class="summary-card" bind:tap="gotoCompleted">
         <text class="summary-num completed-color">{{reserveStats.completed}}</text>
         <text class="summary-label">已完成</text>
       </view>
-      <view class="summary-card">
+      <view class="summary-card" bind:tap="gotoAll">
         <text class="summary-num total-color">{{reserveStats.total}}</text>
         <text class="summary-label">总预约</text>
       </view>

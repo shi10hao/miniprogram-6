@@ -862,5 +862,21 @@ Page({
     if (!dtStr) return 0
     var d = this.parseDateTime(dtStr)
     return d ? d.getTime() : 0
+  },
+
+  gotoUpcoming() {
+    wx.navigateTo({url: '/pages/admin/reserve-list/adminreservelist?status=upcoming'})
+  },
+
+  gotoUsing() {
+    wx.navigateTo({url:'/pages/admin/reserve-list/adminreservelist?status=using'})
+  },
+
+  gotoCompleted() {
+    wx.navigateTo({url: '/pages/admin/reserve-list/adminreservelist?status=completed'})
+  },
+
+  gotoAll() {
+    wx.navigateTo({url: '/pages/admin/reserve-list/adminreservelist?status=all'})
   }
 })

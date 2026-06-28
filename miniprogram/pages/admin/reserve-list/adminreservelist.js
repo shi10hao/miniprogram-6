@@ -15,11 +15,20 @@ Page({
     currentPage: 0,
     currentSession: null,
     pageSize: 20,
-    totalLoaded: 0
+    totalLoaded: 0,
   },
 
-  onLoad() {
+  onLoad(options) {
     this.bootstrapPage()
+    console.log("options.status:",options.status)
+    if (options.status)
+    {
+      this.setData({
+        filterStatus: options.status
+      })
+      console.log("filterStatus:",this.data.filterStatus)
+      this.applyFilter()
+    }
   },
 
   onUnload() {
@@ -189,7 +198,7 @@ Page({
           return
         }
       }
-
+      console.log("visibleDeviceIds:",visibleDeviceIds)
       var reserveCondition = {
         status: 'approved'
       }
