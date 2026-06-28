@@ -498,6 +498,7 @@ Page({
         hasMore,
         isLoadingDevices: false
       })
+      console.log("displayedGroups:",this.data.displayedGroups)
     } catch (err) {
       wx.hideLoading()
       console.error('加载仪器状态失败:', err)

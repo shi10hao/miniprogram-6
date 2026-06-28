@@ -1,9 +1,4 @@
-<page-container
-  show="{{showExitConfirm}}"
-  overlay="{{true}}"
-  position="bottom"
-  custom-style="height:auto;max-height:40vh;"
-  bindbeforeleave="onBeforeLeaveExit">
+<page-container show="{{showExitConfirm}}" overlay="{{true}}" position="bottom" custom-style="height:auto;max-height:40vh;" bindbeforeleave="onBeforeLeaveExit">
 
   <view class="exit-confirm-panel">
     <text class="exit-confirm-title">退出管理端</text>
@@ -48,63 +43,34 @@
   <view wx:if="{{activeTab === 0}}" class="tab-content">
 
     <view class="search-section">
-    <view class="search-box">
-      <input 
-        class="search-input" 
-        placeholder="搜索仪器名称、实验室..." 
-        bindinput="onSearchInput"
-        value="{{filters.searchKeyword}}"
-      />
-      <text class="search-icon">🔍</text>
-      <text class="clear-search" wx:if="{{filters.searchKeyword}}" bindtap="clearSearch">✕</text>
-    </view>
-  </view>
-
-  <view class="filter-section">
-    <!-- 实验室类型筛选 -->
-    <view class="filter-group">
-      <text class="filter-label">实验室类型</text>
-      <view class="filter-buttons">
-        <text 
-          class="filter-btn {{filters.labType === 'all' ? 'active' : ''}}" 
-          data-type="all"
-          bindtap="onLabTypeChange"
-        >全部</text>
-        <text 
-          class="filter-btn {{filters.labType === 'public' ? 'active' : ''}}" 
-          data-type="public"
-          bindtap="onLabTypeChange"
-        >公共实验室</text>
-        <text 
-          class="filter-btn {{filters.labType === 'group' ? 'active' : ''}}" 
-          data-type="group"
-          bindtap="onLabTypeChange"
-        >课题组</text>
+      <view class="search-box">
+        <input class="search-input" placeholder="搜索仪器名称、实验室..." bindinput="onSearchInput" value="{{filters.searchKeyword}}" />
+        <text class="search-icon">🔍</text>
+        <text class="clear-search" wx:if="{{filters.searchKeyword}}" bindtap="clearSearch">✕</text>
       </view>
     </view>
 
-    <!-- 仪器类型筛选 -->
-    <view class="filter-group">
-      <text class="filter-label">仪器类型</text>
-      <view class="filter-buttons">
-        <text 
-          class="filter-btn {{filters.deviceType === 'all' ? 'active' : ''}}" 
-          data-type="all"
-          bindtap="onDeviceTypeChange"
-        >全部</text>
-        <text 
-          class="filter-btn {{filters.deviceType === 'large' ? 'active' : ''}}" 
-          data-type="large"
-          bindtap="onDeviceTypeChange"
-        >大型仪器</text>
-        <text 
-          class="filter-btn {{filters.deviceType === 'small' ? 'active' : ''}}" 
-          data-type="small"
-          bindtap="onDeviceTypeChange"
-        >小型仪器</text>
+    <view class="filter-section">
+      <!-- 实验室类型筛选 -->
+      <view class="filter-group">
+        <text class="filter-label">实验室类型</text>
+        <view class="filter-buttons">
+          <text class="filter-btn {{filters.labType === 'all' ? 'active' : ''}}" data-type="all" bindtap="onLabTypeChange">全部</text>
+          <text class="filter-btn {{filters.labType === 'public' ? 'active' : ''}}" data-type="public" bindtap="onLabTypeChange">公共实验室</text>
+          <text class="filter-btn {{filters.labType === 'group' ? 'active' : ''}}" data-type="group" bindtap="onLabTypeChange">课题组</text>
+        </view>
+      </view>
+
+      <!-- 仪器类型筛选 -->
+      <view class="filter-group">
+        <text class="filter-label">仪器类型</text>
+        <view class="filter-buttons">
+          <text class="filter-btn {{filters.deviceType === 'all' ? 'active' : ''}}" data-type="all" bindtap="onDeviceTypeChange">全部</text>
+          <text class="filter-btn {{filters.deviceType === 'large' ? 'active' : ''}}" data-type="large" bindtap="onDeviceTypeChange">大型仪器</text>
+          <text class="filter-btn {{filters.deviceType === 'small' ? 'active' : ''}}" data-type="small" bindtap="onDeviceTypeChange">小型仪器</text>
+        </view>
       </view>
     </view>
-  </view>
 
     <view wx:if="{{isLoadingDevices}}" class="center-hint">
       <view class="loading-spin"></view>
@@ -117,16 +83,7 @@
     </view>
 
     <view wx:else class="device-list">
-      <view
-        class="device-card"
-        wx:for="{{displayedGroups}}"
-        wx:key="group_key"
-        bindtap="goToDeviceDetail"
-        data-device-name="{{item.device_name}}"
-        data-lab-name="{{item.lab_name}}"
-        data-device-type="{{item.device_type}}"
-        data-model="{{item.model}}"
-        data-group-key="{{item.group_key}}">
+      <view class="device-card" wx:for="{{displayedGroups}}" wx:key="group_key" bindtap="goToDeviceDetail" data-device-name="{{item.device_name}}" data-lab-name="{{item.lab_name}}" data-device-type="{{item.device_type}}" data-model="{{item.model}}" data-group-key="{{item.group_key}}">
 
         <image class="device-img" src="{{item.picture}}" mode="aspectFill"></image>
 
@@ -135,7 +92,7 @@
             <text class="d-name">{{item.device_name}}</text>
             <text class="d-type {{item.device_type}}">{{item.device_type === 'large' ? '大型' : '小型'}}</text>
           </view>
-          <text class="d-lab">{{item.lab_name}}</text>
+          <text class="d-lab">{{item.device_room}}</text>
           <text wx:if="{{item.model}}" class="d-lab">型号：{{item.model}}</text>
 
           <view class="badge-row">
@@ -220,29 +177,15 @@
 
       <view class="input-group">
         <text class="input-label">标题</text>
-        <input
-          class="title-input"
-          placeholder="请输入通知标题"
-          value="{{msgTitle}}"
-          bindinput="onTitleInput"
-          maxlength="50" />
+        <input class="title-input" placeholder="请输入通知标题" value="{{msgTitle}}" bindinput="onTitleInput" maxlength="50" />
       </view>
 
       <view class="input-group">
         <text class="input-label">内容</text>
-        <textarea
-          class="content-textarea"
-          placeholder="请输入通知内容..."
-          value="{{msgContent}}"
-          bindinput="onContentInput"
-          maxlength="500"
-          auto-height />
+        <textarea class="content-textarea" placeholder="请输入通知内容..." value="{{msgContent}}" bindinput="onContentInput" maxlength="500" auto-height />
       </view>
 
-      <button
-        class="send-btn {{isSending ? 'sending' : ''}}"
-        bindtap="sendMessage"
-        disabled="{{isSending}}">
+      <button class="send-btn {{isSending ? 'sending' : ''}}" bindtap="sendMessage" disabled="{{isSending}}">
         {{isSending ? '发布中...' : '立即发布'}}
       </button>
     </view>

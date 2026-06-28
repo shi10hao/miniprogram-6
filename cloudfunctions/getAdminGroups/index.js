@@ -63,7 +63,7 @@ exports.main = async (event) => {
   allDevices.forEach(d => {
     const specs = d.specifications || {}
     const model = String(specs['型号'] || specs.model || d.model || '').trim()
-    const key = [d.device_name, d.lab_name, d.device_type, model].join('||')
+    const key = [d.device_name, d.lab_name, d.device_room, d.device_type, model].join('||')
 
     if (!groupMap[key]) {
       groupMap[key] = {
@@ -71,6 +71,7 @@ exports.main = async (event) => {
         device_name: d.device_name,
         device_type: d.device_type,
         lab_name: d.lab_name,
+        device_room: d.device_room,
         model,
         picture: d.picture,
         available: 0, using: 0, maintenance: 0, total: 0
@@ -94,6 +95,7 @@ exports.main = async (event) => {
   groups.sort((a, b) => {
     return a.device_name?.localeCompare(b.device_name || '') ||
            a.lab_name?.localeCompare(b.lab_name || '') ||
+           a.device_room?.localeCompare(b.device_room || '') ||
            a.device_type?.localeCompare(b.device_type || '') ||
            a.model?.localeCompare(b.model || '')
   })
