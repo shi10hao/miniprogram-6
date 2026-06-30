@@ -39,7 +39,9 @@ Page({
 
     // 其他参数
     minDate: '', // 最小日期（今天）
-    maxDate: '' // 最大日期（30天后）
+    maxDate: '', // 最大日期（30天后）
+    reservePage: '',
+    reservePageFileID: '' 
   },
 
   onLoad() {
@@ -583,6 +585,30 @@ Page({
     this.setData({
       isPastTime: false
     })
+    // 检查是否上传系统预约单
+    if(!this.data.reservePage){
+      wx.showToast({
+        title:'请上传系统预约单',
+        icon:'none'
+      })
+      this.setData({
+        isLoading: false
+      })
+      return
+    }else {
+      const reservePage = this.data.reservePage
+      wx.cloud.uploadFile({
+        cloudPath: `reserve_pages/${Date.now()}.jpg`,
+        filePath:reservePage,
+        success: uploadRes => {
+          const fileID = uploadRes.fileID
+          console.log('预约单上传成功：,',fileID)
+          this.setData({
+            reservePageFileID: fileID
+          })
+        }
+      })
+    }
 
     // 构建预约数据
     const storedUserInfo = wx.getStorageSync('userInfo') || {}
@@ -598,13 +624,14 @@ Page({
       end_time: `${this.data.reserveDate} ${this.data.endTime}`,
       start_ts: this.getReservationTimeMs(this.data.reserveDate, this.data.startTime),
       end_ts: this.getReservationTimeMs(this.data.reserveDate, this.data.endTime),
-
+      reserve_page: this.data.reservePageFileID,
+      
       user_id: this.data.userInfo.userId,
       student_name: this.data.userInfo.name,
       research_group: this.data.userInfo.researchGroup,
       phone: this.data.userInfo.phone,
       _openid: storedUserInfo.openid || '',
-
+      
       create_time: new Date().toISOString()
     }
 
@@ -937,5 +964,22 @@ Page({
       this.checkPastTime();
       // console.log("selectedDevice:", this.data.selectedDevice);
     });
+  },
+
+  pickReservePage() {
+    wx.chooseMedia({
+      count:1,
+      mediaType:['image'],
+      sourceType:['album','camera'],
+      success: res => {
+        const tempFilePath = res.tempFiles[0].tempFilePath
+        const reservePage = tempFilePath
+        this.setData({reservePage})
+        console.log('reservePage:',reservePage)
+      },
+      fail(err) {
+        console.log('选择预约单失败：',err)
+      }
+    })
   }
 })

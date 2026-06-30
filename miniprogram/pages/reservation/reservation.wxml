@@ -173,6 +173,19 @@
       </picker>
     </view>
 
+    <view class="reserve-page-section">
+      <text class="reserve-page-label">系统预约单</text>
+      <view class="slot-upload" bind:tap="pickReservePage">
+        <view wx:if="{{reservePage}}" class="slot-preview">
+          <image class="slot-img" src="{{reservePage}}" mode="aspectFill"/>
+        </view>
+        <view wx:else class="slot-empty">
+          <text class="slot-plus">+</text>
+          <text class="slot-tip">点击选择截图</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 时间冲突提示 -->
     <view wx:if="{{timeConflict}}" class="conflict-alert">
       <text class="alert-icon">🚫</text>
