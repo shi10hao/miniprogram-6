@@ -49,6 +49,8 @@
       class="reserve-card"
       wx:for="{{filteredReserves}}"
       wx:key="_id"
+      bind:tap="gotoReserveDetail"
+      data-id="{{item._id}}"
     >
       <view class="card-top">
         <text class="device-name">{{item.device_name}}</text>

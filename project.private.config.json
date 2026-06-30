@@ -22,11 +22,18 @@
     "miniprogram": {
       "list": [
         {
-          "name": "pages/admin/device-detail/admindevicedetail",
-          "pathName": "pages/admin/device-detail/admindevicedetail",
+          "name": "pages/reserve-detail/reserve-detail",
+          "pathName": "pages/reserve-detail/reserve-detail",
           "query": "",
           "scene": null,
           "launchMode": "default"
+        },
+        {
+          "name": "pages/admin/device-detail/admindevicedetail",
+          "pathName": "pages/admin/device-detail/admindevicedetail",
+          "query": "",
+          "launchMode": "default",
+          "scene": null
         },
         {
           "name": "pages/index/index",

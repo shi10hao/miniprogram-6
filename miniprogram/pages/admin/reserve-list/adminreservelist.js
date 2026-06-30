@@ -337,6 +337,13 @@ Page({
 
   getReserveDisplayStatus(item, usingReserveIdMap, now) {
     return getReserveDisplayStatus(item, usingReserveIdMap, now)
+  },
+
+  gotoReserveDetail(e) {
+    const id = e.currentTarget.dataset.id
+    wx.navigateTo({
+      url: `/pages/reserve-detail/reserve-detail?id=${id}`
+    })
   }
 })
 

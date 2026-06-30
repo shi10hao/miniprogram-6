@@ -1,0 +1,94 @@
+<view class="container">
+  <!-- 顶部状态 -->
+  <view class="header">
+    <view class="info-card-header">
+      <text class="device-name">预约详情</text>
+      <view class="status-badge {{status}}">
+        {{status === 'upcoming' ? '即将到来' : status === 'using' ? '使用中' : '已结束'}}
+      </view>
+    </view>
+
+  </view>
+
+  <!-- 加载中 -->
+  <view wx:if="{{isLoading}}" class="center-hint">
+    <view class="loading-spin"></view>
+    <text>加载中...</text>
+  </view>
+
+  <view wx:else class="content">
+    <!-- 基本信息 -->
+    <view class="info-card">
+      <view class="info-card-header">
+        <text class="info-card-title">预约信息</text>
+      </view>
+
+      <view class="info-card-body">
+        <view class="info-field">
+          <text class="info-label">使用人员</text>
+          <text class="info-text">{{detail.student_name || detail.user_id}}</text>
+        </view>
+        <view class="info-field">
+          <text class="info-label">课题组</text>
+          <text class="info-text">{{detail.group_name || '未填写'}}</text>
+        </view>
+        <view class="info-field">
+          <text class="info-label">仪器编号</text>
+          <text class="info-text">{{detail.device_id}}</text>
+        </view>
+        <view class="info-field">
+          <text class="info-label">仪器名称</text>
+          <text class="info-text">{{detail.device_name}}</text>
+        </view>
+        <view class="info-field">
+          <text class="info-label">预约时间</text>
+          <text class="info-text">{{detail.dateDisplay}} {{detail.timeDisplay}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 开始照片 -->
+    <view class="section">
+      <view class="section-title-wrap">
+        <text class="section-title">开始照片</text>
+      </view>
+      <view class="photo-section">
+        <image wx:if="{{detail.startPhotoUrl}}" class="usage-photo" src="{{detail.startPhotoUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.startPhotoUrl}}" data-urls="{{allPhotos}}" />
+        <text wx:else class="empty-hint">暂无照片</text>
+      </view>
+    </view>
+
+    <!-- 使用照片（多张） -->
+    <view class="section">
+      <view class="section-title-wrap">
+        <text class="section-title">使用照片（{{detail.usageImageUrls.length}}）</text>
+      </view>
+      <view wx:if="{{detail.usageImageUrls.length > 0}}" class="photo-grid">
+        <image wx:for="{{detail.usageImageUrls}}" wx:key="*this" class="usage-photo" src="{{item}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{item}}" data-urls="{{allPhotos}}" />
+      </view>
+      <text wx:else class="empty-hint">暂无照片</text>
+    </view>
+
+    <!-- 结束照片（多张） -->
+    <view class="section">
+      <view class="section-title-wrap">
+        <text class="section-title">结束核验照片（{{detail.endPhotoUrls.length}}）</text>
+      </view>
+      <view wx:if="{{detail.endPhotoUrls.length > 0}}" class="photo-grid">
+        <image wx:for="{{detail.endPhotoUrls}}" wx:key="*this" class="usage-photo" src="{{item}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{item}}" data-urls="{{allPhotos}}" />
+      </view>
+      <text wx:else class="empty-hint">暂无照片</text>
+    </view>
+
+    <!-- 系统预约单 -->
+    <view class="section">
+      <view class="section-title-wrap">
+        <text class="section-title">系统预约单</text>
+      </view>
+      <view class="photo-section">
+        <image wx:if="{{detail.reservePageUrl}}" class="usage-photo" src="{{detail.reservePageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.reservePageUrl}}" data-urls="{{allPhotos}}" />
+        <text wx:else class="empty-hint">未上传预约单</text>
+      </view>
+    </view>
+  </view>
+</view>

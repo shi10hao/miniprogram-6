@@ -153,7 +153,7 @@
     </view>
 
     <view wx:else class="reserve-list">
-      <view class="reserve-card" wx:for="{{recentReserves}}" wx:key="_id">
+      <view class="reserve-card" wx:for="{{recentReserves}}" wx:key="_id" bind:tap="gotoReserveDetail" data-id="{{item._id}}">
         <view class="card-top">
           <text class="d-name">{{item.device_name}}</text>
           <view class="status-tag {{item.displayStatus}}">{{item.displayStatusText}}</view>

@@ -879,5 +879,12 @@ Page({
 
   gotoAll() {
     wx.navigateTo({url: '/pages/admin/reserve-list/adminreservelist?status=all'})
+  },
+
+  gotoReserveDetail(e) {
+    const id = e.currentTarget.dataset.id
+    wx.navigateTo({
+      url: `/pages/reserve-detail/reserve-detail?id=${id}`
+    })
   }
 })
