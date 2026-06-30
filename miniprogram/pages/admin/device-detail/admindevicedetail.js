@@ -50,7 +50,7 @@ Page({
   },
 
   onLoad(options) {
-    console.log("options:",options)
+    console.log("options:", options)
     const deviceName = this.safeDecode(options.deviceName || '')
     if (!deviceName) {
       wx.showToast({
@@ -394,8 +394,8 @@ Page({
     try {
       const condition = this.buildVisibleGroupCondition(this.currentSession)
       let devices = await this.fetchAllByWhere('devices', condition)
-      console.log("condition:",condition)
-      console.log("devices:",devices)
+      // console.log("condition:",condition)
+      // console.log("devices:",devices)
 
       const modelFilter = String(this.data.deviceModel || '').trim()
       if (modelFilter) {
@@ -453,6 +453,7 @@ Page({
           }
         })
         .sort((a, b) => String(a.device_id || '').localeCompare(String(b.device_id || '')))
+      console.log('devicesForView:', devicesForView)
 
       const reserves = this.uniqueById(futureReservesRaw)
         .filter(item => this.isFutureReserve(item))
@@ -476,26 +477,26 @@ Page({
       const tempUrlMap = await this.getTempUrlMap(allPhotoFileIds)
 
 
-// C
+      // C
       const usages = usagesRawSorted
         .map(item => this.decorateUsageRecord(item, tempUrlMap))
         .map(item => ({
           ...item,
           durationDisplay: this.calculateDuration(item.start_time)
         }))
-// D
+      // D
       const usagePhotos = usagePhotoRaw
         .map(item => this.decorateUsageRecord(item, tempUrlMap))
         .filter(item => item.hasAnyPhoto)
         .slice(0, PHOTO_DISPLAY_LIMIT)
 
-// B
+      // B
       // 根据搜索关键词过滤仪器实例及关联数据
       let finalDevices = devicesForView
       let finalUsages = usages
       let finalUsagePhotos = usagePhotos
       let finalReserves = reserves
-
+      // console.log('OUT IF finalDevices:',finalDevices)
       const kw = this.data.filterKeyword?.toLowerCase().trim()
       if (kw && !this.data.showAllFiltered) {
         finalDevices = devicesForView.filter(item => {
@@ -506,11 +507,12 @@ Page({
           const desc = (item.description || '').toLowerCase()
           const id = (item.device_id || '').toLowerCase()
           return room.includes(kw) || name.includes(kw) || model.includes(kw) ||
-                 lab.includes(kw) || desc.includes(kw) || id.includes(kw)
+            lab.includes(kw) || desc.includes(kw) || id.includes(kw)
         })
 
         // 用过滤后的设备 ID 同步过滤其他区域
         const filteredIds = new Set(finalDevices.map(d => d.device_id).filter(Boolean))
+        console.log('In IF finalDevices:', finalDevices)
         if (filteredIds.size > 0) {
           finalUsages = usages.filter(u => u.device_id && filteredIds.has(u.device_id))
           finalUsagePhotos = usagePhotos.filter(p => p.device_id && filteredIds.has(p.device_id))
@@ -522,23 +524,30 @@ Page({
         }
       }
 
-// E
+      // E   
+      let deviceInfo = null
+      if (finalDevices.length > 0) {
+        const picUrl = await this.getTempFileURL(finalDevices[0].picture)
+
+        deviceInfo = {
+          picture: picUrl || '',
+          description: finalDevices[0].description || '',
+          video_url: finalDevices[0].video_url || '',
+          operation_procedure: finalDevices[0].operation_procedure || '',
+          precautions: finalDevices[0].precautions || '',
+          specifications: finalDevices[0].specifications || {}
+        }
+      }
       this.setData({
         devices: finalDevices,
         usages: finalUsages,
         usagePhotos: finalUsagePhotos,
         reserves: finalReserves,
-        // 从同组第一台设备提取仪器信息用于展示
-        deviceInfo: devices.length > 0 ? {
-          picture: devices[0].picture || '',
-          description: devices[0].description || '',
-          video_url: devices[0].video_url || '',
-          operation_procedure: devices[0].operation_procedure || '',
-          precautions: devices[0].precautions || '',
-          specifications: devices[0].specifications || {}
-        } : null,
+        deviceInfo,
         isLoading: false
       })
+      // console.log('devices',devices)
+      console.log('deviceInfo:',this.data.deviceInfo)
     } catch (err) {
       console.error('加载设备详情失败:', err)
       this.setData({
@@ -549,6 +558,20 @@ Page({
         icon: 'none'
       })
     }
+  },
+
+  getTempFileURL(fileID) {
+    return new Promise((resolve) => {
+      if (!fileID) return resolve('')
+
+      wx.cloud.getTempFileURL({
+        fileList: [fileID],
+        success: res => {
+          resolve(res.fileList[0]?.tempFileURL || '')
+        },
+        fail: () => resolve('')
+      })
+    })
   },
 
   async hasActiveUsage(deviceId) {
