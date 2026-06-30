@@ -50,6 +50,7 @@ Page({
   },
 
   onLoad(options) {
+    console.log("options:",options)
     const deviceName = this.safeDecode(options.deviceName || '')
     if (!deviceName) {
       wx.showToast({
@@ -72,6 +73,7 @@ Page({
     })
 
     this.bootstrapPage()
+    // console.log("deviceInfo:",this.data.deviceInfo)
   },
 
   onUnload() {
@@ -220,6 +222,7 @@ Page({
     return [
       String(device.device_name || ''),
       String(device.lab_name || ''),
+      String(device.device_room || ''),
       String(device.device_type || ''),
       this.getDeviceModel(device)
     ].join('||')
@@ -391,6 +394,8 @@ Page({
     try {
       const condition = this.buildVisibleGroupCondition(this.currentSession)
       let devices = await this.fetchAllByWhere('devices', condition)
+      console.log("condition:",condition)
+      console.log("devices:",devices)
 
       const modelFilter = String(this.data.deviceModel || '').trim()
       if (modelFilter) {
