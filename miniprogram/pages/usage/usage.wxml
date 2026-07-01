@@ -78,7 +78,7 @@
           <text class="pending-label">仪器编号：</text>
           <text class="pending-val">{{item.device_id}}</text>
         </view>
-        <button wx:if="{{item.state === 'ready'}}" class="start-reserve-btn" data-reserveid="{{item._id}}" bindtap="startUsageFromReserve" disabled="{{isLoading || !isAuthenticated}}">拍照开始使用</button>
+        <button class="start-reserve-btn" data-reserveid="{{item._id}}" bindtap="startUsageFromReserve" disabled="{{isLoading || !isAuthenticated}}">拍照开始使用</button>
       </view>
     </view>
   </view>

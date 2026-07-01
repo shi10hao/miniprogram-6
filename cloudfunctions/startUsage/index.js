@@ -37,9 +37,9 @@ exports.main = async event => {
     }
 
     const now = new Date()
-    if (!isWithinReservationWindow(reserve, now)) {
-      throw createBusinessError('INVALID_TIME_WINDOW', '当前时间无可开始使用的预约')
-    }
+    // if (!isWithinReservationWindow(reserve, now)) {
+    //   throw createBusinessError('INVALID_TIME_WINDOW', '当前时间无可开始使用的预约')
+    // }
 
     const existingUsageRes = await transaction.collection('device_usage')
       .where({ reserve_id: reserveId })

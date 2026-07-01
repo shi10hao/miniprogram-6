@@ -303,7 +303,11 @@ Page({
         {
           device_id: _.in(chunk)
         },
-        futureStartCondition
+        futureStartCondition,
+        _.or([
+          { usage_status: _.exists(false) },
+          { usage_status: 'not_started' }
+        ])
       ])
 
       try {
@@ -454,7 +458,7 @@ Page({
           }
         })
         .sort((a, b) => String(a.device_id || '').localeCompare(String(b.device_id || '')))
-      // console.log('devicesForView:', devicesForView)
+      console.log('devicesForView:', devicesForView)
 
       const reserves = this.uniqueById(futureReservesRaw)
         .filter(item => this.isFutureReserve(item))
@@ -548,10 +552,10 @@ Page({
         devices: finalDevices,
         usages: finalUsages,
         usagePhotos: finalUsagePhotos,
-        reserves: finalReserves,
-        deviceInfo,
+        reserves: finalReserves,   // 即将到来的预约列表
+        deviceInfo,   
         isLoading: false,
-        renderDevices
+        renderDevices // 渲染的设备
       })
 
       console.log('devices', devices)

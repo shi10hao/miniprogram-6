@@ -327,7 +327,6 @@ Page({
   },
   // 4
   findCurrentValidReserve(userId) {
-    const now = new Date()
 
     return db.collection('reserves')
       .where({
@@ -341,7 +340,7 @@ Page({
         const records = res.data || []
         return records.find(item => {
           if (item.usage_status && item.usage_status !== 'not_started') return false
-          return this.isReserveReady(item, now)
+          return true
         }) || null
       })
   },
@@ -402,7 +401,7 @@ Page({
           if (!item || item.status !== 'approved') return null
           if (String(item.user_id || '').trim() !== String(userInfo.userId || '').trim()) return null
           if (item.usage_status && item.usage_status !== 'not_started') return null
-          if (!this.isReserveReady(item, new Date())) return null
+          // if (!this.isReserveReady(item, new Date())) return null
           return item
         })
     } else {
