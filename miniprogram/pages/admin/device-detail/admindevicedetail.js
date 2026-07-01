@@ -47,10 +47,11 @@ Page({
     },
     deviceDisplayLimit: 5, // 仪器实例初始只显示5条
     showAllDevices: false, // 是否显示全部仪器实例
+    renderDevices: []
   },
 
   onLoad(options) {
-    console.log("options:", options)
+    // console.log("options:", options)
     const deviceName = this.safeDecode(options.deviceName || '')
     if (!deviceName) {
       wx.showToast({
@@ -453,7 +454,7 @@ Page({
           }
         })
         .sort((a, b) => String(a.device_id || '').localeCompare(String(b.device_id || '')))
-      console.log('devicesForView:', devicesForView)
+      // console.log('devicesForView:', devicesForView)
 
       const reserves = this.uniqueById(futureReservesRaw)
         .filter(item => this.isFutureReserve(item))
@@ -512,7 +513,7 @@ Page({
 
         // 用过滤后的设备 ID 同步过滤其他区域
         const filteredIds = new Set(finalDevices.map(d => d.device_id).filter(Boolean))
-        console.log('In IF finalDevices:', finalDevices)
+        // console.log('In IF finalDevices:', finalDevices)
         if (filteredIds.size > 0) {
           finalUsages = usages.filter(u => u.device_id && filteredIds.has(u.device_id))
           finalUsagePhotos = usagePhotos.filter(p => p.device_id && filteredIds.has(p.device_id))
@@ -538,16 +539,23 @@ Page({
           specifications: finalDevices[0].specifications || {}
         }
       }
+
+      const renderDevices = this.data.showAllDevices ?
+        finalDevices :
+        finalDevices.slice(0, this.data.deviceDisplayLimit)
+
       this.setData({
         devices: finalDevices,
         usages: finalUsages,
         usagePhotos: finalUsagePhotos,
         reserves: finalReserves,
         deviceInfo,
-        isLoading: false
+        isLoading: false,
+        renderDevices
       })
-      // console.log('devices',devices)
-      console.log('deviceInfo:',this.data.deviceInfo)
+
+      console.log('devices', devices)
+      console.log('deviceInfo:', this.data.deviceInfo)
     } catch (err) {
       console.error('加载设备详情失败:', err)
       this.setData({
@@ -963,9 +971,23 @@ Page({
 
   // 展开全部仪器实例
   expandDevices() {
-    this.setData({
-      showAllDevices: true
-    })
+    this.setData({ showAllDevices: true }, () => {
+      // 此时showAllDevices已经更新完成
+      const renderDevices = this.data.showAllDevices 
+        ? this.data.devices 
+        : this.data.devices.slice(0, this.data.deviceDisplayLimit)
+      this.setData({ renderDevices });
+    });
+  },
+
+  foldDevices() {
+    this.setData({ showAllDevices: false }, () => {
+      // 此时showAllDevices已经更新完成
+      const renderDevices = this.data.showAllDevices 
+        ? this.data.devices 
+        : this.data.devices.slice(0, this.data.deviceDisplayLimit)
+      this.setData({ renderDevices });
+    });
   },
 
   // 表单输入

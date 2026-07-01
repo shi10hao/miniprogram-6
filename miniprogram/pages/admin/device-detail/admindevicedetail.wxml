@@ -117,24 +117,31 @@
         <text class="section-title">仪器实例（{{devices.length}}台）</text>
         <text class="section-arrow {{sectionCollapsed.devices ? 'collapsed' : ''}}">▾</text>
       </view>
-      <view wx:if="{{!sectionCollapsed.devices}}" class="device-list">
-        <view class="device-item" wx:for="{{showAllDevices ? devices : devices.slice(0, deviceDisplayLimit)}}" wx:key="_id">
-          <view class="device-row">
-            <text class="device-id">{{item.device_id}}</text>
-            <view class="status-badge {{item.displayStatus}}">
-              {{item.displayStatus === 'available' ? '可用' : item.displayStatus === 'using' ? '使用中' : '维护中'}}
+      <view wx:if="{{!sectionCollapsed.devices}}">
+        <view wx:if="{{devices.length === 0}}" class="empty-hint">暂无仪器实例</view>
+        <view wx:else class="device-list">
+          <view class="device-item" wx:for="{{renderDevices}}" wx:key="_id">
+            <view class="device-row">
+              <text class="device-id">{{item.device_id}}</text>
+              <view class="status-badge {{item.displayStatus}}">
+                {{item.displayStatus === 'available' ? '可用' : item.displayStatus === 'using' ? '使用中' : '维护中'}}
+              </view>
             </view>
+            <text wx:if="{{item.device_room}}" class="device-id-small">📍 {{item.device_room}}</text>
+            <text wx:if="{{item.usingUser}}" class="device-id-small">当前使用人：{{item.usingUser}}</text>
+            <button class="maint-btn {{item.status === 'maintenance' ? 'active' : ''}}" bindtap="toggleMaintenance" data-id="{{item._id}}" data-device-id="{{item.device_id}}" data-display-status="{{item.displayStatus}}" disabled="{{item.displayStatus === 'using'}}">
+              {{item.displayStatus === 'using' ? '使用中不可切换' : item.status === 'maintenance' ? '恢复可用' : '设为维护'}}
+            </button>
           </view>
-          <text wx:if="{{item.device_room}}" class="device-id-small">📍 {{item.device_room}}</text>
-          <text wx:if="{{item.usingUser}}" class="device-id-small">当前使用人：{{item.usingUser}}</text>
-
-          <button class="maint-btn {{item.status === 'maintenance' ? 'active' : ''}}" bindtap="toggleMaintenance" data-id="{{item._id}}" data-device-id="{{item.device_id}}" data-display-status="{{item.displayStatus}}" disabled="{{item.displayStatus === 'using'}}">
-            {{item.displayStatus === 'using' ? '使用中不可切换' : item.status === 'maintenance' ? '恢复可用' : '设为维护'}}
-          </button>
         </view>
       </view>
+
+
       <view wx:if="{{!showAllDevices && devices.length > deviceDisplayLimit}}" class="expand-wrap">
         <button class="expand-btn" bindtap="expandDevices">展开全部 {{devices.length}} 台</button>
+      </view>
+      <view wx:if="{{showAllDevices}}" class="fold-wrap">
+        <button class="fold-btn" bind:tap="foldDevices">收缩</button>
       </view>
     </view>
 
