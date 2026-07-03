@@ -41,7 +41,7 @@ Page({
     minDate: '', // 最小日期（今天）
     maxDate: '', // 最大日期（30天后）
     reservePage: '',
-    reservePageFileID: '' 
+    reservePageFileID: ''
   },
 
   onLoad() {
@@ -206,14 +206,14 @@ Page({
         const desc = (d.description || '').toLowerCase()
         const id = (d.device_id || '').toLowerCase()
         return room.includes(searchKeyword) || name.includes(searchKeyword) ||
-               model.includes(searchKeyword) || lab.includes(searchKeyword) ||
-               desc.includes(searchKeyword) || id.includes(searchKeyword)
+          model.includes(searchKeyword) || lab.includes(searchKeyword) ||
+          desc.includes(searchKeyword) || id.includes(searchKeyword)
       }) : devices
 
       var groupedMap = {}
       var that = this;
 
-      (rawDevices  || []).forEach(function (device) {
+      (rawDevices || []).forEach(function (device) {
         var model = that.getDeviceModel(device)
         var key = (device.device_name || '') + '::' + model
         if (!groupedMap[key]) {
@@ -586,29 +586,42 @@ Page({
       isPastTime: false
     })
     // 检查是否上传系统预约单
-    if(!this.data.reservePage){
+    // 检查并上传系统预约单
+    if (!this.data.reservePage) {
       wx.showToast({
-        title:'请上传系统预约单',
-        icon:'none'
+        title: '请上传系统预约单',
+        icon: 'none'
       })
       this.setData({
         isLoading: false
       })
       return
-    }else {
-      const reservePage = this.data.reservePage
-      wx.cloud.uploadFile({
-        cloudPath: `reserve_pages/${Date.now()}.jpg`,
-        filePath:reservePage,
-        success: uploadRes => {
-          const fileID = uploadRes.fileID
-          console.log('预约单上传成功：,',fileID)
-          this.setData({
-            reservePageFileID: fileID
-          })
-        }
-      })
     }
+
+    try {
+      // 等待预约单上传完成，拿到 fileID 后再继续
+      const uploadRes = await wx.cloud.uploadFile({
+        cloudPath: `reserve_pages/${Date.now()}.jpg`,
+        filePath: this.data.reservePage
+      })
+      const reservePageFileID = uploadRes.fileID
+      console.log('预约单上传成功：', reservePageFileID)
+      this.setData({
+        reservePageFileID
+      })
+    } catch (err) {
+      console.error('预约单上传失败:', err)
+      wx.showToast({
+        title: '预约单上传失败，请重试',
+        icon: 'none'
+      })
+      this.setData({
+        isLoading: false
+      })
+      return
+    }
+
+    // 构建预约数据
 
     // 构建预约数据
     const storedUserInfo = wx.getStorageSync('userInfo') || {}
@@ -625,13 +638,13 @@ Page({
       start_ts: this.getReservationTimeMs(this.data.reserveDate, this.data.startTime),
       end_ts: this.getReservationTimeMs(this.data.reserveDate, this.data.endTime),
       reserve_page: this.data.reservePageFileID,
-      
+
       user_id: this.data.userInfo.userId,
       student_name: this.data.userInfo.name,
       research_group: this.data.userInfo.researchGroup,
       phone: this.data.userInfo.phone,
       _openid: storedUserInfo.openid || '',
-      
+
       create_time: new Date().toISOString()
     }
 
@@ -968,17 +981,19 @@ Page({
 
   pickReservePage() {
     wx.chooseMedia({
-      count:1,
-      mediaType:['image'],
-      sourceType:['album','camera'],
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
       success: res => {
         const tempFilePath = res.tempFiles[0].tempFilePath
         const reservePage = tempFilePath
-        this.setData({reservePage})
-        console.log('reservePage:',reservePage)
+        this.setData({
+          reservePage
+        })
+        console.log('reservePage:', reservePage)
       },
       fail(err) {
-        console.log('选择预约单失败：',err)
+        console.log('选择预约单失败：', err)
       }
     })
   }

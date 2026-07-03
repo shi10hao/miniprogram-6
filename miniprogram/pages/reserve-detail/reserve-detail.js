@@ -47,7 +47,7 @@ Page({
     ])
     const reserve = reserveRes.data
     const usage = usageRes.data[0] || null
-
+    console.log('预约完整数据：', reserve)
     // 2. 收集所有 fileID
     const fileIDs = this.collectFileIDs(reserve, usage)
 

@@ -153,7 +153,7 @@
       <view wx:if="{{!sectionCollapsed.usages}}">
         <view wx:if="{{usages.length === 0}}" class="empty-hint">暂无正在使用记录</view>
         <view wx:else class="usage-list">
-          <view class="usage-item" wx:for="{{usages}}" wx:key="_id" wx:for-item="usage">
+          <view class="usage-item" wx:for="{{usages}}" wx:key="_id" wx:for-item="usage" bindtap="gotoReserveDetail" data-id="{{usage.reserve_id}}">
             <view class="usage-header">
               <text class="user-name">{{usage.student_name || usage.user_id}}</text>
               <text class="duration">已使用 {{usage.durationDisplay}}</text>
@@ -194,7 +194,7 @@
       <view wx:if="{{!sectionCollapsed.photos}}">
         <view wx:if="{{usagePhotos.length === 0}}" class="empty-hint">暂无上传照片记录</view>
         <view wx:else class="usage-list">
-          <view class="usage-item" wx:for="{{usagePhotos}}" wx:key="_id" wx:for-item="record">
+          <view class="usage-item" wx:for="{{usagePhotos}}" wx:key="_id" wx:for-item="record" bindtap="gotoReserveDetail" data-id="{{record.reserve_id}}">
             <view class="usage-header">
               <text class="user-name">{{record.student_name || record.user_id}}</text>
               <text class="duration">{{record.status === 'using' ? '使用中' : record.status === 'completed' ? '已完成' : record.status}}</text>
@@ -236,12 +236,12 @@
       <view wx:if="{{!sectionCollapsed.reserves}}">
         <view wx:if="{{reserves.length === 0}}" class="empty-hint">暂无预约</view>
         <view wx:else class="reserve-list">
-          <view class="reserve-item" wx:for="{{reserves}}" wx:key="_id">
+          <view class="reserve-item" wx:for="{{reserves}}" wx:key="_id" bindtap="gotoReserveDetail" data-id="{{item._id}}">
             <view class="reserve-header">
               <text class="user-name">{{item.student_name || item.user_id}}</text>
-              <text class="reserve-date">{{item.dateDisplay}}</text>
+              <view class="reserve-status {{item.displayStatus}}">{{item.statusText}}</view>
             </view>
-            <text class="reserve-time">{{item.timeDisplay}}</text>
+            <text class="reserve-time">{{item.timeDisplay}} · {{item.dateDisplay}}</text>
             <text class="device-id-small">设备：{{item.device_id}}</text>
           </view>
         </view>

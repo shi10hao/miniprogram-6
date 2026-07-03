@@ -285,11 +285,12 @@ Page({
 
     const nowText = this.buildNowStringForReserve()
     const nowIso = this.buildNowIsoString()
-    const futureStartCondition = _.or([{
-        start_time: _.gt(nowText)
+    // 预约未结束：只要还没到结束时间且未开始使用，都纳入列表
+    const notEndedCondition = _.or([{
+        end_time: _.gt(nowText)
       },
       {
-        start_time: _.gt(nowIso)
+        end_time: _.gt(nowIso)
       }
     ])
 
@@ -303,10 +304,13 @@ Page({
         {
           device_id: _.in(chunk)
         },
-        futureStartCondition,
-        _.or([
-          { usage_status: _.exists(false) },
-          { usage_status: 'not_started' }
+        notEndedCondition,
+        _.or([{
+            usage_status: _.exists(false)
+          },
+          {
+            usage_status: 'not_started'
+          }
         ])
       ])
 
@@ -460,14 +464,32 @@ Page({
         .sort((a, b) => String(a.device_id || '').localeCompare(String(b.device_id || '')))
       console.log('devicesForView:', devicesForView)
 
+      const nowTimestamp = Date.now()
       const reserves = this.uniqueById(futureReservesRaw)
-        .filter(item => this.isFutureReserve(item))
-        .map(item => ({
-          ...item,
-          dateDisplay: this.formatDate(item.reserve_date),
-          timeDisplay: this.formatTimeRange(item.start_time, item.end_time)
-        }))
-        .sort((a, b) => this.getTimeValue(a.start_time) - this.getTimeValue(b.start_time))
+        .map(item => {
+          const startTimeVal = this.getTimeValue(item.start_time)
+          let displayStatus = 'upcoming'
+          let statusText = '即将到来'
+          // 已到开始时间但未开始使用，标记为待开始
+          if (nowTimestamp >= startTimeVal) {
+            displayStatus = 'overdue_start'
+            statusText = '已到时间·待开始'
+          }
+          return {
+            ...item,
+            dateDisplay: this.formatDate(item.reserve_date),
+            timeDisplay: this.formatTimeRange(item.start_time, item.end_time),
+            displayStatus,
+            statusText
+          }
+        })
+        .sort((a, b) => {
+          // 已到时间的预约优先排在最前面
+          if (a.displayStatus === 'overdue_start' && b.displayStatus !== 'overdue_start') return -1
+          if (a.displayStatus !== 'overdue_start' && b.displayStatus === 'overdue_start') return 1
+          // 其余按开始时间升序排列
+          return this.getTimeValue(a.start_time) - this.getTimeValue(b.start_time)
+        })
 
       const usagesRawSorted = this.uniqueById(usingUsagesRaw).sort(
         (a, b) => this.getTimeValue(b.start_time) - this.getTimeValue(a.start_time)
@@ -552,8 +574,8 @@ Page({
         devices: finalDevices,
         usages: finalUsages,
         usagePhotos: finalUsagePhotos,
-        reserves: finalReserves,   // 即将到来的预约列表
-        deviceInfo,   
+        reserves: finalReserves, // 即将到来的预约列表
+        deviceInfo,
         isLoading: false,
         renderDevices // 渲染的设备
       })
@@ -975,22 +997,30 @@ Page({
 
   // 展开全部仪器实例
   expandDevices() {
-    this.setData({ showAllDevices: true }, () => {
+    this.setData({
+      showAllDevices: true
+    }, () => {
       // 此时showAllDevices已经更新完成
-      const renderDevices = this.data.showAllDevices 
-        ? this.data.devices 
-        : this.data.devices.slice(0, this.data.deviceDisplayLimit)
-      this.setData({ renderDevices });
+      const renderDevices = this.data.showAllDevices ?
+        this.data.devices :
+        this.data.devices.slice(0, this.data.deviceDisplayLimit)
+      this.setData({
+        renderDevices
+      });
     });
   },
 
   foldDevices() {
-    this.setData({ showAllDevices: false }, () => {
+    this.setData({
+      showAllDevices: false
+    }, () => {
       // 此时showAllDevices已经更新完成
-      const renderDevices = this.data.showAllDevices 
-        ? this.data.devices 
-        : this.data.devices.slice(0, this.data.deviceDisplayLimit)
-      this.setData({ renderDevices });
+      const renderDevices = this.data.showAllDevices ?
+        this.data.devices :
+        this.data.devices.slice(0, this.data.deviceDisplayLimit)
+      this.setData({
+        renderDevices
+      });
     });
   },
 
@@ -1237,5 +1267,15 @@ Page({
       this.loadDeviceDetail()
     })
   },
+
+  // 跳转到预约详情（已存在，无需重复添加）
+  gotoReserveDetail(e) {
+    const id = e.currentTarget.dataset.id
+    if (!id) return
+
+    wx.navigateTo({
+      url: `/pages/reserve-detail/reserve-detail?id=${encodeURIComponent(id)}`
+    })
+  }
 
 })

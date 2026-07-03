@@ -563,3 +563,18 @@
   padding: 0 32rpx;
 }
 
+.reserve-status {
+  font-size: 22rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 20rpx;
+  line-height: 1.2;
+}
+.reserve-status.upcoming {
+  color: #1677ff;
+  background: #e6f4ff;
+}
+.reserve-status.overdue_start {
+  color: #cf1322;
+  background: #fff1f0;
+  font-weight: 500;
+}
