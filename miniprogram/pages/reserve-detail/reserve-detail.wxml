@@ -4,7 +4,7 @@
     <view class="info-card-header">
       <text class="device-name">预约详情</text>
       <view class="status-badge {{status}}">
-        {{status === 'upcoming' ? '即将到来' : status === 'using' ? '使用中' : '已结束'}}
+        {{status === 'upcoming' ? '即将到来' : status === 'using' ? '使用中' : '已完成'}}
       </view>
     </view>
 
@@ -70,12 +70,16 @@
     </view>
 
     <!-- 结束照片（多张） -->
+    <!-- 结束核验照片 -->
     <view class="section">
       <view class="section-title-wrap">
-        <text class="section-title">结束核验照片（{{detail.endPhotoUrls.length}}）</text>
+        <text class="section-title">结束核验照片（{{detail.endPhotoItems.length}}）</text>
       </view>
-      <view wx:if="{{detail.endPhotoUrls.length > 0}}" class="photo-grid">
-        <image wx:for="{{detail.endPhotoUrls}}" wx:key="*this" class="usage-photo" src="{{item}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{item}}" data-urls="{{allPhotos}}" />
+      <view wx:if="{{detail.endPhotoItems.length > 0}}" class="photo-grid">
+        <view class="photo-item" wx:for="{{detail.endPhotoItems}}" wx:key="key">
+          <image class="usage-photo" src="{{item.url}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{item.url}}" data-urls="{{allPhotos}}" />
+          <text class="photo-tip">{{item.label}}</text>
+        </view>
       </view>
       <text wx:else class="empty-hint">暂无照片</text>
     </view>
