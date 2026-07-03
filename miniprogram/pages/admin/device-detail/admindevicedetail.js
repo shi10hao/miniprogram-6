@@ -47,7 +47,9 @@ Page({
     },
     deviceDisplayLimit: 5, // 仪器实例初始只显示5条
     showAllDevices: false, // 是否显示全部仪器实例
-    renderDevices: []
+    renderDevices: [],
+    newDeviceId: '',// 删去收尾空格
+    isAddingDevice: false
   },
 
   onLoad(options) {
@@ -1276,6 +1278,128 @@ Page({
     wx.navigateTo({
       url: `/pages/reserve-detail/reserve-detail?id=${encodeURIComponent(id)}`
     })
-  }
+  },
+
+  // 新增设备编号输入
+  onNewDeviceIdInput(e) {
+    const raw = e.detail.value
+    this.setData({
+      newDeviceId: raw
+    })
+  },
+
+  // 添加单台仪器实例
+  async addDeviceInstance() {
+    const newId = this.data.newDeviceId.trim()
+    if (!newId) {
+      wx.showToast({
+        title: '请输入设备编号',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 前端校验：同组内编号不能重复
+    const exists = this.data.devices.some(d => d.device_id === newId)
+    if (exists) {
+      wx.showToast({
+        title: '该设备编号已存在',
+        icon: 'none'
+      })
+      return
+    }
+
+    const confirmed = await this.confirmAction(`确认添加设备「${newId}」吗？`)
+    if (!confirmed) return
+
+    this.setData({
+      isAddingDevice: true
+    })
+    try {
+      // 取组内第一台设备作为模板，继承所有公共字段
+      const template = this.data.devices[0]
+      const now = new Date().toISOString()
+
+      const newDevice = {
+        device_id: newId,
+        device_name: template.device_name,
+        lab_name: template.lab_name,
+        lab_type: template.lab_type,
+        device_room: template.device_room,
+        device_type: template.device_type,
+        status: 'available',
+        picture: template.picture || '',
+        operation_procedure: template.operation_procedure || '',
+        precautions: template.precautions || '',
+        specifications: template.specifications || {},
+        create_time: now,
+        update_time: now
+      }
+
+      // 写入数据库
+      await db.collection('devices').add({
+        data: newDevice
+      })
+
+      wx.showToast({
+        title: '添加成功',
+        icon: 'success'
+      })
+      this.setData({
+        newDeviceId: '',
+        isAddingDevice: false
+      })
+      // 复用原有加载逻辑刷新列表
+      this.loadDeviceDetail()
+    } catch (err) {
+      console.error('添加设备失败:', err)
+      this.setData({
+        isAddingDevice: false
+      })
+      wx.showToast({
+        title: '添加失败，请重试',
+        icon: 'none'
+      })
+    }
+  },
+
+  // 删除单台仪器实例
+  async deleteDeviceInstance(e) {
+    const docId = e.currentTarget.dataset.id
+    const deviceId = e.currentTarget.dataset.deviceId
+    const displayStatus = e.currentTarget.dataset.displayStatus
+
+    if (!docId || !deviceId) return
+    if (displayStatus === 'using') {
+      wx.showToast({
+        title: '设备正在使用，无法删除',
+        icon: 'none'
+      })
+      return
+    }
+
+    const confirmed = await this.confirmAction(`确认删除设备「${deviceId}」吗？删除后不可恢复。`)
+    if (!confirmed) return
+
+    wx.showLoading({
+      title: '删除中...'
+    })
+    try {
+      await db.collection('devices').doc(docId).remove()
+      wx.hideLoading()
+      wx.showToast({
+        title: '删除成功',
+        icon: 'success'
+      })
+      this.loadDeviceDetail()
+    } catch (err) {
+      wx.hideLoading()
+      console.error('删除设备失败:', err)
+      wx.showToast({
+        title: '删除失败，请重试',
+        icon: 'none'
+      })
+    }
+  },
 
 })

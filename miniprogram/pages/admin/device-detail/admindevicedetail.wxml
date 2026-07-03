@@ -129,10 +129,28 @@
             </view>
             <text wx:if="{{item.device_room}}" class="device-id-small">📍 {{item.device_room}}</text>
             <text wx:if="{{item.usingUser}}" class="device-id-small">当前使用人：{{item.usingUser}}</text>
-            <button class="maint-btn {{item.status === 'maintenance' ? 'active' : ''}}" bindtap="toggleMaintenance" data-id="{{item._id}}" data-device-id="{{item.device_id}}" data-display-status="{{item.displayStatus}}" disabled="{{item.displayStatus === 'using'}}">
+            <!-- 原维护按钮替换为以下内容 -->
+            <view class="device-btn-row">
+              <button class="maint-btn small {{item.status === 'maintenance' ? 'active' : ''}}" bindtap="toggleMaintenance" data-id="{{item._id}}" data-device-id="{{item.device_id}}" data-display-status="{{item.displayStatus}}" disabled="{{item.displayStatus === 'using'}}">
+                {{item.displayStatus === 'using' ? '使用中' : item.status === 'maintenance' ? '恢复可用' : '设为维护'}}
+              </button>
+              <button class="delete-instance-btn" catchtap="deleteDeviceInstance" data-id="{{item._id}}" data-device-id="{{item.device_id}}" disabled="{{item.displayStatus === 'using'}}">
+                删除
+              </button>
+            </view>
+
+            <!-- <button class="maint-btn {{item.status === 'maintenance' ? 'active' : ''}}" bindtap="toggleMaintenance" data-id="{{item._id}}" data-device-id="{{item.device_id}}" data-display-status="{{item.displayStatus}}" disabled="{{item.displayStatus === 'using'}}">
               {{item.displayStatus === 'using' ? '使用中不可切换' : item.status === 'maintenance' ? '恢复可用' : '设为维护'}}
-            </button>
+            </button> -->
           </view>
+        </view>
+
+        <!-- 新增仪器实例 -->
+        <view class="add-instance-wrap">
+          <input class="add-instance-input" placeholder="输入新设备编号" value="{{newDeviceId}}" bindinput="onNewDeviceIdInput" maxlength="50" />
+          <button class="add-instance-btn" bindtap="addDeviceInstance" disabled="{{!newDeviceId || isAddingDevice}}">
+            {{isAddingDevice ? '添加中...' : '添加'}}
+          </button>
         </view>
       </view>
 
