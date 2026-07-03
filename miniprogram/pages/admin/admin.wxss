@@ -42,7 +42,7 @@
 /* 筛选区域 */
 .filter-section {
   background: white;
-  padding: 30rpx 20rpx;
+  padding: 0rpx 20rpx;
   margin-bottom: 20rpx;
 }
 
@@ -653,4 +653,300 @@
 
 .load-more-btn::after {
   border: none;
+}
+
+/* ===== 新增：仪器操作栏 ===== */
+.device-op-bar {
+  background: white;
+  padding: 0 20rpx 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.add-device-btn {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  padding: 0 28rpx;
+  background: #62BCC4;
+  color: white;
+  font-size: 26rpx;
+  font-weight: 500;
+  border-radius: 32rpx;
+  border: none;
+}
+
+.add-device-btn::after {
+  border: none;
+}
+
+.add-icon {
+  font-size: 32rpx;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* ===== 新增：卡片删除按钮 ===== */
+.device-card {
+  position: relative;
+}
+
+.card-delete-btn {
+  position: absolute;
+  top: 20rpx;
+  right: 20rpx;
+  padding: 6rpx 16rpx;
+  background: rgba(231, 76, 60, 0.1);
+  color: #e74c3c;
+  font-size: 22rpx;
+  border-radius: 20rpx;
+  z-index: 2;
+}
+
+/* ===== 新增：弹窗表单 ===== */
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.device-form-modal {
+  width: 85%;
+  max-height: 80vh;
+  background: white;
+  border-radius: 20rpx;
+  padding: 40rpx 32rpx;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.form-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #222;
+  text-align: center;
+  margin-bottom: 32rpx;
+}
+
+.form-item {
+  margin-bottom: 28rpx;
+}
+
+.form-label {
+  display: block;
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 12rpx;
+}
+
+.form-input {
+  width: 100%;
+  height: 76rpx;
+  background: #f7f9fc;
+  border: 1rpx solid #e8ecf0;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+  box-sizing: border-box;
+}
+
+.form-radio-group {
+  display: flex;
+  gap: 20rpx;
+}
+
+.form-radio {
+  flex: 1;
+  text-align: center;
+  height: 72rpx;
+  line-height: 72rpx;
+  background: #f7f9fc;
+  border: 1rpx solid #e8ecf0;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  color: #666;
+}
+
+.form-radio.active {
+  background: #e3f7f9;
+  border-color: #62BCC4;
+  color: #2d6a6e;
+  font-weight: 500;
+}
+
+.form-btns {
+  display: flex;
+  gap: 24rpx;
+  margin-top: 40rpx;
+}
+
+.form-cancel-btn {
+  flex: 1;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: #f0f0f0;
+  color: #666;
+  font-size: 28rpx;
+  font-weight: 500;
+  border-radius: 14rpx;
+  border: none;
+}
+
+.form-confirm-btn {
+  flex: 1;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: #62BCC4;
+  color: white;
+  font-size: 28rpx;
+  font-weight: 600;
+  border-radius: 14rpx;
+  border: none;
+}
+
+.form-confirm-btn[disabled] {
+  background: #a8d8dc;
+  color: rgba(255,255,255,0.8);
+}
+
+/* ===== 新增：表单区块标题 ===== */
+.form-section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #222;
+  margin: 32rpx 0 20rpx;
+  padding-bottom: 12rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+.form-section-title:first-child {
+  margin-top: 0;
+}
+
+.required {
+  color: #e74c3c;
+  margin-left: 4rpx;
+}
+
+/* ===== 新增：仪器实例列表 ===== */
+.instance-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.instance-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  background: #f7f9fc;
+  border: 1rpx solid #e8ecf0;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+}
+
+.instance-index {
+  width: 40rpx;
+  font-size: 26rpx;
+  color: #666;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.instance-input {
+  flex: 1;
+  height: 72rpx;
+  font-size: 28rpx;
+  background: transparent;
+}
+
+.instance-delete {
+  font-size: 24rpx;
+  color: #e74c3c;
+  padding: 10rpx;
+  flex-shrink: 0;
+}
+
+.add-instance-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  height: 72rpx;
+  border: 1rpx dashed #62BCC4;
+  border-radius: 12rpx;
+  color: #62BCC4;
+  font-size: 26rpx;
+  background: #f3fbfc;
+}
+
+.add-icon-sm {
+  font-size: 28rpx;
+  line-height: 1;
+}
+
+/* ===== 新增：图片上传 ===== */
+.form-image-upload {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+  border: 1rpx solid #e8ecf0;
+  background: #f7f9fc;
+}
+
+.upload-preview {
+  width: 100%;
+  height: 100%;
+}
+
+.upload-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  color: #999;
+}
+
+.upload-plus {
+  font-size: 40rpx;
+  line-height: 1;
+}
+
+.upload-tip {
+  font-size: 22rpx;
+}
+
+/* ===== 新增：文本域 & 提示文字 ===== */
+.form-textarea {
+  width: 100%;
+  min-height: 120rpx;
+  background: #f7f9fc;
+  border: 1rpx solid #e8ecf0;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  font-size: 28rpx;
+  box-sizing: border-box;
+  line-height: 1.6;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #aaa;
 }

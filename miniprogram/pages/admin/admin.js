@@ -33,7 +33,25 @@ Page({
       completed: 0,
       total: 0
     },
-    isLoadingReserves: false
+    isLoadingReserves: false,
+    // 新增仪器弹窗控制
+    showDeviceForm: false,
+    isSubmittingDevice: false,
+    // 新增仪器表单数据
+    deviceForm: {
+      device_name: '',
+      lab_name: '',
+      device_room: '',
+      device_type: 'large',
+      lab_type: 'public',
+      instances: [{
+        device_id: ''
+      }],
+      picture: '',
+      operation_procedure: '',
+      precautions: '',
+      specificationsText: ''
+    }
   },
 
   onLoad() {
@@ -61,7 +79,7 @@ Page({
   onShow() {
     if (this._ready) {
       if (this.data.activeTab === 0) {
-        if (!this.data.deviceGroups || this.data.deviceGroups.length === 0) {
+        if (!this.data.displayedGroups || this.data.displayedGroups.length === 0) {
           this.loadDeviceStatus()
         }
       } else if (this.data.activeTab === 1) {
@@ -498,7 +516,7 @@ Page({
         hasMore,
         isLoadingDevices: false
       })
-      console.log("displayedGroups:",this.data.displayedGroups)
+      console.log("displayedGroups:", this.data.displayedGroups)
     } catch (err) {
       wx.hideLoading()
       console.error('加载仪器状态失败:', err)
@@ -866,25 +884,316 @@ Page({
   },
 
   gotoUpcoming() {
-    wx.navigateTo({url: '/pages/admin/reserve-list/adminreservelist?status=upcoming'})
+    wx.navigateTo({
+      url: '/pages/admin/reserve-list/adminreservelist?status=upcoming'
+    })
   },
 
   gotoUsing() {
-    wx.navigateTo({url:'/pages/admin/reserve-list/adminreservelist?status=using'})
+    wx.navigateTo({
+      url: '/pages/admin/reserve-list/adminreservelist?status=using'
+    })
   },
 
   gotoCompleted() {
-    wx.navigateTo({url: '/pages/admin/reserve-list/adminreservelist?status=completed'})
+    wx.navigateTo({
+      url: '/pages/admin/reserve-list/adminreservelist?status=completed'
+    })
   },
 
   gotoAll() {
-    wx.navigateTo({url: '/pages/admin/reserve-list/adminreservelist?status=all'})
+    wx.navigateTo({
+      url: '/pages/admin/reserve-list/adminreservelist?status=all'
+    })
   },
 
   gotoReserveDetail(e) {
     const id = e.currentTarget.dataset.id
     wx.navigateTo({
       url: `/pages/reserve-detail/reserve-detail?id=${id}`
+    })
+  },
+
+  // 打开新增仪器弹窗
+  openAddDeviceModal() {
+    this.setData({
+      showDeviceForm: true,
+      isSubmittingDevice: false,
+      deviceForm: {
+        device_name: '',
+        lab_name: '',
+        device_room: '',
+        device_type: 'large',
+        lab_type: 'public',
+        instances: [{
+          device_id: ''
+        }],
+        picture: '',
+        operation_procedure: '',
+        precautions: '',
+        specificationsText: ''
+      }
+    })
+  },
+
+  // 关闭新增仪器弹窗
+  closeDeviceForm() {
+    this.setData({
+      showDeviceForm: false
+    })
+  },
+
+  // 表单基础字段输入
+  onDeviceFormInput(e) {
+    const field = e.currentTarget.dataset.field
+    const value = e.detail.value
+    this.setData({
+      [`deviceForm.${field}`]: value
+    })
+  },
+
+  selectDeviceType(e) {
+    const type = e.currentTarget.dataset.type
+    this.setData({
+      'deviceForm.device_type': type
+    })
+  },
+
+  // 选择实验室类型
+  selectLabType(e) {
+    const type = e.currentTarget.dataset.type
+    this.setData({
+      'deviceForm.lab_type': type
+    })
+  },
+
+  // 添加一台仪器实例
+  addInstance() {
+    const instances = this.data.deviceForm.instances.slice()
+    instances.push({
+      device_id: ''
+    })
+    this.setData({
+      'deviceForm.instances': instances
+    })
+  },
+
+  // 删除一台仪器实例
+  deleteInstance(e) {
+    const index = e.currentTarget.dataset.index
+    const instances = this.data.deviceForm.instances.slice()
+    instances.splice(index, 1)
+    this.setData({
+      'deviceForm.instances': instances
+    })
+  },
+
+  // 实例编号输入
+  onInstanceInput(e) {
+    const index = e.currentTarget.dataset.index
+    const value = e.detail.value
+    const instances = this.data.deviceForm.instances.slice()
+    instances[index].device_id = value
+    this.setData({
+      'deviceForm.instances': instances
+    })
+  },
+
+  // 选择并上传仪器图片
+  chooseDevicePic() {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      success: res => {
+        const tempPath = res.tempFiles[0].tempFilePath
+        wx.showLoading({
+          title: '上传中...'
+        })
+        wx.cloud.uploadFile({
+          cloudPath: `device_pics/${Date.now()}.jpg`,
+          filePath: tempPath,
+          success: uploadRes => {
+            wx.hideLoading()
+            this.setData({
+              'deviceForm.picture': uploadRes.fileID
+            })
+          },
+          fail: err => {
+            wx.hideLoading()
+            console.error('图片上传失败:', err)
+            wx.showToast({
+              title: '图片上传失败',
+              icon: 'none'
+            })
+          }
+        })
+      }
+    })
+  },
+
+  parseSpecs(text) {
+    const specs = {}
+    if (!text) return specs
+    text.split('\n').forEach(line => {
+      line = line.trim()
+      if (!line) return
+      const sepIndex = line.indexOf('：') !== -1 ? line.indexOf('：') : line.indexOf(':')
+      if (sepIndex === -1) return
+      const key = line.substring(0, sepIndex).trim()
+      const val = line.substring(sepIndex + 1).trim()
+      if (key) specs[key] = val
+    })
+    return specs
+  },
+
+  // 提交新增仪器组
+  submitDeviceForm() {
+    const form = this.data.deviceForm
+
+    // 基础校验
+    if (!form.device_name.trim()) {
+      wx.showToast({
+        title: '请输入仪器名称',
+        icon: 'none'
+      })
+      return
+    }
+    if (!form.lab_name.trim()) {
+      wx.showToast({
+        title: '请输入所属实验室',
+        icon: 'none'
+      })
+      return
+    }
+    if (!form.device_room.trim()) {
+      wx.showToast({
+        title: '请输入房间位置',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 校验设备编号
+    const idList = form.instances.map(i => i.device_id.trim()).filter(Boolean)
+    if (idList.length === 0) {
+      wx.showToast({
+        title: '请至少填写一台设备编号',
+        icon: 'none'
+      })
+      return
+    }
+    if (new Set(idList).size !== idList.length) {
+      wx.showToast({
+        title: '设备编号不能重复',
+        icon: 'none'
+      })
+      return
+    }
+
+    this.setData({
+      isSubmittingDevice: true
+    })
+
+    // 组装提交数据------------------------------------------------重要，想要修改添加的东西，就从这里改
+    const submitData = {
+      device_name: form.device_name.trim(),
+      lab_name: form.lab_name.trim(),
+      device_room: form.device_room.trim(),
+      device_type: form.device_type,
+      lab_type: form.lab_type,
+      device_ids: idList,
+      picture: form.picture,
+      operation_procedure: form.operation_procedure.trim(),
+      precautions: form.precautions.trim(),
+      specifications: this.parseSpecs(form.specificationsText)
+    }
+
+    // 调用云函数批量新增
+    wx.cloud.callFunction({
+      name: 'addDeviceGroup',
+      data: submitData
+    }).then(res => {
+      this.setData({
+        isSubmittingDevice: false
+      })
+      if (res.result.code === 0) {
+        wx.showToast({
+          title: '新增成功',
+          icon: 'success'
+        })
+        // 延迟1.5秒再关闭弹窗+刷新，避免loading覆盖toast
+        setTimeout(() => {
+          this.closeDeviceForm()
+          this.loadDeviceStatus()
+        }, 1500)
+      } else {
+        wx.showToast({
+          title: res.result.message || '新增失败',
+          icon: 'none'
+        })
+        console.log("res.result.message:", res.result.message)
+      }
+    }).catch(err => {
+      this.setData({
+        isSubmittingDevice: false
+      })
+      console.error('新增仪器失败:', err)
+      wx.showToast({
+        title: '新增失败，请重试',
+        icon: 'none'
+      })
+    })
+  },
+
+  // 删除仪器组
+  deleteDeviceGroup(e) {
+    const dataset = e.currentTarget.dataset
+    console.log('删除按钮参数：', dataset)
+    const deviceName = dataset.deviceName
+
+    wx.showModal({
+      title: '确认删除',
+      content: `确定要删除「${deviceName}」该组所有仪器吗？删除后不可恢复。`,
+      confirmColor: '#e74c3c',
+      success: modal => {
+        if (!modal.confirm) return
+
+        wx.showLoading({
+          title: '删除中...'
+        })
+        wx.cloud.callFunction({
+          name: 'deleteDeviceGroup',
+          data: {
+            device_name: dataset.deviceName,
+            lab_name: dataset.labName,
+            device_room: dataset.deviceRoom,
+            device_type: dataset.deviceType,
+            model: dataset.model || ''
+          }
+        }).then(res => {
+          wx.hideLoading()
+          if (res.result.code === 0) {
+            wx.showToast({
+              title: '删除成功',
+              icon: 'success'
+            })
+            this.loadDeviceStatus() // 刷新列表
+          } else {
+            wx.showToast({
+              title: res.result.message || '删除失败',
+              icon: 'none'
+            })
+          }
+        }).catch(err => {
+          wx.hideLoading()
+          console.error('删除仪器组失败:', err)
+          wx.showToast({
+            title: '删除失败，请重试',
+            icon: 'none'
+          })
+        })
+      }
     })
   }
 })

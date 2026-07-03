@@ -50,6 +50,13 @@
       </view>
     </view>
 
+    <view class="device-op-bar">
+      <button class="add-device-btn" bind:tap="openAddDeviceModal">
+        <text class="add-icon">+</text>
+        <text>新增仪器</text>
+      </button>
+    </view>
+
     <view class="filter-section">
       <!-- 实验室类型筛选 -->
       <view class="filter-group">
@@ -85,6 +92,9 @@
     <view wx:else class="device-list">
       <view class="device-card" wx:for="{{displayedGroups}}" wx:key="group_key" bindtap="goToDeviceDetail" data-device-name="{{item.device_name}}" data-lab-name="{{item.lab_name}}" data-device-type="{{item.device_type}}" data-model="{{item.model}}" data-group-key="{{item.group_key}}">
 
+        <view class="card-delete-btn" catch:tap="deleteDeviceGroup" data-device-name="{{item.device_name}}" data-lab-name="{{item.lab_name}}" data-device-room="{{item.device_room}}" data-device-type="{{item.device_type}}" data-model="{{item.model}}">
+          删除
+        </view>
         <image class="device-img" src="{{item.picture}}" mode="aspectFill"></image>
 
         <view class="card-body">
@@ -208,6 +218,100 @@
           </view>
           <text class="sent-content">{{item.content}}</text>
         </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="modal-mask" wx:if="{{showDeviceForm}}">
+    <view class="device-form-modal" catchtap="">
+      <view class="form-title">新增仪器组</view>
+
+      <!-- 1. 基础信息（必填，组共享） -->
+      <view class="form-section-title">基础信息</view>
+
+      <view class="form-item">
+        <text class="form-label">仪器名称 <text class="required">*</text></text>
+        <input class="form-input" placeholder="请输入仪器名称" value="{{deviceForm.device_name}}" bindinput="onDeviceFormInput" data-field="device_name" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">所属实验室 <text class="required">*</text></text>
+        <input class="form-input" placeholder="请输入实验室名称" value="{{deviceForm.lab_name}}" bindinput="onDeviceFormInput" data-field="lab_name" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">房间位置 <text class="required">*</text></text>
+        <input class="form-input" placeholder="请输入房间号" value="{{deviceForm.device_room}}" bindinput="onDeviceFormInput" data-field="device_room" />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">仪器类型 <text class="required">*</text></text>
+        <view class="form-radio-group">
+          <text class="form-radio {{deviceForm.device_type === 'large' ? 'active' : ''}}" bindtap="selectDeviceType" data-type="large">大型仪器</text>
+          <text class="form-radio {{deviceForm.device_type === 'small' ? 'active' : ''}}" bindtap="selectDeviceType" data-type="small">小型仪器</text>
+        </view>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">实验室类型 <text class="required">*</text></text>
+        <view class="form-radio-group">
+          <text class="form-radio {{deviceForm.lab_type === 'public' ? 'active' : ''}}" bindtap="selectLabType" data-type="public">公共实验室</text>
+          <text class="form-radio {{deviceForm.lab_type === 'group' ? 'active' : ''}}" bindtap="selectLabType" data-type="group">课题组</text>
+        </view>
+      </view>
+
+      <!-- 2. 仪器实例列表（每台独立编号） -->
+      <view class="form-section-title">仪器实例</view>
+      <view class="form-item">
+        <text class="form-label">设备编号列表 <text class="required">*</text></text>
+        <view class="instance-list">
+          <view class="instance-item" wx:for="{{deviceForm.instances}}" wx:key="index">
+            <text class="instance-index">{{index + 1}}</text>
+            <input class="instance-input" placeholder="请输入设备编号" value="{{item.device_id}}" bindinput="onInstanceInput" data-index="{{index}}" />
+            <text class="instance-delete" bindtap="deleteInstance" data-index="{{index}}" wx:if="{{deviceForm.instances.length > 1}}">删除</text>
+          </view>
+        </view>
+        <view class="add-instance-btn" bindtap="addInstance">
+          <text class="add-icon-sm">+</text>
+          <text>添加一台</text>
+        </view>
+      </view>
+
+      <!-- 3. 补充信息（可选，组共享） -->
+      <view class="form-section-title">补充信息（可选）</view>
+
+      <view class="form-item">
+        <text class="form-label">仪器图片</text>
+        <view class="form-image-upload" bindtap="chooseDevicePic">
+          <image wx:if="{{deviceForm.picture}}" class="upload-preview" src="{{deviceForm.picture}}" mode="aspectFill"></image>
+          <view wx:else class="upload-empty">
+            <text class="upload-plus">+</text>
+            <text class="upload-tip">点击上传图片</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">操作规程</text>
+        <textarea class="form-textarea" placeholder="请输入操作规程" value="{{deviceForm.operation_procedure}}" bindinput="onDeviceFormInput" data-field="operation_procedure" maxlength="2000" auto-height />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">注意事项</text>
+        <textarea class="form-textarea" placeholder="请输入注意事项" value="{{deviceForm.precautions}}" bindinput="onDeviceFormInput" data-field="precautions" maxlength="2000" auto-height />
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">规格参数</text>
+        <textarea class="form-textarea" placeholder="每行一项，格式：参数名：参数值" value="{{deviceForm.specificationsText}}" bindinput="onDeviceFormInput" data-field="specificationsText" maxlength="2000" auto-height />
+        <text class="form-hint">示例：型号：GC-2014</text>
+      </view>
+
+      <view class="form-btns">
+        <button class="form-cancel-btn" bindtap="closeDeviceForm">取消</button>
+        <button class="form-confirm-btn" bindtap="submitDeviceForm" disabled="{{isSubmittingDevice}}">
+          {{isSubmittingDevice ? '提交中...' : '确认新增'}}
+        </button>
       </view>
     </view>
   </view>
