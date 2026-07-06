@@ -1,6 +1,6 @@
 const db = wx.cloud.database()
 
-const TEMPLATE_ID = 'FClBgpZO9KXJ79M0ZAqqrEDoqWlXWPmRz862s6zVP4M'
+const TEMPLATE_ID = 'rgRmn33I28JIm4REBjzpin2dV474fmrLRxYFTpSJbuk'
 const BANNER_REMINDER_TYPES = ['reservation_remind', 'usage_photo_remind', 'usage_end_remind']
 const PHOTO_REMINDER_TYPES = ['usage_photo_remind', 'usage_end_remind']
 
@@ -51,12 +51,17 @@ Page({
   loadCurrentUsage() {
     const userInfo = wx.getStorageSync('userInfo')
     if (!userInfo || !userInfo.userId) {
-      this.setData({ currentUsage: null })
+      this.setData({
+        currentUsage: null
+      })
       return Promise.resolve(null)
     }
 
     return db.collection('device_usage')
-      .where({ user_id: userInfo.userId, status: 'using' })
+      .where({
+        user_id: userInfo.userId,
+        status: 'using'
+      })
       .get()
       .then(res => {
         const usage = res.data && res.data.length > 0 ? res.data[0] : null
@@ -74,18 +79,26 @@ Page({
   loadUsageHistory() {
     const userInfo = wx.getStorageSync('userInfo')
     if (!userInfo || !userInfo.userId) {
-      this.setData({ isLoading: false, usageHistory: [] })
+      this.setData({
+        isLoading: false,
+        usageHistory: []
+      })
       return Promise.resolve([])
     }
 
     return db.collection('device_usage')
-      .where({ user_id: userInfo.userId, status: 'completed' })
+      .where({
+        user_id: userInfo.userId,
+        status: 'completed'
+      })
       .orderBy('start_time', 'desc')
       .limit(10)
       .get()
       .then(res => {
         const usageHistory = (res.data || []).map(item => this.formatUsage(item))
-        this.setData({ usageHistory })
+        this.setData({
+          usageHistory
+        })
         return usageHistory
       })
       .catch(err => {
@@ -97,7 +110,9 @@ Page({
   loadPendingReserves() {
     const userInfo = wx.getStorageSync('userInfo')
     if (!userInfo || !userInfo.userId) {
-      this.setData({ pendingReserves: [] })
+      this.setData({
+        pendingReserves: []
+      })
       return Promise.resolve([])
     }
 
@@ -152,12 +167,16 @@ Page({
             state: state
           }
         })
-        this.setData({ pendingReserves: pending })
+        this.setData({
+          pendingReserves: pending
+        })
         return pending
       })
       .catch(err => {
         console.error('获取待使用预约失败:', err)
-        this.setData({ pendingReserves: [] })
+        this.setData({
+          pendingReserves: []
+        })
         return []
       })
   },
@@ -165,7 +184,9 @@ Page({
   loadUnreadReminder() {
     const userInfo = wx.getStorageSync('userInfo') || {}
     if (!userInfo.userId) {
-      this.setData({ unreadReminder: null })
+      this.setData({
+        unreadReminder: null
+      })
       return Promise.resolve(null)
     }
 
@@ -188,7 +209,9 @@ Page({
       })
       .catch(err => {
         console.error('获取未读提醒失败:', err)
-        this.setData({ unreadReminder: null })
+        this.setData({
+          unreadReminder: null
+        })
         return null
       })
   },
@@ -215,8 +238,22 @@ Page({
     const reminder = this.data.unreadReminder
     if (!reminder) return
 
+    // 新增：点击横幅自动标记消息为已读
+    db.collection('messages').doc(reminder._id).update({
+      data: {
+        is_read: true
+      }
+    }).then(() => {
+      this.setData({
+        unreadReminder: null
+      })
+    }).catch(err => console.error('标记已读失败', err))
+
     if (PHOTO_REMINDER_TYPES.indexOf(reminder.type) !== -1) {
-      wx.pageScrollTo({ scrollTop: 0, duration: 200 })
+      wx.pageScrollTo({
+        scrollTop: 0,
+        duration: 200
+      })
       return
     }
 
@@ -233,9 +270,9 @@ Page({
       start_time_display: startDisplay,
       end_time_display: endDisplay,
       usage_date_display: usage.start_time ? this.formatDateOnly(usage.start_time) : '',
-      usage_period_display: usage.start_time && usage.end_time
-        ? `${this.formatClock(usage.start_time)} - ${this.formatClock(usage.end_time)}`
-        : ''
+      usage_period_display: usage.start_time && usage.end_time ?
+        `${this.formatClock(usage.start_time)} - ${this.formatClock(usage.end_time)}` :
+        ''
     })
   },
   //
@@ -387,11 +424,16 @@ Page({
   handleStartPhoto(tempFilePath, specificReserveId) {
     const userInfo = wx.getStorageSync('userInfo') || {}
     if (!userInfo.userId) {
-      wx.showToast({ title: '请先完成身份认证', icon: 'none' })
+      wx.showToast({
+        title: '请先完成身份认证',
+        icon: 'none'
+      })
       return
     }
 
-    wx.showLoading({ title: '获取预约信息...' })
+    wx.showLoading({
+      title: '获取预约信息...'
+    })
 
     var reservePromise
     if (specificReserveId) {
@@ -409,34 +451,42 @@ Page({
     }
 
     reservePromise.then(reserve => {
-      wx.hideLoading()
-      if (!reserve) {
-        wx.showToast({ title: '当前时间无可开始使用的预约', icon: 'none' })
-        return
-      }
-
-      const reservePeriod = `${reserve.start_time || ''} - ${reserve.end_time || ''}`
-      wx.showModal({
-        title: '确认开始使用',
-        content: `仪器：${reserve.device_name}\n预约时段：${reservePeriod}\n确认开始使用？`,
-        confirmText: '确认',
-        cancelText: '取消',
-        success: modal => {
-          if (modal.confirm) {
-            this.createUsageRecord(reserve, tempFilePath, userInfo)
-          }
+        wx.hideLoading()
+        if (!reserve) {
+          wx.showToast({
+            title: '当前时间无可开始使用的预约',
+            icon: 'none'
+          })
+          return
         }
+
+        const reservePeriod = `${reserve.start_time || ''} - ${reserve.end_time || ''}`
+        wx.showModal({
+          title: '确认开始使用',
+          content: `仪器：${reserve.device_name}\n预约时段：${reservePeriod}\n确认开始使用？`,
+          confirmText: '确认',
+          cancelText: '取消',
+          success: modal => {
+            if (modal.confirm) {
+              this.createUsageRecord(reserve, tempFilePath, userInfo)
+            }
+          }
+        })
       })
-    })
       .catch(err => {
         wx.hideLoading()
         console.error('获取预约失败:', err)
-        wx.showToast({ title: '获取预约信息失败', icon: 'none' })
+        wx.showToast({
+          title: '获取预约信息失败',
+          icon: 'none'
+        })
       })
   },
   // 8
   createUsageRecord(reserve, startPhotoPath, userInfo) {
-    this.setData({ isLoading: true })
+    this.setData({
+      isLoading: true
+    })
 
     wx.cloud.uploadFile({
       cloudPath: `usage_photos/start_${Date.now()}.jpg`,
@@ -462,14 +512,21 @@ Page({
             throw new Error(this.getStartUsageErrorMessage(result))
           }
 
-          this.setData({ isLoading: false })
-          wx.showToast({ title: '开始使用成功', icon: 'success' })
+          this.setData({
+            isLoading: false
+          })
+          wx.showToast({
+            title: '开始使用成功',
+            icon: 'success'
+          })
           this.loadCurrentUsage()
           this.loadPendingReserves()
           this.loadUsageHistory()
         }).catch(err => {
           this.cleanupCloudFiles([startPhotoId]).then(() => {
-            this.setData({ isLoading: false })
+            this.setData({
+              isLoading: false
+            })
             console.error('创建使用记录失败:', err)
             wx.showToast({
               title: err && err.message ? err.message : '开始使用失败',
@@ -479,9 +536,14 @@ Page({
         })
       },
       fail: err => {
-        this.setData({ isLoading: false })
+        this.setData({
+          isLoading: false
+        })
         console.error('上传照片失败:', err)
-        wx.showToast({ title: '照片上传失败', icon: 'none' })
+        wx.showToast({
+          title: '照片上传失败',
+          icon: 'none'
+        })
       }
     })
   },
@@ -506,7 +568,9 @@ Page({
       return Promise.resolve()
     }
 
-    return wx.cloud.deleteFile({ fileList: validFiles })
+    return wx.cloud.deleteFile({
+        fileList: validFiles
+      })
       .catch(err => {
         console.error('清理云文件失败:', err)
       })
@@ -516,7 +580,11 @@ Page({
     if (!TEMPLATE_ID || TEMPLATE_ID === 'YOUR_TEMPLATE_ID_HERE') return
     wx.requestSubscribeMessage({
       tmplIds: [TEMPLATE_ID],
-      fail(err) {
+      success: res => {
+        // accept=同意则累加1次推送额度；用户勾选“总是保持以上选择”后无弹窗自动累加
+        console.log('订阅授权结果', res[TEMPLATE_ID])
+      },
+      fail: err => {
         console.error('订阅消息授权失败:', err)
       }
     })
@@ -524,6 +592,7 @@ Page({
   // 12
   uploadUsagePhoto() {
     if (!this.data.currentUsage) return
+    this.requestSubscribeMessage()
 
     wx.chooseMedia({
       count: 1,
@@ -531,7 +600,9 @@ Page({
       sourceType: ['album', 'camera'],
       success: res => {
         const tempFilePath = res.tempFiles[0].tempFilePath
-        this.setData({ isLoading: true })
+        this.setData({
+          isLoading: true
+        })
         wx.cloud.uploadFile({
           cloudPath: `usage_photos/mid_${Date.now()}.jpg`,
           filePath: tempFilePath,
@@ -544,20 +615,35 @@ Page({
                 }
               })
               .then(() => {
-                this.setData({ isLoading: false })
-                wx.showToast({ title: '照片上传成功', icon: 'success' })
+                this.setData({
+                  isLoading: false
+                })
+                wx.showToast({
+                  title: '照片上传成功',
+                  icon: 'success'
+                })
                 this.loadCurrentUsage()
               })
               .catch(err => {
-                this.setData({ isLoading: false })
+                this.setData({
+                  isLoading: false
+                })
                 console.error('更新使用记录失败:', err)
-                wx.showToast({ title: '上传失败', icon: 'none' })
+                wx.showToast({
+                  title: '上传失败',
+                  icon: 'none'
+                })
               })
           },
           fail: err => {
-            this.setData({ isLoading: false })
+            this.setData({
+              isLoading: false
+            })
             console.error('上传照片失败:', err)
-            wx.showToast({ title: '上传失败', icon: 'none' })
+            wx.showToast({
+              title: '上传失败',
+              icon: 'none'
+            })
           }
         })
       }
@@ -565,12 +651,16 @@ Page({
   },
   // 13
   startEndUsage() {
+    this.requestSubscribeMessage()
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
       success: () => {
-        this.setData({ endMode: true, endPhotos: [null, null, null] })
+        this.setData({
+          endMode: true,
+          endPhotos: [null, null, null]
+        })
         this.writeUsageEndReminder()
       },
       fail(err) {
@@ -622,7 +712,9 @@ Page({
         const tempFilePath = res.tempFiles[0].tempFilePath
         const endPhotos = this.data.endPhotos.slice()
         endPhotos[slot] = tempFilePath
-        this.setData({ endPhotos })
+        this.setData({
+          endPhotos
+        })
       },
       fail(err) {
         console.error('选择照片失败:', err)
@@ -631,13 +723,19 @@ Page({
   },
   // 16
   confirmEndUsage() {
+    this.requestSubscribeMessage()
     const endPhotos = this.data.endPhotos
     if (!endPhotos[0] || !endPhotos[1] || !endPhotos[2]) {
-      wx.showToast({ title: '请上传全部3张照片', icon: 'none' })
+      wx.showToast({
+        title: '请上传全部3张照片',
+        icon: 'none'
+      })
       return
     }
 
-    this.setData({ isLoading: true })
+    this.setData({
+      isLoading: true
+    })
     this.uploadEndPhotos(endPhotos)
   },
   // 17
@@ -649,8 +747,12 @@ Page({
         wx.cloud.uploadFile({
           cloudPath: `usage_photos/end_${labels[i]}_${Date.now()}_${i}.jpg`,
           filePath: path,
-          success(res) { resolve(res.fileID) },
-          fail(err) { reject(err) }
+          success(res) {
+            resolve(res.fileID)
+          },
+          fail(err) {
+            reject(err)
+          }
         })
       })
     })
@@ -677,13 +779,21 @@ Page({
           endPhotos: [null, null, null],
           currentUsage: null
         })
-        wx.showToast({ title: '使用已结束', icon: 'success' })
+        wx.showToast({
+          title: '使用已结束',
+          icon: 'success'
+        })
         this.loadData()
       })
       .catch(err => {
-        this.setData({ isLoading: false })
+        this.setData({
+          isLoading: false
+        })
         console.error('结束使用失败:', err)
-        wx.showToast({ title: '结束失败，请重试', icon: 'none' })
+        wx.showToast({
+          title: '结束失败，请重试',
+          icon: 'none'
+        })
       })
   },
   // 18
@@ -734,7 +844,10 @@ Page({
   },
   // 19
   cancelEnd() {
-    this.setData({ endMode: false, endPhotos: [null, null, null] })
+    this.setData({
+      endMode: false,
+      endPhotos: [null, null, null]
+    })
   },
   // 20
   truncateText(text, maxLength) {
