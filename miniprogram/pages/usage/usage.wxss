@@ -325,6 +325,11 @@
   color: #155724;
 }
 
+.history-status.abnormal {
+  background: #ffdbdb;
+  color: #ff0000;
+}
+
 .history-row {
   display: flex;
   align-items: center;
@@ -462,3 +467,49 @@
   border-radius: 24rpx;
   border: none;
 }
+
+/* 遮罩层 */
+.feedback-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* 弹窗卡片 */
+.feedback-card {
+  width: 85%;
+  max-width: 400px;
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 40rpx;
+  box-sizing: border-box;
+}
+
+/* 头部 */
+.feedback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.feedback-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.feedback-close {
+  font-size: 32rpx;
+  color: #999;
+  padding: 10rpx;
+}
+
+/* 标题

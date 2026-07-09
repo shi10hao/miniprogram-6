@@ -25,9 +25,9 @@
     <view wx:if="{{!currentUsage}}" class="idle-block">
       <view class="idle-icon">🔬</view>
       <text class="idle-text">当前没有使用中的仪器</text>
-      <button class="primary-btn" bindtap="startUsage" disabled="{{isLoading || !isAuthenticated}}">
+      <!-- <button class="primary-btn" bindtap="startUsage" disabled="{{isLoading || !isAuthenticated}}">
         <text>拍照开始使用</text>
-      </button>
+      </button> -->
     </view>
 
     <!-- 2.2 如果有正在使用的仪器 -->
@@ -180,7 +180,7 @@
       <view class="history-item" wx:for="{{usageHistory}}" wx:key="_id">
         <view class="history-header">
           <text class="history-device">{{item.device_name}}</text>
-          <text class="history-status {{item.status}}">已完成</text>
+          <text class="history-status {{item.status}}">{{item.status === 'completed' ? '已完成' : '异常结束'}}</text>
         </view>
         <view class="history-row">
           <text class="history-label">仪器编号：</text>
@@ -195,6 +195,18 @@
           <text class="history-val">{{item.usage_period_display}}</text>
         </view>
       </view>
+    </view>
+  </view>
+
+  <view class="feedback-mask" wx:if="{{!ifWorkingOK}}">
+    <view class="feedback-card">
+      <view class="feedback-header">
+        <text class="feedback-title">问题反馈</text>
+        <text class="feedback-close" bind:tap="closeFeedback">X</text>
+      </view>
+      <input class="feedback-input" placeholder="请输入标题" value="{{feedbackTitle}}" bindinput="onTitleInput" />
+      <textarea value="{{feedbackContent}}" class="feedback-textarea" placeholder="请详细描述您遇到的问题" bindinput="onContentInput" />
+      <button class="feedback-btn" bind:tap="submitFeedback">提交反馈</button>
     </view>
   </view>
 </view>

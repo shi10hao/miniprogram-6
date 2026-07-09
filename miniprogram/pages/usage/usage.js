@@ -13,7 +13,11 @@ Page({
     endMode: false,
     endPhotos: [null, null, null],
     unreadReminder: null,
-    isAuthenticated: false
+    isAuthenticated: false,
+    ifWorkingOK:true,
+    feedbackTitle: '',
+    feedbackContent: '',
+    currentReserveId: '' // 新增：当前反馈对应的预约ID
   },
 
   onLoad() {
@@ -85,11 +89,11 @@ Page({
       })
       return Promise.resolve([])
     }
-
+    const _ = db.command  // 新增：获取数据库操作符
     return db.collection('device_usage')
       .where({
         user_id: userInfo.userId,
-        status: 'completed'
+        status: _.in(['completed', 'abnormal'])  // 修改这一行
       })
       .orderBy('start_time', 'desc')
       .limit(10)
@@ -401,11 +405,59 @@ Page({
     })
   },
   // 6
-  startUsageFromReserve(e) {
+  async startUsageFromReserve(e) {
     if (this.data.isLoading) return
-
+    var ifWrong
     var reserveId = e.currentTarget.dataset.reserveid
-    this.requestSubscribeMessage()
+    // 仪器是否启动
+    await new Promise((resolve)=>{
+      wx.showModal({
+        title: '仪器是否正常启动',
+        content: '若出现问题请联系管理员',
+        confirmText: '正常启动',
+        cancelText: '出现问题',
+        complete: (res) => {
+          if (res.cancel) {
+            console.log("仪器启动不正常")
+            ifWrong = true
+            this.ifWrong(reserveId) // 传入预约ID
+            resolve()
+          }
+      
+          if (res.confirm) {
+            this.setData({
+              ifWorkingOK:true
+            })
+            console.log("仪器正常启动")
+            ifWrong = false
+            resolve()
+          }
+        }
+      })
+    })
+
+    if(ifWrong) return
+    // 是否订阅消息
+    await new Promise((resolve)=>{
+      if (!TEMPLATE_ID || TEMPLATE_ID === 'YOUR_TEMPLATE_ID_HERE') 
+      {
+        resolve()
+        return
+      }
+      wx.requestSubscribeMessage({
+        tmplIds: [TEMPLATE_ID],
+        success: res => {
+          // accept=同意则累加1次推送额度；用户勾选“总是保持以上选择”后无弹窗自动累加
+          console.log('订阅授权结果', res[TEMPLATE_ID])
+          resolve()
+        },
+        fail: err => {
+          console.error('订阅消息授权失败:', err)
+          resolve()
+        }
+      })
+    })
+    // this.requestSubscribeMessage()
 
     wx.chooseMedia({
       count: 1,
@@ -419,6 +471,99 @@ Page({
         console.error('选择照片失败:', err)
       }
     })
+  },
+
+  ifWrong(reserveId) {
+    this.setData({
+      ifWorkingOK:false,
+      feedbackTitle: '',
+      feedbackContent: '',
+      currentReserveId: reserveId || ''
+    })
+  },
+
+  closeFeedback(){
+    this.setData({
+      ifWorkingOK:true
+    })
+  },
+
+  // 标题输入
+  onTitleInput(e) {
+    this.setData({
+      feedbackTitle: e.detail.value
+    })
+  },
+
+   // 内容输入
+   onContentInput(e) {
+    this.setData({
+      feedbackContent: e.detail.value
+    })
+  },
+
+  submitFeedback(){
+    const {feedbackTitle, feedbackContent, currentReserveId } = this.data
+    // 校验：内容不能为空
+    if (!feedbackContent.trim()) {
+      wx.showToast({
+        title: '请填写问题描述',
+        icon: 'none'
+      })
+      return
+    }
+    if (!currentReserveId) {
+      wx.showToast({
+        title: '预约信息异常',
+        icon: 'none'
+      })
+      return
+    }
+    wx.showLoading({
+      title: '提交中...'
+    })
+    const userInfo = wx.getStorageSync('userInfo') || {}
+
+      // 调用异常反馈云函数
+  wx.cloud.callFunction({
+    name: 'submitAbnormalFeedback',
+    data: {
+      reserveId: currentReserveId,
+      feedbackTitle: feedbackTitle.trim(),
+      feedbackContent: feedbackContent.trim(),
+      userInfo: {
+        userId: userInfo.userId,
+        name: userInfo.name || '',
+        phone: userInfo.phone || '',
+        groupName: userInfo.groupName || '',
+        openid: userInfo.openid || ''
+      }
+    }
+  }).then(res => {
+    wx.hideLoading()
+    const result = res.result || {}
+    if (result.success) {
+      wx.showToast({
+        title: '反馈提交成功',
+        icon: 'success'
+      })
+      this.setData({ ifWorkingOK: true })
+      this.loadPendingReserves() // 刷新预约列表，异常预约会被过滤
+    } else {
+      wx.showToast({
+        title: result.error || '提交失败',
+        icon: 'none'
+      })
+    }
+  }).catch(err => {
+    wx.hideLoading()
+    console.error('提交反馈失败:', err)
+    wx.showToast({
+      title: '提交失败，请重试',
+      icon: 'none'
+    })
+  })
+  
   },
   // 7
   handleStartPhoto(tempFilePath, specificReserveId) {
@@ -651,7 +796,7 @@ Page({
   },
   // 13
   startEndUsage() {
-    this.requestSubscribeMessage()
+    // this.requestSubscribeMessage()
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],
@@ -723,7 +868,7 @@ Page({
   },
   // 16
   confirmEndUsage() {
-    this.requestSubscribeMessage()
+    // this.requestSubscribeMessage()
     const endPhotos = this.data.endPhotos
     if (!endPhotos[0] || !endPhotos[1] || !endPhotos[2]) {
       wx.showToast({
