@@ -6,7 +6,7 @@ Page({
    */
   data: {
     isLoading: false,
-    status: 'using', // upcoming | using | completed
+    status: 'using', // upcoming | using | completed | abnormal
     detail: {
       student_name: '',
       group_name: '',
@@ -19,13 +19,27 @@ Page({
       usageImageUrls: [], // 多张
       endPhotoItems: [], // 结束核验照片数组
       reservePageUrl: '' // 系统预约单
-    }
+    },
+    feedback: {
+      content: '',
+      title: '',
+      submit_time: '',
+      submit_time_display: ''
+    },
+    isLoading: false,
+    isHandlingAbnormal: false, // 新增
+    status: 'using',
+    // ... 其余不变
   },
 
   onLoad(options) {
     const reserveId = options.id
     console.log("id:", reserveId)
     if (!reserveId) return
+
+    this.setData({
+      reserveId
+    }) // 新增：保存 reserveId
     this.bootstrapPage(reserveId)
   },
 
@@ -48,6 +62,17 @@ Page({
     const reserve = reserveRes.data
     const usage = usageRes.data[0] || null
     console.log('预约完整数据：', reserve)
+    console.log('usage:', usage)
+    if (usage.feedback) {
+      this.setData({
+        feedback: {
+          content: usage.feedback.content,
+          submit_time: usage.feedback.submit_time,
+          submit_time_display: this.formatUTCDisplay(usage.feedback.submit_time),
+          title: usage.feedback.title
+        }
+      })
+    }
     // 2. 收集所有 fileID
     const fileIDs = this.collectFileIDs(reserve, usage)
 
@@ -83,6 +108,27 @@ Page({
     })
   },
 
+  formatUTCDisplay(utcStr) {
+    if (!utcStr) return ''
+
+    const d = new Date(utcStr)
+    if (isNaN(d.getTime())) return utcStr
+
+    // 转为北京时间（东八区）
+    const beijing = new Date(d.getTime() + 8 * 60 * 60 * 1000)
+
+    const pad = n => String(n).padStart(2, '0')
+    const year = beijing.getUTCFullYear()
+    const month = pad(beijing.getUTCMonth() + 1)
+    const day = pad(beijing.getUTCDate())
+    const hours = pad(beijing.getUTCHours())
+    const minutes = pad(beijing.getUTCMinutes())
+    const seconds = pad(beijing.getUTCSeconds())
+
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+  },
+
+
   // 计算预约状态
   calcReserveStatus(reserve, usage) {
     const now = new Date()
@@ -91,6 +137,7 @@ Page({
     if (usage) {
       if (usage.status === 'completed') return 'completed'
       if (usage.status === 'using') return 'using'
+      if (usage.status === 'abnormal') return 'abnormal'
     }
 
     // 2. 按预约时间判断
@@ -191,5 +238,84 @@ Page({
       current,
       urls
     })
-  }
+  },
+  // 点击"标记为已处理"按钮
+  onResolveAbnormal() {
+    wx.showModal({
+      title: '确认处理',
+      content: '确认该异常已在线下处理完毕？此操作将把预约和使用记录标记为已完成。',
+      confirmText: '确认处理',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          this.doResolveAbnormal()
+        }
+      }
+    })
+  },
+
+  async doResolveAbnormal() {
+    this.setData({
+      isHandlingAbnormal: true
+    })
+
+    try {
+      const db = wx.cloud.database()
+      const reserveId = this.data.reserveId || '' // 需要在 onLoad 中保存 reserveId
+
+      // 1. 查询当前的使用记录
+      const usageRes = await db.collection('device_usage')
+        .where({
+          reserve_id: reserveId,
+          status: 'abnormal'
+        })
+        .get()
+
+      const usage = usageRes.data[0]
+      if (!usage) {
+        throw new Error('未找到对应的异常使用记录')
+      }
+
+      const now = new Date().toISOString()
+
+      // 2. 更新 device_usage：status 改为 completed，补填 end_time
+      await db.collection('device_usage').doc(usage._id).update({
+        data: {
+          status: 'completed',
+          end_time: now
+        }
+      })
+
+      // 3. 更新 reserves：usage_status 改为 completed
+      await db.collection('reserves').doc(reserveId).update({
+        data: {
+          usage_status: 'completed'
+        }
+      })
+
+      // 4. 更新页面状态
+      this.setData({
+        status: 'completed',
+        isHandlingAbnormal: false
+      })
+
+      wx.showToast({
+        title: '处理成功',
+        icon: 'success'
+      })
+
+      // 5. 刷新页面数据
+      this.loadReserveDetail(reserveId)
+
+    } catch (err) {
+      console.error('处理异常失败:', err)
+      this.setData({
+        isHandlingAbnormal: false
+      })
+      wx.showToast({
+        title: err.message || '处理失败，请重试',
+        icon: 'none'
+      })
+    }
+  },
 })

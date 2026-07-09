@@ -393,6 +393,14 @@ function getReserveDisplayStatus(item, usingReserveIdMap, now) {
     }
   }
 
+   // 新增：优先判断异常状态
+   if (item.usage_status === 'abnormal') {
+    return {
+      displayStatus: 'abnormal',
+      displayStatusText: '异常'
+    }
+  }
+
   if (item.usage_status === 'completed') {
     return {
       displayStatus: 'completed',

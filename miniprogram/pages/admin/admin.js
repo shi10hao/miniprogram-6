@@ -31,6 +31,7 @@ Page({
       upcoming: 0,
       using: 0,
       completed: 0,
+      abnormal: 0, // 新增
       total: 0
     },
     isLoadingReserves: false,
@@ -738,6 +739,7 @@ Page({
         upcoming: 0,
         using: 0,
         completed: 0,
+        abnormal: 0, // 新增
         total: allReserves.length
       }
 
@@ -752,7 +754,10 @@ Page({
           stats.completed++
         } else if (displayStatus === 'upcoming') {
           stats.upcoming++
+        } else if (displayStatus === 'abnormal') { // 新增
+          stats.abnormal++
         }
+
 
         return {
           ...item,
@@ -820,6 +825,13 @@ Page({
       return {
         displayStatus: 'past',
         displayStatusText: '已过期'
+      }
+    }
+    // 新增：优先判断异常状态
+    if (item.usage_status === 'abnormal') {
+      return {
+        displayStatus: 'abnormal',
+        displayStatusText: '异常'
       }
     }
 
@@ -1194,6 +1206,12 @@ Page({
           })
         })
       }
+    })
+  },
+
+  gotoAbnormal() {
+    wx.navigateTo({
+      url: '/pages/admin/reserve-list/adminreservelist?status=abnormal'
     })
   }
 })

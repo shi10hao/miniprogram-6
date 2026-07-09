@@ -146,6 +146,10 @@
         <text class="summary-num completed-color">{{reserveStats.completed}}</text>
         <text class="summary-label">已完成</text>
       </view>
+      <view class="summary-card" bind:tap="gotoAbnormal">
+        <text class="summary-num abnormal-color">{{reserveStats.abnormal}}</text>
+        <text class="summary-label">异常</text>
+      </view>
       <view class="summary-card" bind:tap="gotoAll">
         <text class="summary-num total-color">{{reserveStats.total}}</text>
         <text class="summary-label">总预约</text>

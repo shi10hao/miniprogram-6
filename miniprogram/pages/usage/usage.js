@@ -14,7 +14,7 @@ Page({
     endPhotos: [null, null, null],
     unreadReminder: null,
     isAuthenticated: false,
-    ifWorkingOK:true,
+    ifWorkingOK: true,
     feedbackTitle: '',
     feedbackContent: '',
     currentReserveId: '' // 新增：当前反馈对应的预约ID
@@ -89,11 +89,11 @@ Page({
       })
       return Promise.resolve([])
     }
-    const _ = db.command  // 新增：获取数据库操作符
+    const _ = db.command // 新增：获取数据库操作符
     return db.collection('device_usage')
       .where({
         user_id: userInfo.userId,
-        status: _.in(['completed', 'abnormal'])  // 修改这一行
+        status: _.in(['completed', 'abnormal']) // 修改这一行
       })
       .orderBy('start_time', 'desc')
       .limit(10)
@@ -275,8 +275,7 @@ Page({
       end_time_display: endDisplay,
       usage_date_display: usage.start_time ? this.formatDateOnly(usage.start_time) : '',
       usage_period_display: usage.start_time && usage.end_time ?
-        `${this.formatClock(usage.start_time)} - ${this.formatClock(usage.end_time)}` :
-        ''
+        `${this.formatClock(usage.start_time)} - ${this.formatClock(usage.end_time)}` : ''
     })
   },
   //
@@ -404,13 +403,117 @@ Page({
       }
     })
   },
+
+  addWatermarkToPhoto(tempFilePath, deviceName, deviceId) {
+    return new Promise((resolve, reject) => {
+      // 获取图片信息
+      wx.getImageInfo({
+        src: tempFilePath,
+        success: (imgInfo) => {
+          const imgWidth = imgInfo.width
+          const imgHeight = imgInfo.height
+  
+          // 创建离屏 canvas
+          const query = wx.createSelectorQuery()
+          query.select('#watermarkCanvas')
+            .fields({ node: true, size: true })
+            .exec((res) => {
+              if (!res || !res[0]) {
+                resolve(tempFilePath)
+                return
+              }
+  
+              const canvas = res[0].node
+              const ctx = canvas.getContext('2d')
+  
+              // 设置 canvas 尺寸与图片一致
+              canvas.width = imgWidth
+              canvas.height = imgHeight
+  
+              const img = canvas.createImage()
+              img.onload = () => {
+                // 1. 绘制原图
+                ctx.drawImage(img, 0, 0, imgWidth, imgHeight)
+  
+                // 2. 准备水印文字
+                const now = new Date()
+                const pad = n => String(n).padStart(2, '0')
+                const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+                const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+  
+                const watermarks = [
+                  `${dateStr} ${timeStr}`,
+                  `${deviceName || ''} ${deviceId || ''}`
+                ]
+  
+                // 3. 设置水印样式 - 描边文字
+                const fontSize = Math.max(Math.round(imgWidth / 30), 24)
+                ctx.font = `bold ${fontSize}px sans-serif`
+                ctx.textAlign = 'left'
+                ctx.textBaseline = 'top'
+  
+                // 描边（黑色边框）
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'
+                ctx.lineWidth = 4
+                ctx.shadowColor = 'transparent'
+                ctx.shadowBlur = 0
+  
+                // 填充（白色文字）
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
+  
+                // 4. 在左上角绘制水印（大约在长宽各三分之一的位置）
+                const xPos = Math.round(imgWidth / 3)  // 横向三分之一位置
+                const yPos = Math.round(imgHeight / 3) // 纵向三分之一位置
+                const lineHeight = fontSize * 1.4
+  
+                watermarks.forEach((text, index) => {
+                  // 先描边
+                  ctx.strokeText(text, xPos, yPos + index * lineHeight)
+                  // 再填充（文字在描边之上）
+                  ctx.fillText(text, xPos, yPos + index * lineHeight)
+                })
+  
+                // 5. 导出带水印图片
+                wx.canvasToTempFilePath({
+                  canvas,
+                  x: 0,
+                  y: 0,
+                  width: imgWidth,
+                  height: imgHeight,
+                  destWidth: imgWidth,
+                  destHeight: imgHeight,
+                  fileType: 'jpg',
+                  quality: 0.92,
+                  success: (res2) => {
+                    resolve(res2.tempFilePath)
+                  },
+                  fail: (err) => {
+                    console.error('导出水印图片失败:', err)
+                    resolve(tempFilePath)
+                  }
+                })
+              }
+              img.onerror = (err) => {
+                console.error('加载图片失败:', err)
+                resolve(tempFilePath)
+              }
+              img.src = tempFilePath
+            })
+        },
+        fail: (err) => {
+          console.error('获取图片信息失败:', err)
+          resolve(tempFilePath)
+        }
+      })
+    })
+  },
   // 6
   async startUsageFromReserve(e) {
     if (this.data.isLoading) return
     var ifWrong
     var reserveId = e.currentTarget.dataset.reserveid
     // 仪器是否启动
-    await new Promise((resolve)=>{
+    await new Promise((resolve) => {
       wx.showModal({
         title: '仪器是否正常启动',
         content: '若出现问题请联系管理员',
@@ -423,10 +526,10 @@ Page({
             this.ifWrong(reserveId) // 传入预约ID
             resolve()
           }
-      
+
           if (res.confirm) {
             this.setData({
-              ifWorkingOK:true
+              ifWorkingOK: true
             })
             console.log("仪器正常启动")
             ifWrong = false
@@ -436,11 +539,10 @@ Page({
       })
     })
 
-    if(ifWrong) return
+    if (ifWrong) return
     // 是否订阅消息
-    await new Promise((resolve)=>{
-      if (!TEMPLATE_ID || TEMPLATE_ID === 'YOUR_TEMPLATE_ID_HERE') 
-      {
+    await new Promise((resolve) => {
+      if (!TEMPLATE_ID || TEMPLATE_ID === 'YOUR_TEMPLATE_ID_HERE') {
         resolve()
         return
       }
@@ -458,14 +560,38 @@ Page({
       })
     })
     // this.requestSubscribeMessage()
+    wx.showLoading({
+      title: '准备拍照...'
+    })
+    let deviceName = ''
+    let deviceId = ''
+    try {
+      const reserveRes = await db.collection('reserves').doc(reserveId).get()
+      const reserveItem = reserveRes.data
+      if (reserveItem) {
+        deviceName = reserveItem.device_name || ''
+        deviceId = reserveItem.device_id || ''
+      }
+    } catch (err) {
+      console.error('获取预约信息失败:', err)
+    }
 
+    wx.hideLoading()
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
-      success: res => {
+      success: async (res)=> {
         const tempFilePath = res.tempFiles[0].tempFilePath
-        this.handleStartPhoto(tempFilePath, reserveId)
+        // ===== 新增：给照片加水印 =====
+        wx.showLoading({
+          title: '添加水印...'
+        })
+        const watermarkedPath = await this.addWatermarkToPhoto(tempFilePath, deviceName, deviceId)
+        wx.hideLoading()
+        // ===== 新增结束 =====
+
+        this.handleStartPhoto(watermarkedPath, reserveId)
       },
       fail(err) {
         console.error('选择照片失败:', err)
@@ -475,16 +601,16 @@ Page({
 
   ifWrong(reserveId) {
     this.setData({
-      ifWorkingOK:false,
+      ifWorkingOK: false,
       feedbackTitle: '',
       feedbackContent: '',
       currentReserveId: reserveId || ''
     })
   },
 
-  closeFeedback(){
+  closeFeedback() {
     this.setData({
-      ifWorkingOK:true
+      ifWorkingOK: true
     })
   },
 
@@ -495,15 +621,19 @@ Page({
     })
   },
 
-   // 内容输入
-   onContentInput(e) {
+  // 内容输入
+  onContentInput(e) {
     this.setData({
       feedbackContent: e.detail.value
     })
   },
 
-  submitFeedback(){
-    const {feedbackTitle, feedbackContent, currentReserveId } = this.data
+  submitFeedback() {
+    const {
+      feedbackTitle,
+      feedbackContent,
+      currentReserveId
+    } = this.data
     // 校验：内容不能为空
     if (!feedbackContent.trim()) {
       wx.showToast({
@@ -524,46 +654,48 @@ Page({
     })
     const userInfo = wx.getStorageSync('userInfo') || {}
 
-      // 调用异常反馈云函数
-  wx.cloud.callFunction({
-    name: 'submitAbnormalFeedback',
-    data: {
-      reserveId: currentReserveId,
-      feedbackTitle: feedbackTitle.trim(),
-      feedbackContent: feedbackContent.trim(),
-      userInfo: {
-        userId: userInfo.userId,
-        name: userInfo.name || '',
-        phone: userInfo.phone || '',
-        groupName: userInfo.groupName || '',
-        openid: userInfo.openid || ''
+    // 调用异常反馈云函数
+    wx.cloud.callFunction({
+      name: 'submitAbnormalFeedback',
+      data: {
+        reserveId: currentReserveId,
+        feedbackTitle: feedbackTitle.trim(),
+        feedbackContent: feedbackContent.trim(),
+        userInfo: {
+          userId: userInfo.userId,
+          name: userInfo.name || '',
+          phone: userInfo.phone || '',
+          groupName: userInfo.groupName || '',
+          openid: userInfo.openid || ''
+        }
       }
-    }
-  }).then(res => {
-    wx.hideLoading()
-    const result = res.result || {}
-    if (result.success) {
+    }).then(res => {
+      wx.hideLoading()
+      const result = res.result || {}
+      if (result.success) {
+        wx.showToast({
+          title: '反馈提交成功',
+          icon: 'success'
+        })
+        this.setData({
+          ifWorkingOK: true
+        })
+        this.loadPendingReserves() // 刷新预约列表，异常预约会被过滤
+      } else {
+        wx.showToast({
+          title: result.error || '提交失败',
+          icon: 'none'
+        })
+      }
+    }).catch(err => {
+      wx.hideLoading()
+      console.error('提交反馈失败:', err)
       wx.showToast({
-        title: '反馈提交成功',
-        icon: 'success'
-      })
-      this.setData({ ifWorkingOK: true })
-      this.loadPendingReserves() // 刷新预约列表，异常预约会被过滤
-    } else {
-      wx.showToast({
-        title: result.error || '提交失败',
+        title: '提交失败，请重试',
         icon: 'none'
       })
-    }
-  }).catch(err => {
-    wx.hideLoading()
-    console.error('提交反馈失败:', err)
-    wx.showToast({
-      title: '提交失败，请重试',
-      icon: 'none'
     })
-  })
-  
+
   },
   // 7
   handleStartPhoto(tempFilePath, specificReserveId) {

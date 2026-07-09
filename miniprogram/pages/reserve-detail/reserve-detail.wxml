@@ -4,8 +4,13 @@
     <view class="info-card-header">
       <text class="device-name">预约详情</text>
       <view class="status-badge {{status}}">
-        {{status === 'upcoming' ? '即将到来' : status === 'using' ? '使用中' : '已完成'}}
+        {{status === 'upcoming' ? '即将到来' : status === 'using' ? '使用中' : status === 'abnormal' ? '出现问题' : '已完成'}}
       </view>
+    </view>
+
+    <!-- 新增：异常处理按钮 -->
+    <view wx:if="{{status === 'abnormal' && !isHandlingAbnormal}}" class="abnormal-action">
+      <button class="resolve-btn" bindtap="onResolveAbnormal">标记为已处理</button>
     </view>
 
   </view>
@@ -47,52 +52,77 @@
       </view>
     </view>
 
-    <!-- 开始照片 -->
-    <view class="section">
-      <view class="section-title-wrap">
-        <text class="section-title">开始照片</text>
+    <view wx:if="{{status === 'abnormal'}}" class=" wrong-section">
+
+      <!-- 新增：处理中状态 -->
+      <view wx:if="{{isHandlingAbnormal}}" class="handling-hint">
+        <view class="loading-spin"></view>
+        <text>处理中...</text>
       </view>
-      <view class="photo-section">
-        <image wx:if="{{detail.startPhotoUrl}}" class="usage-photo" src="{{detail.startPhotoUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.startPhotoUrl}}" data-urls="{{allPhotos}}" />
-        <text wx:else class="empty-hint">暂无照片</text>
+
+      <view class="feedback-section">
+        <text class="feedback-section-title">问题反馈</text>
+        <text class="feedback-title-content">{{feedback.title}}</text>
+      </view>
+      <view class="feedback-section">
+        <text class="feedback-section-title">详细内容</text>
+        <text class="feedback-content-content">{{feedback.content}}</text>
+      </view>
+      <view class="feedback-section">
+        <text class="feedback-section-title">反馈时间</text>
+        <text class="feedback-content-content">{{feedback.submit_time_display}}</text>
       </view>
     </view>
 
-    <!-- 使用照片（多张） -->
-    <view class="section">
-      <view class="section-title-wrap">
-        <text class="section-title">使用照片（{{detail.usageImageUrls.length}}）</text>
-      </view>
-      <view wx:if="{{detail.usageImageUrls.length > 0}}" class="photo-grid">
-        <image wx:for="{{detail.usageImageUrls}}" wx:key="*this" class="usage-photo" src="{{item}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{item}}" data-urls="{{allPhotos}}" />
-      </view>
-      <text wx:else class="empty-hint">暂无照片</text>
-    </view>
-
-    <!-- 结束照片（多张） -->
-    <!-- 结束核验照片 -->
-    <view class="section">
-      <view class="section-title-wrap">
-        <text class="section-title">结束核验照片（{{detail.endPhotoItems.length}}）</text>
-      </view>
-      <view wx:if="{{detail.endPhotoItems.length > 0}}" class="photo-grid">
-        <view class="photo-item" wx:for="{{detail.endPhotoItems}}" wx:key="key">
-          <image class="usage-photo" src="{{item.url}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{item.url}}" data-urls="{{allPhotos}}" />
-          <text class="photo-tip">{{item.label}}</text>
+    <view wx:else class="ok-section">
+      <!-- 开始照片 -->
+      <view class="section">
+        <view class="section-title-wrap">
+          <text class="section-title">开始照片</text>
+        </view>
+        <view class="photo-section">
+          <image wx:if="{{detail.startPhotoUrl}}" class="usage-photo" src="{{detail.startPhotoUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.startPhotoUrl}}" data-urls="{{allPhotos}}" />
+          <text wx:else class="empty-hint">暂无照片</text>
         </view>
       </view>
-      <text wx:else class="empty-hint">暂无照片</text>
+
+      <!-- 使用照片（多张） -->
+      <view class="section">
+        <view class="section-title-wrap">
+          <text class="section-title">使用照片（{{detail.usageImageUrls.length}}）</text>
+        </view>
+        <view wx:if="{{detail.usageImageUrls.length > 0}}" class="photo-grid">
+          <image wx:for="{{detail.usageImageUrls}}" wx:key="*this" class="usage-photo" src="{{item}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{item}}" data-urls="{{allPhotos}}" />
+        </view>
+        <text wx:else class="empty-hint">暂无照片</text>
+      </view>
+
+      <!-- 结束照片（多张） -->
+      <!-- 结束核验照片 -->
+      <view class="section">
+        <view class="section-title-wrap">
+          <text class="section-title">结束核验照片（{{detail.endPhotoItems.length}}）</text>
+        </view>
+        <view wx:if="{{detail.endPhotoItems.length > 0}}" class="photo-grid">
+          <view class="photo-item" wx:for="{{detail.endPhotoItems}}" wx:key="key">
+            <image class="usage-photo" src="{{item.url}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{item.url}}" data-urls="{{allPhotos}}" />
+            <text class="photo-tip">{{item.label}}</text>
+          </view>
+        </view>
+        <text wx:else class="empty-hint">暂无照片</text>
+      </view>
+
+      <!-- 系统预约单 -->
+      <view class="section">
+        <view class="section-title-wrap">
+          <text class="section-title">系统预约单</text>
+        </view>
+        <view class="photo-section">
+          <image wx:if="{{detail.reservePageUrl}}" class="usage-photo" src="{{detail.reservePageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.reservePageUrl}}" data-urls="{{allPhotos}}" />
+          <text wx:else class="empty-hint">未上传预约单</text>
+        </view>
+      </view>
     </view>
 
-    <!-- 系统预约单 -->
-    <view class="section">
-      <view class="section-title-wrap">
-        <text class="section-title">系统预约单</text>
-      </view>
-      <view class="photo-section">
-        <image wx:if="{{detail.reservePageUrl}}" class="usage-photo" src="{{detail.reservePageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.reservePageUrl}}" data-urls="{{allPhotos}}" />
-        <text wx:else class="empty-hint">未上传预约单</text>
-      </view>
-    </view>
   </view>
 </view>

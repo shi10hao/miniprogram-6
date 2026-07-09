@@ -21,6 +21,10 @@
   background: #e8f5e9; color: #2e7d32;
 }
 
+.status-badge.abnormal {
+  background: #e2e2e2; color: #ff0000;
+}
+
 .container {
   min-height: 100vh;
   background: #f0f4f8;
@@ -594,4 +598,56 @@
 .photo-tip {
   font-size: 22rpx;
   color: #888;
+}
+
+.feedback-section {
+  background: white;
+  border-radius: 20rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.feedback-section-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 24rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+/* 异常处理按钮区域 */
+.abnormal-action {
+  margin-top: 24rpx;
+  display: flex;
+  justify-content: center;
+}
+
+.resolve-btn {
+  height: 72rpx;
+  line-height: 72rpx;
+  padding: 0 40rpx;
+  background: #e74c3c;
+  color: white;
+  font-size: 28rpx;
+  font-weight: 600;
+  border-radius: 36rpx;
+  border: none;
+}
+
+.resolve-btn::after {
+  border: none;
+}
+
+/* 处理中提示 */
+.handling-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  padding: 40rpx 0;
+  color: #999;
+  font-size: 26rpx;
 }

@@ -1,36 +1,16 @@
 <view class="container">
   <view class="filter-bar">
     <view class="filter-group">
-      <text
-        class="filter-btn {{filterStatus === 'all' ? 'active' : ''}}"
-        data-status="all"
-        bindtap="onFilterChange"
-      >全部</text>
-      <text
-        class="filter-btn {{filterStatus === 'upcoming' ? 'active' : ''}}"
-        data-status="upcoming"
-        bindtap="onFilterChange"
-      >即将使用</text>
-      <text
-        class="filter-btn {{filterStatus === 'using' ? 'active' : ''}}"
-        data-status="using"
-        bindtap="onFilterChange"
-      >使用中</text>
-      <text
-        class="filter-btn {{filterStatus === 'completed' ? 'active' : ''}}"
-        data-status="completed"
-        bindtap="onFilterChange"
-      >已完成</text>
+      <text class="filter-btn {{filterStatus === 'all' ? 'active' : ''}}" data-status="all" bindtap="onFilterChange">全部</text>
+      <text class="filter-btn {{filterStatus === 'upcoming' ? 'active' : ''}}" data-status="upcoming" bindtap="onFilterChange">即将使用</text>
+      <text class="filter-btn {{filterStatus === 'using' ? 'active' : ''}}" data-status="using" bindtap="onFilterChange">使用中</text>
+      <text class="filter-btn {{filterStatus === 'completed' ? 'active' : ''}}" data-status="completed" bindtap="onFilterChange">已完成</text>
+      <text class="filter-btn {{filterStatus === 'abnormal' ? 'active' : ''}}" data-status="abnormal" bindtap="onFilterChange">异常</text>
     </view>
   </view>
 
   <view class="search-bar">
-    <input
-      class="search-input"
-      placeholder="搜索仪器名称、预约人..."
-      value="{{searchKeyword}}"
-      bindinput="onSearchInput"
-    />
+    <input class="search-input" placeholder="搜索仪器名称、预约人..." value="{{searchKeyword}}" bindinput="onSearchInput" />
     <text wx:if="{{searchKeyword}}" class="clear-btn" bindtap="clearSearch">✕</text>
   </view>
 
@@ -45,13 +25,7 @@
   </view>
 
   <view wx:else class="reserve-list">
-    <view
-      class="reserve-card"
-      wx:for="{{filteredReserves}}"
-      wx:key="_id"
-      bind:tap="gotoReserveDetail"
-      data-id="{{item._id}}"
-    >
+    <view class="reserve-card" wx:for="{{filteredReserves}}" wx:key="_id" bind:tap="gotoReserveDetail" data-id="{{item._id}}">
       <view class="card-top">
         <text class="device-name">{{item.device_name}}</text>
         <view class="status-tag {{item.displayStatus}}">{{item.displayStatusText}}</view>

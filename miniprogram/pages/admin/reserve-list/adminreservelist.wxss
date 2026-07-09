@@ -209,3 +209,9 @@
   color: #ccc;
   font-size: 24rpx;
 }
+
+.status-tag.abnormal {
+  background: #ffeaea;
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+}

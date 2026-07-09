@@ -210,3 +210,10 @@
     </view>
   </view>
 </view>
+
+<!-- ===== 新增：隐藏的 Canvas，用于绘制水印 ===== -->
+<canvas 
+  type="2d" 
+  id="watermarkCanvas" 
+  style="width:750px;height:1000px;position:fixed;left:-9999px;top:-9999px;pointer-events:none;"
+></canvas>
