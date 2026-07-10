@@ -125,16 +125,38 @@ Page({
     const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
     const todayStartTs = this.getReservationTimeMs(todayStr, '00:00')
 
-    return db.collection('reserves')
-      .where({
-        user_id: userInfo.userId,
-        status: 'approved'
-      })
-      .orderBy('start_time', 'asc')
-      .limit(50)
-      .get()
+    const queryAllReserves = async () => {
+      let allRecords = []
+      let lastId = null
+      const pageSize = 20
+
+      while (true) {
+        let query = db.collection('reserves').where({
+          user_id: userInfo.userId,
+          status: 'approved'
+        }).orderBy('start_time', 'asc').limit(pageSize)
+
+        if (lastId) {
+          query = query.where({
+            _id: db.command.gt(lastId)
+          })
+        }
+
+        const res = await query.get()
+        const records = res.data || []
+
+        if (records.length === 0) break
+        allRecords = allRecords.concat(records)
+        if (records.length < pageSize) break
+        lastId = records[records.length - 1]._id
+      }
+      return allRecords
+    }
+
+    return queryAllReserves()
       .then(res => {
-        var records = res.data || []
+        var records = res || []
+        // console.log("records:", records)
         var pending = records.filter(function (item) {
           var usageNotStarted = !item.usage_status || item.usage_status === 'not_started'
           var endTs = this.getReserveTimestamp(item, 'end')
@@ -412,67 +434,70 @@ Page({
         success: (imgInfo) => {
           const imgWidth = imgInfo.width
           const imgHeight = imgInfo.height
-  
+
           // 创建离屏 canvas
           const query = wx.createSelectorQuery()
           query.select('#watermarkCanvas')
-            .fields({ node: true, size: true })
+            .fields({
+              node: true,
+              size: true
+            })
             .exec((res) => {
               if (!res || !res[0]) {
                 resolve(tempFilePath)
                 return
               }
-  
+
               const canvas = res[0].node
               const ctx = canvas.getContext('2d')
-  
+
               // 设置 canvas 尺寸与图片一致
               canvas.width = imgWidth
               canvas.height = imgHeight
-  
+
               const img = canvas.createImage()
               img.onload = () => {
                 // 1. 绘制原图
                 ctx.drawImage(img, 0, 0, imgWidth, imgHeight)
-  
+
                 // 2. 准备水印文字
                 const now = new Date()
                 const pad = n => String(n).padStart(2, '0')
                 const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
                 const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
-  
+
                 const watermarks = [
                   `${dateStr} ${timeStr}`,
                   `${deviceName || ''} ${deviceId || ''}`
                 ]
-  
+
                 // 3. 设置水印样式 - 描边文字
                 const fontSize = Math.max(Math.round(imgWidth / 30), 24)
                 ctx.font = `bold ${fontSize}px sans-serif`
                 ctx.textAlign = 'left'
                 ctx.textBaseline = 'top'
-  
+
                 // 描边（黑色边框）
                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'
                 ctx.lineWidth = 4
                 ctx.shadowColor = 'transparent'
                 ctx.shadowBlur = 0
-  
+
                 // 填充（白色文字）
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
-  
+
                 // 4. 在左上角绘制水印（大约在长宽各三分之一的位置）
-                const xPos = Math.round(imgWidth / 3)  // 横向三分之一位置
+                const xPos = Math.round(imgWidth / 3) // 横向三分之一位置
                 const yPos = Math.round(imgHeight / 3) // 纵向三分之一位置
                 const lineHeight = fontSize * 1.4
-  
+
                 watermarks.forEach((text, index) => {
                   // 先描边
                   ctx.strokeText(text, xPos, yPos + index * lineHeight)
                   // 再填充（文字在描边之上）
                   ctx.fillText(text, xPos, yPos + index * lineHeight)
                 })
-  
+
                 // 5. 导出带水印图片
                 wx.canvasToTempFilePath({
                   canvas,
@@ -581,7 +606,7 @@ Page({
       count: 1,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
-      success: async (res)=> {
+      success: async (res) => {
         const tempFilePath = res.tempFiles[0].tempFilePath
         // ===== 新增：给照片加水印 =====
         wx.showLoading({
