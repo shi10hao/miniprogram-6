@@ -1,5 +1,5 @@
 const db = wx.cloud.database()
-const RESERVATION_TEMPLATE_ID = 'FClBgpZO9KXJ79M0ZAqqrEDoqWlXWPmRz862s6zVP4M'
+const RESERVE_REMIND_TPL_ID = 'rgRmn33I28JIm4REBjzpin2dV474fmrLRxYFTpSJbuk'
 
 Page({
   data: {
@@ -542,6 +542,8 @@ Page({
     })
   },
 
+  
+
   // 提交预约                      checkTimeConflict
   async submitReservation() {
     if (this.data.isLoading) return
@@ -549,8 +551,28 @@ Page({
     // 验证表单
     if (!this.validateForm()) return
 
-    this.requestSubscribeMessage()
-
+    // this.requestSubscribeMessage()
+    wx.showModal({
+      title: '开启预约开始提醒',
+      content: '系统将在您预约开始前30分钟通过微信服务通知提醒您。\n\n点击"允许"将在下一步请求订阅授权，请在授权弹窗中选择"允许接收"。',
+      confirmText: '去授权',
+      cancelText: '暂不',
+      success: (res) => {
+        if (res.confirm) {
+          wx.requestSubscribeMessage({
+            tmplIds: [RESERVE_REMIND_TPL_ID],
+            success: (res) => {
+              console.log('预约开始提醒订阅结果:', res[RESERVE_REMIND_TPL_ID])
+            },
+            fail: (err) => {
+              console.error('预约开始提醒订阅失败:', err)
+            }
+          })
+        } else if (res.cancel) {
+          console.log('用户取消预约开始提醒订阅')
+        }
+      }
+    })
     this.setData({
       isLoading: true
     })
