@@ -18,7 +18,7 @@ exports.main = async (event, context) => {
   }
   const transaction = await db.startTransaction()
 
-  console.log(reserveId,feedbackTitle,feedbackContent,userInfo,userId,feedbackScene)
+  console.log(reserveId, feedbackTitle, feedbackContent, userInfo, userId, feedbackScene)
 
   try {
 
@@ -26,7 +26,7 @@ exports.main = async (event, context) => {
     const reserveRes = await transaction.collection('reserves').doc(reserveId).get()
     const reserve = reserveRes.data
 
-    console.log("reserve:",reserve)
+    console.log("reserve:", reserve)
 
     if (!reserve) {
       throw createBusinessError('RESERVE_NOT_FOUND', '预约不存在')
@@ -46,7 +46,7 @@ exports.main = async (event, context) => {
     const now = new Date()
     const nowText = now.toISOString()
     let addRes = null
-
+    const endUsage = event.endUsage !== false // 默认true，兼容旧调用
     if (feedbackScene === 'using') {
       const linkedUsageId = reserve.linked_usage_id
       if (!linkedUsageId) {
@@ -57,24 +57,32 @@ exports.main = async (event, context) => {
         .doc(linkedUsageId)
         .update({
           data: {
-            status: 'abnormal',
-            feedback: {
-              title: feedbackTitle,
-              content: feedbackContent,
-              submit_time: nowText
-            },
-            abnormal_time: nowText
+            'feedback.title': feedbackTitle,
+            'feedback.content': feedbackContent,
+            'feedback.submit_time': nowText,
+            'feedback.photos': feedbackPhotos || []
           }
         })
 
-      // 更新预约状态
-      await transaction.collection('reserves')
-        .doc(reserveId)
-        .update({
-          data: {
-            usage_status: 'abnormal'
-          }
-        })
+      // 只有勾选结束时，才修改状态为异常
+      if (endUsage) {
+        await transaction.collection('device_usage')
+          .doc(linkedUsageId)
+          .update({
+            data: {
+              status: 'abnormal',
+              end_time: nowText,
+              abnormal_time: nowText
+            }
+          })
+        await transaction.collection('reserves')
+          .doc(reserveId)
+          .update({
+            data: {
+              usage_status: 'abnormal'
+            }
+          })
+      }
     } else {
       // 2. 插入异常使用记录
       const usageRecord = {
@@ -101,11 +109,11 @@ exports.main = async (event, context) => {
         create_time: nowText,
         _openid: reserve._openid || userInfo.openid || ''
       }
-      console.log("usageRecord:",usageRecord)
+      console.log("usageRecord:", usageRecord)
       addRes = await transaction.collection('device_usage').add({
         data: usageRecord
       })
-      console.log("addRes:",addRes)
+      console.log("addRes:", addRes)
       // 3. 更新预约状态，避免重复出现在待使用列表
       await transaction.collection('reserves')
         .doc(reserveId)
@@ -125,13 +133,13 @@ exports.main = async (event, context) => {
       console.log("using")
       return {
         success: true,
-        usageId: reserve.linked_usage_id  // using场景返回已有的 usageId
+        usageId: reserve.linked_usage_id // using场景返回已有的 usageId
       }
     } else {
       console.log("start")
       return {
         success: true,
-        usageId: addRes._id  // start场景返回新建的 usageId
+        usageId: addRes._id // start场景返回新建的 usageId
       }
     }
 

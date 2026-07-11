@@ -123,11 +123,11 @@
 .end-btn {
   flex: 1;
   height: 80rpx;
-  background: #ffebee;
-  color: #c62828;
+  background: #f0f7ff;
+  color: #1976d2;
   font-size: 26rpx;
   border-radius: 12rpx;
-  border: 1rpx solid #ef9a9a;
+  border: 1rpx solid #90caf9;
 }
 
 /* 使用中照片 */
@@ -513,13 +513,15 @@
 }
 /* 使用中反馈按钮 */
 .feedback-btn-inline {
+  margin-top: 20rpx;
   flex: 1;
-  height: 80rpx;
-  background: #f0f7ff;
-  color: #1976d2;
+  height: 90rpx;
+  width: 100%;
+  background: #ffebee;
+  color: #c62828;
   font-size: 26rpx;
   border-radius: 12rpx;
-  border: 1rpx solid #90caf9;
+  border: 1rpx solid #ef9a9a;
 }
 
 /* 反馈表单扩展样式 */

@@ -18,7 +18,9 @@ Page({
     feedbackTitle: '',
     feedbackContent: '',
     currentReserveId: '', // 新增：当前反馈对应的预约ID
-    feedbackScene: ''
+    feedbackScene: '',
+    feedbackPhotos: [],
+    endWithFeedback: false
   },
 
   onLoad() {
@@ -57,7 +59,8 @@ Page({
     const userInfo = wx.getStorageSync('userInfo')
     if (!userInfo || !userInfo.userId) {
       this.setData({
-        currentUsage: null
+        currentUsage: null,
+        currentReserveId: '' // 同步清空
       })
       return Promise.resolve(null)
     }
@@ -70,8 +73,10 @@ Page({
       .get()
       .then(res => {
         const usage = res.data && res.data.length > 0 ? res.data[0] : null
+        const formattedUsage = usage ? this.formatUsage(usage) : null
         this.setData({
-          currentUsage: usage ? this.formatUsage(usage) : null
+          currentUsage: formattedUsage,
+          currentReserveId: formattedUsage ? formattedUsage.reserve_id : '' // 同步赋值
         })
         return usage || null
       })
@@ -150,7 +155,7 @@ Page({
             }
           ]))
         }
-        
+
         const res = await query.get()
         const records = res.data || []
 
@@ -646,11 +651,23 @@ Page({
     })
   },
   openUsageFeedback() {
+    const currentUsage = this.data.currentUsage
+    // 兜底校验：没有使用记录时不允许提交
+    if (!currentUsage || !currentUsage.reserve_id) {
+      wx.showToast({
+        title: '未找到对应使用记录',
+        icon: 'none'
+      })
+      return
+    }
     this.setData({
       feedbackScene: 'using',
       ifWorkingOK: false,
       feedbackTitle: '',
       feedbackContent: '',
+      currentReserveId: currentUsage.reserve_id, // 核心：从当前使用记录取预约ID
+      feedbackPhotos: [],
+      endWithFeedback: true // 默认不结束
     })
   },
   closeFeedback() {
@@ -680,7 +697,9 @@ Page({
       feedbackTitle,
       feedbackContent,
       currentReserveId,
-      feedbackScene
+      feedbackScene,
+      feedbackPhotos,
+      endWithFeedback
     } = this.data
     // 校验：内容不能为空
     if (!feedbackContent.trim()) {
@@ -702,7 +721,7 @@ Page({
       title: '提交中...'
     })
     const userInfo = wx.getStorageSync('userInfo') || {}
-    console.log("1")
+    // console.log("1")
     // 调用异常反馈云函数
     wx.cloud.callFunction({
       name: 'submitAbnormalFeedback',
@@ -711,6 +730,8 @@ Page({
         feedbackTitle: feedbackTitle.trim(),
         feedbackContent: feedbackContent.trim(),
         feedbackScene: feedbackScene,
+        feedbackPhotos: feedbackPhotos,
+        endUsage: endWithFeedback,
         userInfo: {
           userId: userInfo.userId,
           name: userInfo.name || '',
@@ -722,12 +743,22 @@ Page({
     }).then(res => {
       wx.hideLoading()
       const result = res.result || {}
-      console.log("res:",res)
+      // console.log("res:",res)
       if (result.success) {
-        wx.showToast({
-          title: '反馈提交成功',
-          icon: 'success'
-        })
+        if (feedbackScene === 'using' && endWithFeedback) {
+          wx.showToast({
+            title: '反馈已提交，使用已异常结束',
+            icon: 'none',
+            duration: 2000
+          })
+          this.loadCurrentUsage()
+          this.loadUsageHistory()
+        } else {
+          wx.showToast({
+            title: '反馈提交成功',
+            icon: 'success'
+          })
+        }
         this.setData({
           ifWorkingOK: true
         })
@@ -1189,5 +1220,77 @@ Page({
     wx.navigateTo({
       url: '/pages/auth/auth'
     })
-  }
+  },
+  // 选择故障照片
+  chooseFeedbackPhoto() {
+    const maxCount = 3 - this.data.feedbackPhotos.length
+    if (maxCount <= 0) {
+      wx.showToast({
+        title: '最多上传3张照片',
+        icon: 'none'
+      })
+      return
+    }
+
+    wx.chooseMedia({
+      count: maxCount,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      success: res => {
+        const tempFiles = res.tempFiles || []
+        this.uploadFeedbackPhotos(tempFiles)
+      }
+    })
+  },
+
+  // 批量上传故障照片到云存储
+  uploadFeedbackPhotos(tempFiles) {
+    wx.showLoading({
+      title: '上传中...'
+    })
+    const uploadTasks = tempFiles.map(file => {
+      return new Promise((resolve, reject) => {
+        wx.cloud.uploadFile({
+          cloudPath: `feedback_pics/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`,
+          filePath: file.tempFilePath,
+          success: res => resolve(res.fileID),
+          fail: reject
+        })
+      })
+    })
+
+    Promise.all(uploadTasks)
+      .then(fileIDs => {
+        wx.hideLoading()
+        this.setData({
+          feedbackPhotos: this.data.feedbackPhotos.concat(fileIDs)
+        })
+      })
+      .catch(err => {
+        wx.hideLoading()
+        console.error('反馈照片上传失败:', err)
+        wx.showToast({
+          title: '照片上传失败',
+          icon: 'none'
+        })
+      })
+  },
+
+  // 删除已选故障照片
+  deleteFeedbackPhoto(e) {
+    const index = e.currentTarget.dataset.index
+    const photos = this.data.feedbackPhotos.slice()
+    photos.splice(index, 1)
+    this.setData({
+      feedbackPhotos: photos
+    })
+  },
+
+  // 结束使用复选框切换
+  onEndWithFeedbackChange(e) {
+    const checked = e.detail.value.includes('1')
+    this.setData({
+      endWithFeedback: checked
+    })
+  },
 })

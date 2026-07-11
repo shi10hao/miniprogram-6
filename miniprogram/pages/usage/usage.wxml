@@ -48,16 +48,16 @@
       <!-- 2.3 如果没结束 -->
       <view wx:if="{{!endMode}}" class="using-actions">
         <button class="upload-mid-btn" bindtap="uploadUsagePhoto" disabled="{{isLoading || !isAuthenticated}}">
-          <text>上传使用中照片</text>
-        </button>
-        <!-- 新增：使用中问题反馈按钮 -->
-        <button class="feedback-btn-inline" bindtap="openUsageFeedback" disabled="{{isLoading || !isAuthenticated}}">
-          <text>问题反馈</text>
+          <text>上传使用照片</text>
         </button>
         <button class="end-btn" bindtap="startEndUsage" disabled="{{isLoading || !isAuthenticated}}">
-          <text>结束使用</text>
+          <text>正常结束使用</text>
         </button>
       </view>
+      <!-- 新增：使用中问题反馈按钮 -->
+      <button class="feedback-btn-inline" bindtap="openUsageFeedback" disabled="{{isLoading || !isAuthenticated}}">
+        <text>异常问题反馈并结束使用</text>
+      </button>
     </view>
   </view>
 
@@ -82,7 +82,7 @@
           <text class="pending-label">仪器编号：</text>
           <text class="pending-val">{{item.device_id}}</text>
         </view>
-        <button class="start-reserve-btn" data-reserveid="{{item._id}}" bindtap="startUsageFromReserve" disabled="{{isLoading || !isAuthenticated}}">拍照开始使用</button>
+        <button class="start-reserve-btn" data-reserveid="{{item._id}}" bindtap="startUsageFromReserve" disabled="{{isLoading || !isAuthenticated|| item.state === 'expired'}}">拍照开始使用</button>
       </view>
     </view>
   </view>
@@ -224,29 +224,27 @@
       <textarea value="{{feedbackContent}}" class="feedback-textarea" placeholder="请详细描述您遇到的问题，例如故障现象、报错信息等" bindinput="onContentInput" maxlength="500" />
 
       <!-- 故障照片上传 -->
-      <!-- <view class="feedback-photo-section">
-        <text class="feedback-label">故障照片（选填，最多3张）</text>
+      <view class="feedback-photo-section">
+        <text class="feedback-label">故障照片（选填）</text>
         <view class="photo-upload-grid">
           <view class="photo-slot" wx:for="{{feedbackPhotos}}" wx:key="*this">
             <image class="slot-img" src="{{item}}" mode="aspectFill"></image>
-            <view class="slot-delete" data-index="{{index}}" bindtap="deleteFeedbackPhoto">×</view>
           </view>
           <view class="photo-add-slot" wx:if="{{feedbackPhotos.length < 3}}" bindtap="chooseFeedbackPhoto">
             <text class="slot-plus">+</text>
             <text class="slot-tip">添加照片</text>
           </view>
         </view>
-      </view> -->
-
-      <!-- 严重故障选项（仅使用中场景显示） -->
-      <view class="feedback-end-option" wx:if="{{feedbackScene === 'using'}}">
-        <checkbox-group bindchange="onEndWithFeedback">
-          <label class="checkbox-label">
-            <checkbox value="1" checked="{{endWithFeedback}}" color="#62BCC4" />
-            <text>仪器无法使用，同步结束本次使用</text>
-          </label>
-        </checkbox-group>
       </view>
+
+      <!-- 结束使用选项 -->
+      <!-- <view class="feedback-end-option" wx:if="{{feedbackScene === 'using'}}">
+        <label class="checkbox-label">
+          <checkbox value="1" checked="{{endWithFeedback}}" color="#62BCC4" bindchange="onEndWithFeedbackChange" />
+          <text>仪器无法使用，同步结束本次使用</text>
+        </label>
+        <text class="option-hint">勾选后将直接终止使用，仅适用于严重故障</text>
+      </view> -->
 
       <button class="feedback-submit-btn" bind:tap="submitFeedback" disabled="{{isLoading}}">
         {{isLoading ? '提交中...' : '提交反馈'}}
