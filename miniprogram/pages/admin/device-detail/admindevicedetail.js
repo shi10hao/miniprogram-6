@@ -516,7 +516,7 @@ Page({
       // D
       const usagePhotos = usagePhotoRaw
         .map(item => {
-          const decorated =this.decorateUsageRecord(item, tempUrlMap)
+          const decorated = this.decorateUsageRecord(item, tempUrlMap)
           // 添加 abnormal_time_display：将 ISO 格式转换为可读格式
           let abnormalTimeDisplay = ''
           if (item.abnormal_time) {
@@ -1424,5 +1424,12 @@ Page({
       })
     }
   },
+  gotoDeviceInstanceDetail(e) {
+    const deviceId = e.currentTarget.dataset.deviceId // 注意大小写：dataset 中的 key 会自动转驼峰
+    if (!deviceId) return
 
+    wx.navigateTo({
+      url: `/pages/device-instance-detail/device-instance-detail?deviceId=${encodeURIComponent(deviceId)}`
+    })
+  }
 })

@@ -26,7 +26,8 @@
     "pages/admin/reserve-list/adminreservelist",
     "pages/privacy/privacy",
     "pages/agreement/agreement",
-    "pages/reserve-detail/reserve-detail"
+    "pages/reserve-detail/reserve-detail",
+    "pages/device-instance-detail/device-instance-detail"
   ],
   "subPackages": [
     {

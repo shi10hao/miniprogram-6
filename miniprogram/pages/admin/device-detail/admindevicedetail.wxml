@@ -120,7 +120,7 @@
       <view wx:if="{{!sectionCollapsed.devices}}">
         <view wx:if="{{devices.length === 0}}" class="empty-hint">暂无仪器实例</view>
         <view wx:else class="device-list">
-          <view class="device-item" wx:for="{{renderDevices}}" wx:key="_id">
+          <view class="device-item" wx:for="{{renderDevices}}" bind:tap="gotoDeviceInstanceDetail" data-device-id="{{item.device_id}}" wx:key="_id">
             <view class="device-row">
               <text class="device-id">{{item.device_id}}</text>
               <view class="status-badge {{item.displayStatus}}">
@@ -131,7 +131,7 @@
             <text wx:if="{{item.usingUser}}" class="device-id-small">当前使用人：{{item.usingUser}}</text>
             <!-- 原维护按钮替换为以下内容 -->
             <view class="device-btn-row">
-              <button class="maint-btn small {{item.status === 'maintenance' ? 'active' : ''}}" bindtap="toggleMaintenance" data-id="{{item._id}}" data-device-id="{{item.device_id}}" data-display-status="{{item.displayStatus}}" disabled="{{item.displayStatus === 'using'}}">
+              <button class="maint-btn small {{item.status === 'maintenance' ? 'active' : ''}}" catchtap="toggleMaintenance" data-id="{{item._id}}" data-device-id="{{item.device_id}}" data-display-status="{{item.displayStatus}}" disabled="{{item.displayStatus === 'using'}}">
                 {{item.displayStatus === 'using' ? '使用中' : item.status === 'maintenance' ? '恢复可用' : '设为维护'}}
               </button>
               <button class="delete-instance-btn" catchtap="deleteDeviceInstance" data-id="{{item._id}}" data-device-id="{{item.device_id}}" disabled="{{item.displayStatus === 'using'}}">
