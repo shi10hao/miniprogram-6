@@ -4,6 +4,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
+// 找到collectionName中符合whereCondition和labCondition和deviceType并有sortField决定是否排序的一个函数，输出为{code: 0, data: all}，all对象，元素为集合中的所有符合的值
 exports.main = async (event) => {
   const {
     collectionName,

@@ -49,14 +49,14 @@
           <view class="status-header">
             <view class="status-title-section">
               <text class="status-icon">✅</text>
-              <text class="status-title">可用仪器</text>
+              <text class="status-title">可用仪器编号：</text>
             </view>
             <text class="device-count">{{availableDevices.length}}台</text>
           </view>
           <view class="device-codes-grid">
             <text wx:if="{{availableDevices.length === 0}}" class="no-device">暂无可用仪器</text>
             <view class="code-item" wx:for="{{availableDevices}}" wx:key="device_id">
-              <text class="device-code">{{item.shortId}}</text>
+              <text class="device-code">{{item.device_id}}</text>
             </view>
           </view>
         </view>
@@ -66,14 +66,14 @@
           <view class="status-header">
             <view class="status-title-section">
               <text class="status-icon">🔧</text>
-              <text class="status-title">正在使用</text>
+              <text class="status-title">正在使用编号：</text>
             </view>
             <text class="device-count">{{usingDevices.length}}台</text>
           </view>
           <view class="device-codes-grid">
             <text wx:if="{{usingDevices.length === 0}}" class="no-device">暂无使用中的仪器</text>
             <view class="code-item" wx:for="{{usingDevices}}" wx:key="device_id">
-              <text class="device-code">{{item.shortId}}</text>
+              <text class="device-code">{{item.device_id}}</text>
             </view>
           </view>
         </view>
@@ -83,14 +83,14 @@
           <view class="status-header">
             <view class="status-title-section">
               <text class="status-icon">🛠️</text>
-              <text class="status-title">维修中</text>
+              <text class="status-title">维修中编号：</text>
             </view>
             <text class="device-count">{{maintenanceDevices.length}}台</text>
           </view>
           <view class="device-codes-grid">
             <text wx:if="{{maintenanceDevices.length === 0}}" class="no-device">暂无维修中的仪器</text>
             <view class="code-item" wx:for="{{maintenanceDevices}}" wx:key="device_id">
-              <text class="device-code">{{item.shortId}}</text>
+              <text class="device-code">{{item.device_id}}</text>
             </view>
           </view>
         </view>
@@ -124,10 +124,10 @@
             <text class="btn-icon">⚠️</text>
             <text class="btn-text">注意事项</text>
           </button>
-          <button class="guide-btn" bindtap="viewSpecifications">
+          <!-- <button class="guide-btn" bindtap="viewSpecifications">
             <text class="btn-icon">📐</text>
             <text class="btn-text">规格参数</text>
-          </button>
+          </button> -->
         </view>
       </view>
 
