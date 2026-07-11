@@ -215,10 +215,13 @@
           <view class="usage-item" wx:for="{{usagePhotos}}" wx:key="_id" wx:for-item="record" bindtap="gotoReserveDetail" data-id="{{record.reserve_id}}">
             <view class="usage-header">
               <text class="user-name">{{record.student_name || record.user_id}}</text>
-              <text class="duration">{{record.status === 'using' ? '使用中' : record.status === 'completed' ? '已完成' : record.status}}</text>
+              <text wx:if="{{record.status === 'using'}}" class="duration">使用中</text>
+              <text wx:elif="{{record.status === 'completed'}}" class="duration">已完成</text>
+              <text wx:else class="duration">{{record.abnormal_time_display}}出现异常</text>
+              <!-- <text class="duration">{{record.status === 'using' ? '使用中' : record.status === 'completed' ? '已完成' : '出现异常'}}</text> -->
             </view>
             <text class="device-id-small">设备：{{record.device_id}}</text>
-
+            <text class="device-id-small">预约时段：{{record.reserve_time}}</text>
             <view wx:if="{{record.startPhotoUrl}}" class="photo-section">
               <text class="photo-label">开始照片/预约单照片</text>
               <image class="usage-photo" src="{{record.startPhotoUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{record.startPhotoUrl}}" data-urls="{{record.allPhotoUrls}}"></image>

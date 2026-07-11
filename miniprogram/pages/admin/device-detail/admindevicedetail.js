@@ -48,7 +48,7 @@ Page({
     deviceDisplayLimit: 5, // 仪器实例初始只显示5条
     showAllDevices: false, // 是否显示全部仪器实例
     renderDevices: [],
-    newDeviceId: '',// 删去收尾空格
+    newDeviceId: '', // 删去收尾空格
     isAddingDevice: false
   },
 
@@ -515,7 +515,30 @@ Page({
         }))
       // D
       const usagePhotos = usagePhotoRaw
-        .map(item => this.decorateUsageRecord(item, tempUrlMap))
+        .map(item => {
+          const decorated =this.decorateUsageRecord(item, tempUrlMap)
+          // 添加 abnormal_time_display：将 ISO 格式转换为可读格式
+          let abnormalTimeDisplay = ''
+          if (item.abnormal_time) {
+            const d = this.parseDateTime(item.abnormal_time)
+            if (d) {
+              const pad = n => String(n).padStart(2, '0')
+              abnormalTimeDisplay = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+            }
+          }
+
+          // 添加 reserve_time：组合日期和时间
+          let reserveTime = ''
+          if (item.reserve_date && item.reserve_start_time && item.reserve_end_time) {
+            reserveTime = `${item.reserve_date} ${this.extractTime(item.reserve_start_time)}-${this.extractTime(item.reserve_end_time)}`
+          }
+
+          return {
+            ...decorated,
+            abnormal_time_display: abnormalTimeDisplay,
+            reserve_time: reserveTime
+          }
+        })
         .filter(item => item.hasAnyPhoto)
         .slice(0, PHOTO_DISPLAY_LIMIT)
 
