@@ -11,7 +11,8 @@ exports.main = async (event) => {
     pageSize = 100,
     startSkip = 0,
     labCondition,
-    deviceType
+    deviceType,
+    sortField = ''   // 新增：排序字段，默认空=不排序
   } = event
 
   if (!collectionName) {
@@ -46,18 +47,20 @@ exports.main = async (event) => {
       finalWhere = _.and(conditions)
     }
   }
-
+  let baseQuery = db.collection(collectionName).where(finalWhere)
+  if (sortField) {
+    baseQuery = baseQuery.orderBy(sortField, 'desc')
+  }
   let skip = startSkip
   const all = []
   const MAX_LIMIT = 1000 // ✅ 修复：加上限，防止死循环
 
   while (true) {
-    const res = await db
-      .collection(collectionName)
-      .where(finalWhere)
-      .skip(skip)
-      .limit(pageSize)
-      .get()
+    const res = await baseQuery   // 改用 baseQuery
+    .skip(skip)
+    .limit(pageSize)
+    .get()
+
 
     all.push(...res.data)
 

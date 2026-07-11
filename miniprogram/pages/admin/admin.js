@@ -52,7 +52,13 @@ Page({
       operation_procedure: '',
       precautions: '',
       specificationsText: ''
-    }
+    },
+    // 卫生记录
+    dutyRecords: [],
+    isLoadingDuty: false,
+    dutyPage: 1,
+    dutyPageSize: 20,
+    hasMoreDuty: true
   },
 
   onLoad() {
@@ -308,11 +314,11 @@ Page({
       } else {
         if (filters.labType === 'all') {
           result.labCondition = _.or([{
-            lab_type: 'public'
-          },
-          {
-            lab_name: groupName
-          }
+              lab_type: 'public'
+            },
+            {
+              lab_name: groupName
+            }
           ])
         } else if (filters.labType === 'public') {
           result.labCondition = {
@@ -351,7 +357,8 @@ Page({
   async fetchAllByCloud(
     collectionName,
     whereCondition = {},
-    pageSize = 100
+    pageSize = 100,
+    sortField = ''
   ) {
     wx.showLoading({
       title: '加载中...'
@@ -366,7 +373,8 @@ Page({
         data: {
           collectionName,
           whereCondition,
-          pageSize
+          pageSize,
+          sortField   // 透传排序字段
         }
       })
 
@@ -530,7 +538,85 @@ Page({
       })
     }
   },
+  async loadDutyRecords() {
+    if (!this.currentSession) return
 
+    this.setData({
+      isLoadingDuty: true,
+      dutyPage: 1
+    })
+    try {
+      const records = await this.fetchAllByCloud('duty_records', {}, this.data.dutyPageSize,'submit_time')
+      const formatted = records.map(item => ({
+        ...item,
+        submit_time_display: this.formatTime(item.submit_time)
+      }))
+      this.setData({
+        dutyRecords: formatted,
+        hasMoreDuty: records.length === this.data.dutyPageSize,
+        isLoadingDuty: false
+      })
+    } catch (err) {
+      console.error('加载卫生记录失败', err)
+      this.setData({
+        isLoadingDuty: false
+      })
+      wx.showToast({
+        title: '加载失败',
+        icon: 'none'
+      })
+    }
+  },
+  async loadMoreDuty() {
+    if (this.data.isLoadingDuty || !this.data.hasMoreDuty) return
+    this.setData({
+      isLoadingDuty: true
+    })
+    const nextPage = this.data.dutyPage + 1
+    try {
+      const skip = (nextPage - 1) * this.data.dutyPageSize
+      const res = await wx.cloud.callFunction({
+        name: 'getCollectionData',
+        data: {
+          collectionName: 'duty_records',
+          whereCondition: {},
+          pageSize: this.data.dutyPageSize,
+          startSkip: startSkip,   // 改这里：skip → startSkip
+          sortField: 'submit_time' // 补上排序，保证下一页顺序一致
+        }
+      })
+
+      if (res.result.code !== 0) throw new Error(res.result.message)
+      const newRecords = res.result.data.map(item => ({
+        ...item,
+        submit_time_display: this.formatTime(item.submit_time)
+      }))
+      this.setData({
+        dutyRecords: this.data.dutyRecords.concat(newRecords),
+        dutyPage: nextPage,
+        hasMoreDuty: newRecords.length === this.data.dutyPageSize,
+        isLoadingDuty: false
+      })
+    } catch (err) {
+      console.error('加载更多失败:', err)
+      this.setData({
+        isLoadingDuty: false
+      })
+      wx.showToast({
+        title: '加载失败',
+        icon: 'none'
+      })
+    }
+  },
+  // 预览卫生照片
+  previewDutyImage(e) {
+    const current = e.currentTarget.dataset.src
+    const urls = e.currentTarget.dataset.list
+    wx.previewImage({
+      current,
+      urls
+    })
+  },
   switchTab(e) {
     const tab = Number(e.currentTarget.dataset.tab)
     this.setData({
@@ -539,6 +625,7 @@ Page({
     if (tab === 0) this.loadDeviceStatus()
     if (tab === 1) this.loadReserveSummary()
     if (tab === 2) this.loadSentMessages()
+    if (tab === 3) this.loadDutyRecords()
   },
 
   goToReserveList() {
