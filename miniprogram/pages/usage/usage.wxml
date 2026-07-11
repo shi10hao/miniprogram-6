@@ -50,6 +50,10 @@
         <button class="upload-mid-btn" bindtap="uploadUsagePhoto" disabled="{{isLoading || !isAuthenticated}}">
           <text>上传使用中照片</text>
         </button>
+        <!-- 新增：使用中问题反馈按钮 -->
+        <button class="feedback-btn-inline" bindtap="openUsageFeedback" disabled="{{isLoading || !isAuthenticated}}">
+          <text>问题反馈</text>
+        </button>
         <button class="end-btn" bindtap="startEndUsage" disabled="{{isLoading || !isAuthenticated}}">
           <text>结束使用</text>
         </button>
@@ -198,22 +202,58 @@
     </view>
   </view>
 
+  <!-- 问题反馈弹窗 -->
   <view class="feedback-mask" wx:if="{{!ifWorkingOK}}">
     <view class="feedback-card">
       <view class="feedback-header">
-        <text class="feedback-title">问题反馈</text>
-        <text class="feedback-close" bind:tap="closeFeedback">X</text>
+        <text class="feedback-title">{{feedbackScene === 'start' ? '仪器启动异常反馈' : '使用问题反馈'}}</text>
+        <text class="feedback-close" bind:tap="closeFeedback">×</text>
       </view>
-      <input class="feedback-input" placeholder="请输入标题" value="{{feedbackTitle}}" bindinput="onTitleInput" />
-      <textarea value="{{feedbackContent}}" class="feedback-textarea" placeholder="请详细描述您遇到的问题" bindinput="onContentInput" />
-      <button class="feedback-btn" bind:tap="submitFeedback">提交反馈</button>
+
+      <!-- 问题类型选择
+      <view class="feedback-type-group">
+        <text class="feedback-label">问题类型</text>
+        <view class="type-options">
+          <view class="type-item {{feedbackType === item.value ? 'active' : ''}}" wx:for="{{feedbackTypeOptions}}" wx:key="value" data-value="{{item.value}}" bindtap="selectFeedbackType">
+            {{item.label}}
+          </view>
+        </view>
+      </view> -->
+
+      <input class="feedback-input" placeholder="请输入问题标题（选填）" value="{{feedbackTitle}}" bindinput="onTitleInput" />
+      <textarea value="{{feedbackContent}}" class="feedback-textarea" placeholder="请详细描述您遇到的问题，例如故障现象、报错信息等" bindinput="onContentInput" maxlength="500" />
+
+      <!-- 故障照片上传 -->
+      <!-- <view class="feedback-photo-section">
+        <text class="feedback-label">故障照片（选填，最多3张）</text>
+        <view class="photo-upload-grid">
+          <view class="photo-slot" wx:for="{{feedbackPhotos}}" wx:key="*this">
+            <image class="slot-img" src="{{item}}" mode="aspectFill"></image>
+            <view class="slot-delete" data-index="{{index}}" bindtap="deleteFeedbackPhoto">×</view>
+          </view>
+          <view class="photo-add-slot" wx:if="{{feedbackPhotos.length < 3}}" bindtap="chooseFeedbackPhoto">
+            <text class="slot-plus">+</text>
+            <text class="slot-tip">添加照片</text>
+          </view>
+        </view>
+      </view> -->
+
+      <!-- 严重故障选项（仅使用中场景显示） -->
+      <view class="feedback-end-option" wx:if="{{feedbackScene === 'using'}}">
+        <checkbox-group bindchange="onEndWithFeedback">
+          <label class="checkbox-label">
+            <checkbox value="1" checked="{{endWithFeedback}}" color="#62BCC4" />
+            <text>仪器无法使用，同步结束本次使用</text>
+          </label>
+        </checkbox-group>
+      </view>
+
+      <button class="feedback-submit-btn" bind:tap="submitFeedback" disabled="{{isLoading}}">
+        {{isLoading ? '提交中...' : '提交反馈'}}
+      </button>
     </view>
   </view>
 </view>
 
 <!-- ===== 新增：隐藏的 Canvas，用于绘制水印 ===== -->
-<canvas 
-  type="2d" 
-  id="watermarkCanvas" 
-  style="width:750px;height:1000px;position:fixed;left:-9999px;top:-9999px;pointer-events:none;"
-></canvas>
+<canvas type="2d" id="watermarkCanvas" style="width:750px;height:1000px;position:fixed;left:-9999px;top:-9999px;pointer-events:none;"></canvas>

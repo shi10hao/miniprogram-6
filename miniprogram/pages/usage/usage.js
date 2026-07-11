@@ -17,7 +17,8 @@ Page({
     ifWorkingOK: true,
     feedbackTitle: '',
     feedbackContent: '',
-    currentReserveId: '' // 新增：当前反馈对应的预约ID
+    currentReserveId: '', // 新增：当前反馈对应的预约ID
+    feedbackScene: ''
   },
 
   onLoad() {
@@ -128,31 +129,42 @@ Page({
     const queryAllReserves = async () => {
       let allRecords = []
       let lastId = null
+      let lastTime = null
       const pageSize = 20
 
       while (true) {
         let query = db.collection('reserves').where({
           user_id: userInfo.userId,
           status: 'approved'
-        }).orderBy('start_time', 'asc').limit(pageSize)
+        }).orderBy('start_time', 'asc').orderBy('_id', 'asc').limit(pageSize)
 
-        if (lastId) {
-          query = query.where({
-            _id: db.command.gt(lastId)
-          })
+        // 核心修正：用 start_time 做主游标，_id 兜底
+        if (lastTime && lastId) {
+          const _ = db.command
+          query = query.where(_.or([{
+              start_time: _.gt(lastTime)
+            },
+            {
+              start_time: _.eq(lastTime),
+              _id: _.gt(lastId)
+            }
+          ]))
         }
-
+        
         const res = await query.get()
         const records = res.data || []
 
         if (records.length === 0) break
         allRecords = allRecords.concat(records)
         if (records.length < pageSize) break
-        lastId = records[records.length - 1]._id
+
+        // 更新游标
+        const lastItem = records[records.length - 1]
+        lastTime = lastItem.start_time
+        lastId = lastItem._id
       }
       return allRecords
     }
-
     return queryAllReserves()
       .then(res => {
         var records = res || []
@@ -554,7 +566,8 @@ Page({
 
           if (res.confirm) {
             this.setData({
-              ifWorkingOK: true
+              ifWorkingOK: true,
+              currentReserveId: reserveId
             })
             console.log("仪器正常启动")
             ifWrong = false
@@ -632,7 +645,14 @@ Page({
       currentReserveId: reserveId || ''
     })
   },
-
+  openUsageFeedback() {
+    this.setData({
+      feedbackScene: 'using',
+      ifWorkingOK: false,
+      feedbackTitle: '',
+      feedbackContent: '',
+    })
+  },
   closeFeedback() {
     this.setData({
       ifWorkingOK: true
@@ -654,10 +674,13 @@ Page({
   },
 
   submitFeedback() {
+    // console.log("0")
+
     const {
       feedbackTitle,
       feedbackContent,
-      currentReserveId
+      currentReserveId,
+      feedbackScene
     } = this.data
     // 校验：内容不能为空
     if (!feedbackContent.trim()) {
@@ -668,6 +691,7 @@ Page({
       return
     }
     if (!currentReserveId) {
+      console.log("预约信息异常")
       wx.showToast({
         title: '预约信息异常',
         icon: 'none'
@@ -678,7 +702,7 @@ Page({
       title: '提交中...'
     })
     const userInfo = wx.getStorageSync('userInfo') || {}
-
+    console.log("1")
     // 调用异常反馈云函数
     wx.cloud.callFunction({
       name: 'submitAbnormalFeedback',
@@ -686,6 +710,7 @@ Page({
         reserveId: currentReserveId,
         feedbackTitle: feedbackTitle.trim(),
         feedbackContent: feedbackContent.trim(),
+        feedbackScene: feedbackScene,
         userInfo: {
           userId: userInfo.userId,
           name: userInfo.name || '',
@@ -697,6 +722,7 @@ Page({
     }).then(res => {
       wx.hideLoading()
       const result = res.result || {}
+      console.log("res:",res)
       if (result.success) {
         wx.showToast({
           title: '反馈提交成功',
