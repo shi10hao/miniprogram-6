@@ -702,10 +702,6 @@
   padding: 0 0 24rpx 20rpx;
 }
 
-.timeline-right.usage {
-  /* 使用记录无特殊背景 */
-}
-
 .timeline-right.reserve {
   opacity: 0.85;
 }

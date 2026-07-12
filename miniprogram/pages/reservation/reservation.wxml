@@ -129,7 +129,12 @@
           <!-- 点击设备才显示的内容，默认隐藏 -->
           <view wx:if="{{selectedDevice && selectedDevice.device_ids[0] === item.device_ids[0]}}" class="your-content">
             <view class="all_devices_btns">
-              <view class="each_devices_btn {{index === selectedIndex ? 'active' : ''}}" wx:for="{{item.device_ids}}" wx:for-item="device_id" wx:key="*this" data-id="{{device_id}}"  bindtap="onSelectDevice" catchtap data-index="{{index}}">{{device_id}}</view>
+              <view class="each_devices_btn {{index === selectedIndex ? 'active' : ''}} status-{{item.deviceStatusList[index].status}}" wx:for="{{item.device_ids}}" wx:for-item="device_id" wx:key="*this" data-id="{{device_id}}" data-status="{{item.deviceStatusList[index].status}}" bindtap="onSelectDevice" catchtap data-index="{{index}}">
+                {{device_id}}
+                <text class="status-tag {{item.deviceStatusList[index].status}}">
+                  {{item.deviceStatusList[index].status === 'available' ? '可用' : item.deviceStatusList[index].status === 'reserved' ? '已预约' : item.deviceStatusList[index].status === 'using' ? '使用中' : '维修中'}}
+                </text>
+              </view>
             </view>
           </view>
         </view>
@@ -177,7 +182,7 @@
       <text class="reserve-page-label">系统预约单</text>
       <view class="slot-upload" bind:tap="pickReservePage">
         <view wx:if="{{reservePage}}" class="slot-preview">
-          <image class="slot-img" src="{{reservePage}}" mode="aspectFill"/>
+          <image class="slot-img" src="{{reservePage}}" mode="aspectFill" />
         </view>
         <view wx:else class="slot-empty">
           <text class="slot-plus">+</text>

@@ -1,4 +1,5 @@
 const db = wx.cloud.database()
+const _ = db.command
 const RESERVE_REMIND_TPL_ID = 'rgRmn33I28JIm4REBjzpin2dV474fmrLRxYFTpSJbuk'
 
 Page({
@@ -256,7 +257,6 @@ Page({
         }
       })
       const deviceIds = valueOfGroupedMap.flatMap(d => d.device_ids)
-
       // console.log("deviceIds:", deviceIds)
       let conflictMap = {}
       try {
@@ -281,16 +281,55 @@ Page({
       } catch (err) {
         // console.error('批量检查冲突失败:', err)
       }
+      // 查询每个设备自身的 status 字段
+      const deviceSelfStatusMap = {}
+      const deviceIdChunks = []
+      for (let i = 0; i < deviceIds.length; i += 20) {
+        deviceIdChunks.push(deviceIds.slice(i, i + 20))
+      }
+      // console.log("deviceIdChunks:",deviceIdChunks)
+      for (const chunk of deviceIdChunks) {
+        let selfRes 
+        try {
+          selfRes = await db.collection('devices')
+            .where({
+              device_id: _.in(chunk)
+            })
+            .field({
+              device_id: true,
+              status: true
+            })
+            .get()
+        } catch (err) {
+          console.error("查询设备状态出错:", err)
+        }
+        (selfRes.data || []).forEach(item => {
+          if (item.device_id) {
+            deviceSelfStatusMap[item.device_id] = item.status || 'available'
+          }
+        })
+      }
+
+      // console.log("deviceSelfStatusMap:",deviceSelfStatusMap)
+      // 获取每个设备编号的综合状态
+      const deviceStatusMap = await this.getDeviceStatusMap(deviceIds, conflictMap, deviceSelfStatusMap)
+
       let devicesWithStatus = valueOfGroupedMap.map(group => {
         let total = 0
+        const deviceStatusList = []
         group.device_ids.forEach(id => {
           total += conflictMap[id] || 0
+          deviceStatusList.push({
+            device_id: id,
+            status: deviceStatusMap[id] || 'available'
+          })
         })
 
         return {
           ...group,
           conflictCount: total,
-          remainingCount: Math.max(group.totalCount - total, 0)
+          remainingCount: Math.max(group.totalCount - total, 0),
+          deviceStatusList // 新增：每个设备编号的状态列表
         }
       })
 
@@ -308,6 +347,65 @@ Page({
         icon: 'none'
       })
     }
+  },
+
+  // 获取每个设备编号在当前时间段的状态
+  async getDeviceStatusMap(deviceIds, conflictMap, deviceSelfStatusMap) {
+    if (!deviceIds || deviceIds.length === 0) return {}
+
+    const statusMap = {}
+    // 默认所有设备为 available
+    deviceIds.forEach(id => {
+      statusMap[id] = 'available'
+    })
+
+    try {
+      // 1. 根据设备自身 status 标记维修中的设备（优先级最高）
+      if (deviceSelfStatusMap) {
+        Object.keys(deviceSelfStatusMap).forEach(id => {
+          if (deviceSelfStatusMap[id] === 'maintenance' && statusMap[id] !== undefined) {
+            statusMap[id] = 'maintenance'
+          }
+        })
+      }
+
+      // 2. 根据 conflictMap 标记已被预约的设备
+      if (conflictMap) {
+        Object.keys(conflictMap).forEach(id => {
+          if (conflictMap[id] > 0 && statusMap[id] === 'available') {
+            statusMap[id] = 'reserved'
+          }
+        })
+      }
+
+      // 3. 分批查询当前正在使用的设备
+      const chunkSize = 20
+      const chunks = []
+      for (let i = 0; i < deviceIds.length; i += chunkSize) {
+        chunks.push(deviceIds.slice(i, i + chunkSize))
+      }
+
+      for (const chunk of chunks) {
+        const usingRes = await db.collection('device_usage')
+          .where({
+            device_id: _.in(chunk),
+            status: 'using'
+          })
+          .get()
+
+        ;
+        (usingRes.data || []).forEach(item => {
+          if (item.device_id && statusMap[item.device_id] === 'available') {
+            statusMap[item.device_id] = 'using'
+          }
+        })
+      }
+
+    } catch (err) {
+      console.error('获取设备状态失败:', err)
+    }
+
+    return statusMap
   },
 
   // 检查仪器冲突
@@ -542,7 +640,7 @@ Page({
     })
   },
 
-  
+
 
   // 提交预约                      checkTimeConflict
   async submitReservation() {
@@ -987,17 +1085,34 @@ Page({
   onSelectDevice(e) {
     const index = e.currentTarget.dataset.index;
     const device_id = e.currentTarget.dataset.id;
+    const status = e.currentTarget.dataset.status;
+
+    // 维修中或使用中的设备不可预约
+    if (status === 'maintenance') {
+      wx.showToast({
+        title: '该设备维修中，不可预约',
+        icon: 'none'
+      })
+      return
+    }
+    if (status === 'using') {
+      wx.showToast({
+        title: '该设备正在使用中，不可预约',
+        icon: 'none'
+      })
+      return
+    }
+
     const selectedDevice = this.data.selectedDevice;
     this.setData({
       selectedIndex: index,
       selectedDevice: {
-        ...selectedDevice, // 保留完整设备信息
-        device_id: device_id // 覆盖成你点击的子设备ID
+        ...selectedDevice,
+        device_id: device_id
       }
     }, () => {
       this.checkTimeConflict();
       this.checkPastTime();
-      // console.log("selectedDevice:", this.data.selectedDevice);
     });
   },
 
