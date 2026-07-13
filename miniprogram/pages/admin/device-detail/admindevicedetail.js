@@ -536,7 +536,8 @@ Page({
           return {
             ...decorated,
             abnormal_time_display: abnormalTimeDisplay,
-            reserve_time: reserveTime
+            reserve_time: reserveTime,
+            usageTimeDisplay: this.formatUsageTime(item.start_time, item.end_time)
           }
         })
         .filter(item => item.hasAnyPhoto)
@@ -807,12 +808,11 @@ Page({
     (usages || []).forEach(item => {
       pushIfCloud(item.start_photo)
       this.normalizeImageList(item.usage_images).forEach(pushIfCloud)
-
-      const endPhotos = item.end_photos
-      if (endPhotos && typeof endPhotos === 'object' && !Array.isArray(endPhotos)) {
-        pushIfCloud(endPhotos.duty)
-        pushIfCloud(endPhotos.device_off)
-        pushIfCloud(endPhotos.door_closed)
+      // 新增：结束信息中的图片（总的预约单、补充预约单）
+      const endChecklist = item.end_checklist
+      if (endChecklist) {
+        pushIfCloud(endChecklist.total_page)
+        pushIfCloud(endChecklist.supplement_page)
       }
     })
 
@@ -861,44 +861,34 @@ Page({
       .map(url => this.resolvePhotoUrl(url, tempUrlMap))
       .filter(Boolean)
 
-    let endPhotoItems = []
-    const endPhotos = item.end_photos
-    if (endPhotos && typeof endPhotos === 'object' && !Array.isArray(endPhotos)) {
-      endPhotoItems = [{
-            key: 'duty',
-            label: '值班台照片',
-            rawUrl: endPhotos.duty
-          },
-          {
-            key: 'device_off',
-            label: '设备断电照片',
-            rawUrl: endPhotos.device_off
-          },
-          {
-            key: 'door_closed',
-            label: '门已关闭照片',
-            rawUrl: endPhotos.door_closed
-          }
-        ]
-        .map(photo => ({
-          ...photo,
-          url: this.resolvePhotoUrl(photo.rawUrl, tempUrlMap)
-        }))
-        .filter(photo => !!photo.url)
+    let endChecklistDisplay = null
+    const ec = item.end_checklist
+    if (ec) {
+      endChecklistDisplay = {
+        instrumentOff: ec.instrument_off,
+        computerOff: ec.computer_off,
+        sampleCount: ec.sample_count,
+        totalPageUrl: this.resolvePhotoUrl(ec.total_page, tempUrlMap),
+        needSupplement: ec.need_supplement,
+        supplementPageUrl: this.resolvePhotoUrl(ec.supplement_page, tempUrlMap)
+      }
     }
 
     const allPhotoUrls = []
     if (startPhotoUrl) allPhotoUrls.push(startPhotoUrl)
     usageImageUrls.forEach(url => allPhotoUrls.push(url))
-    endPhotoItems.forEach(photo => allPhotoUrls.push(photo.url))
+    if (endChecklistDisplay) {
+      if (endChecklistDisplay.totalPageUrl) allPhotoUrls.push(endChecklistDisplay.totalPageUrl)
+      if (endChecklistDisplay.supplementPageUrl) allPhotoUrls.push(endChecklistDisplay.supplementPageUrl)
+    }
 
     return {
       ...item,
       startPhotoUrl,
       usageImageUrls,
-      endPhotoItems,
       allPhotoUrls,
-      hasAnyPhoto: allPhotoUrls.length > 0
+      hasAnyPhoto: allPhotoUrls.length > 0,
+      endChecklistDisplay  // 新增
     }
   },
 
@@ -1431,5 +1421,30 @@ Page({
     wx.navigateTo({
       url: `/pages/device-instance-detail/device-instance-detail?deviceId=${encodeURIComponent(deviceId)}`
     })
+  },
+  formatUsageTime(startTime, endTime) {
+    const format = (isoStr) => {
+      if (!isoStr) return ''
+      const d = this.parseDateTime(isoStr)
+      if (!d) return ''
+      const pad = n => String(n).padStart(2, '0')
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+    }
+    const start = format(startTime)
+    const end = format(endTime)
+    if (!start) return ''
+    if (!end) return start
+    
+    // 如果日期相同，只显示一次日期
+    const startDate = start.split(' ')[0]
+    const endDate = end.split(' ')[0]
+    const startTimeOnly = start.split(' ')[1]
+    const endTimeOnly = end.split(' ')[1]
+    
+    if (startDate === endDate) {
+      return `${startDate} ${startTimeOnly} - ${endTimeOnly}`
+    }
+    
+    return `${start} - ${end}`
   }
 })

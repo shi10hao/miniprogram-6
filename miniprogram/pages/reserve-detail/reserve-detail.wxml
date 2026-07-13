@@ -28,26 +28,26 @@
         <text class="info-card-title">预约信息</text>
       </view>
 
-      <view class="info-card-body">
-        <view class="info-field">
-          <text class="info-label">使用人员</text>
-          <text class="info-text">{{detail.student_name || detail.user_id}}</text>
+      <view class="info-list">
+        <view class="info-item">
+          <text class="info-item-label">使用人员:</text>
+          <text class="info-item-value">{{detail.student_name || detail.user_id}}</text>
         </view>
-        <view class="info-field">
-          <text class="info-label">课题组</text>
-          <text class="info-text">{{detail.group_name || '未填写'}}</text>
+        <view class="info-item">
+          <text class="info-item-label">课题组:</text>
+          <text class="info-item-value">{{detail.group_name || '未填写'}}</text>
         </view>
-        <view class="info-field">
-          <text class="info-label">仪器编号</text>
-          <text class="info-text">{{detail.device_id}}</text>
+        <view class="info-item">
+          <text class="info-item-label">仪器编号:</text>
+          <text class="info-item-value">{{detail.device_id}}</text>
         </view>
-        <view class="info-field">
-          <text class="info-label">仪器名称</text>
-          <text class="info-text">{{detail.device_name}}</text>
+        <view class="info-item">
+          <text class="info-item-label">仪器名称:</text>
+          <text class="info-item-value">{{detail.device_name}}</text>
         </view>
-        <view class="info-field">
-          <text class="info-label">预约时间</text>
-          <text class="info-text">{{detail.dateDisplay}} {{detail.timeDisplay}}</text>
+        <view class="info-item">
+          <text class="info-item-label">预约时间:</text>
+          <text class="info-item-value">{{detail.dateDisplay}} {{detail.timeDisplay}}</text>
         </view>
       </view>
     </view>
@@ -71,6 +71,13 @@
       <view class="feedback-section">
         <text class="feedback-section-title">反馈时间</text>
         <text class="feedback-content-content">{{feedback.submit_time_display}}</text>
+      </view>
+      <!-- 新增：反馈照片 -->
+      <view wx:if="{{detail.feedbackPhotoUrls && detail.feedbackPhotoUrls.length > 0}}" class="feedback-section">
+        <text class="feedback-section-title">反馈照片（{{detail.feedbackPhotoUrls.length}}）</text>
+        <view class="photo-grid">
+          <image wx:for="{{detail.feedbackPhotoUrls}}" wx:key="*this" class="usage-photo" src="{{item}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{item}}" data-urls="{{allPhotos}}" />
+        </view>
       </view>
     </view>
 
@@ -97,21 +104,6 @@
         <text wx:else class="empty-hint">暂无照片</text>
       </view>
 
-      <!-- 结束照片（多张） -->
-      <!-- 结束核验照片 -->
-      <view class="section">
-        <view class="section-title-wrap">
-          <text class="section-title">结束核验照片（{{detail.endPhotoItems.length}}）</text>
-        </view>
-        <view wx:if="{{detail.endPhotoItems.length > 0}}" class="photo-grid">
-          <view class="photo-item" wx:for="{{detail.endPhotoItems}}" wx:key="key">
-            <image class="usage-photo" src="{{item.url}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{item.url}}" data-urls="{{allPhotos}}" />
-            <text class="photo-tip">{{item.label}}</text>
-          </view>
-        </view>
-        <text wx:else class="empty-hint">暂无照片</text>
-      </view>
-
       <!-- 系统预约单 -->
       <view class="section">
         <view class="section-title-wrap">
@@ -120,6 +112,49 @@
         <view class="photo-section">
           <image wx:if="{{detail.reservePageUrl}}" class="usage-photo" src="{{detail.reservePageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.reservePageUrl}}" data-urls="{{allPhotos}}" />
           <text wx:else class="empty-hint">未上传预约单</text>
+        </view>
+      </view>
+
+      <!-- 结束信息 -->
+      <view wx:if="{{detail.endChecklistDisplay}}" class="section">
+        <view class="section-title-wrap">
+          <text class="section-title">结束使用信息</text>
+        </view>
+
+        <!-- 仪器是否关闭 -->
+        <view class="end-info-row">
+          <text class="end-info-label">仪器关闭</text>
+          <text class="end-info-value {{detail.endChecklistDisplay.instrumentOff ? 'yes' : 'no'}}">{{detail.endChecklistDisplay.instrumentOff ? '是' : '否'}}</text>
+        </view>
+
+        <!-- 电脑是否关闭 -->
+        <view class="end-info-row">
+          <text class="end-info-label">电脑关闭</text>
+          <text class="end-info-value {{detail.endChecklistDisplay.computerOff ? 'yes' : 'no'}}">{{detail.endChecklistDisplay.computerOff ? '是' : '否'}}</text>
+        </view>
+
+        <!-- 运行样品总数 -->
+        <view class="end-info-row">
+          <text class="end-info-label">运行样品总数</text>
+          <text class="end-info-value">{{detail.endChecklistDisplay.sampleCount}} 个</text>
+        </view>
+
+        <!-- 是否需要补充预约 -->
+        <view class="end-info-row">
+          <text class="end-info-label">补充预约</text>
+          <text class="end-info-value {{detail.endChecklistDisplay.needSupplement ? 'yes' : 'no'}}">{{detail.endChecklistDisplay.needSupplement ? '是' : '否'}}</text>
+        </view>
+
+        <!-- 总的预约单图片 -->
+        <view wx:if="{{detail.endChecklistDisplay.totalPageUrl}}" class="end-info-photo-section">
+          <text class="end-info-photo-label">总的预约单</text>
+          <image class="usage-photo" src="{{detail.endChecklistDisplay.totalPageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.endChecklistDisplay.totalPageUrl}}" data-urls="{{allPhotos}}" />
+        </view>
+
+        <!-- 补充预约单图片 -->
+        <view wx:if="{{detail.endChecklistDisplay.supplementPageUrl}}" class="end-info-photo-section">
+          <text class="end-info-photo-label">补充预约单</text>
+          <image class="usage-photo" src="{{detail.endChecklistDisplay.supplementPageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.endChecklistDisplay.supplementPageUrl}}" data-urls="{{allPhotos}}" />
         </view>
       </view>
     </view>

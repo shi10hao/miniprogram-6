@@ -110,66 +110,6 @@
       </view>
     </view>
 
-    <!-- 4.2 上传使用结束 -->
-    <view wx:if="{{endMode}}" class="end-photo-block">
-      <view class="section-header">
-        <text class="section-title">结束使用照片上传</text>
-        <text class="section-hint">请上传 3 张结束照片后再确认结束</text>
-      </view>
-
-      <!-- 末尾拍照插槽1 -->
-      <view class="end-photo-slot">
-        <text class="slot-label">1. 值日照（实验室已清洁）</text>
-        <view class="slot-upload" bindtap="pickEndPhoto" data-slot="0">
-          <view wx:if="{{endPhotos[0]}}" class="slot-preview">
-            <image class="slot-img" src="{{endPhotos[0]}}" mode="aspectFill"></image>
-            <view class="slot-done-badge">已选</view>
-          </view>
-          <view wx:else class="slot-empty">
-            <text class="slot-plus">+</text>
-            <text class="slot-tip">点击拍照/选择</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 末尾拍照插槽2 -->
-      <view class="end-photo-slot">
-        <text class="slot-label">2. 仪器已关闭照片</text>
-        <view class="slot-upload" bindtap="pickEndPhoto" data-slot="1">
-          <view wx:if="{{endPhotos[1]}}" class="slot-preview">
-            <image class="slot-img" src="{{endPhotos[1]}}" mode="aspectFill"></image>
-            <view class="slot-done-badge">已选</view>
-          </view>
-          <view wx:else class="slot-empty">
-            <text class="slot-plus">+</text>
-            <text class="slot-tip">点击拍照/选择</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 末尾拍照插槽3 -->
-      <view class="end-photo-slot">
-        <text class="slot-label">3. 实验室已关门照片</text>
-        <view class="slot-upload" bindtap="pickEndPhoto" data-slot="2">
-          <view wx:if="{{endPhotos[2]}}" class="slot-preview">
-            <image class="slot-img" src="{{endPhotos[2]}}" mode="aspectFill"></image>
-            <view class="slot-done-badge">已选</view>
-          </view>
-          <view wx:else class="slot-empty">
-            <text class="slot-plus">+</text>
-            <text class="slot-tip">点击拍照/选择</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 提交按钮 -->
-      <view class="end-actions">
-        <button class="cancel-end-btn" bindtap="cancelEnd" disabled="{{isLoading}}">取消</button>
-        <button class="confirm-end-btn {{endPhotos[0] && endPhotos[1] && endPhotos[2] ? '' : 'disabled'}}" bindtap="confirmEndUsage" disabled="{{isLoading || !endPhotos[0] || !endPhotos[1] || !endPhotos[2]}}">
-          {{isLoading ? '提交中...' : '确认结束使用'}}
-        </button>
-      </view>
-    </view>
   </view>
 
   <view class="history-section">
@@ -251,6 +191,88 @@
       </button>
     </view>
   </view>
+  <!-- 结束信息表单浮层 -->
+<view class="end-form-mask" wx:if="{{showEndForm}}">
+  <view class="end-form-card">
+    <view class="end-form-header">
+      <text class="end-form-title">结束使用信息</text>
+      <text class="end-form-close" bindtap="cancelEndForm">✕</text>
+    </view>
+
+    <scroll-view scroll-y class="end-form-body">
+      <!-- 仪器是否关闭 -->
+      <view class="form-row">
+        <text class="form-label required">仪器是否关闭</text>
+        <view class="form-options">
+          <text class="option-btn {{endForm.instrumentOff === true ? 'active' : ''}}" data-value="true" bindtap="selectInstrumentOff">是</text>
+          <text class="option-btn {{endForm.instrumentOff === false ? 'active' : ''}}" data-value="false" bindtap="selectInstrumentOff">否</text>
+        </view>
+      </view>
+
+      <!-- 电脑是否关闭 -->
+      <view class="form-row">
+        <text class="form-label required">电脑是否关闭</text>
+        <view class="form-options">
+          <text class="option-btn {{endForm.computerOff === true ? 'active' : ''}}" data-value="true" bindtap="selectComputerOff">是</text>
+          <text class="option-btn {{endForm.computerOff === false ? 'active' : ''}}" data-value="false" bindtap="selectComputerOff">否</text>
+        </view>
+      </view>
+
+      <!-- 运行样品总数 -->
+      <view class="form-row">
+        <text class="form-label required">运行样品总数</text>
+        <input class="form-input" type="number" placeholder="请输入正整数" value="{{endForm.sampleCount}}" bindinput="onSampleCountInput" />
+      </view>
+
+      <!-- 总的预约单 -->
+      <view class="form-row">
+        <text class="form-label required">总的预约单</text>
+        <view class="form-upload" bindtap="pickTotalPage">
+          <view wx:if="{{endForm.totalPage}}" class="upload-preview">
+            <image class="upload-img" src="{{endForm.totalPage}}" mode="aspectFill" />
+            <text class="upload-change">重新选择</text>
+          </view>
+          <view wx:else class="upload-empty">
+            <text class="upload-plus">+</text>
+            <text class="upload-tip">点击上传预约单截图</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 是否需要补充预约 -->
+      <view class="form-row">
+        <text class="form-label required">是否需要补充预约</text>
+        <view class="form-options">
+          <text class="option-btn {{endForm.needSupplement === true ? 'active' : ''}}" data-value="true" bindtap="selectNeedSupplement">是</text>
+          <text class="option-btn {{endForm.needSupplement === false ? 'active' : ''}}" data-value="false" bindtap="selectNeedSupplement">否</text>
+        </view>
+      </view>
+
+      <!-- 补充预约单 -->
+      <view wx:if="{{endForm.needSupplement}}" class="form-row">
+        <text class="form-label required">补充预约单</text>
+        <view class="form-upload" bindtap="pickSupplementPage">
+          <view wx:if="{{endForm.supplementPage}}" class="upload-preview">
+            <image class="upload-img" src="{{endForm.supplementPage}}" mode="aspectFill" />
+            <text class="upload-change">重新选择</text>
+          </view>
+          <view wx:else class="upload-empty">
+            <text class="upload-plus">+</text>
+            <text class="upload-tip">点击上传补充预约单截图</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 提交按钮 -->
+    <view class="end-form-footer">
+      <button class="form-cancel-btn" bindtap="cancelEndForm">取消</button>
+      <button class="form-submit-btn" bindtap="submitEndForm" disabled="{{isLoading}}">
+        {{isLoading ? '提交中...' : '确认结束使用'}}
+      </button>
+    </view>
+  </view>
+</view>
 </view>
 
 <!-- ===== 新增：隐藏的 Canvas，用于绘制水印 ===== -->

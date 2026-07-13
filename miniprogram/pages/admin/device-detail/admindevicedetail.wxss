@@ -120,31 +120,31 @@
   border-color: #62BCC4;
 }
 
-/* 使用情况 */
+/* 使用情况 - 简约干练风格 */
 .usage-list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: 16rpx;
 }
 
 .usage-item {
-  padding: 24rpx;
-  background: #f7f9fc;
+  padding: 20rpx;
+  background: #fafbfc;
   border-radius: 12rpx;
-  border: 1rpx solid #e8ecf0;
+  border: 1rpx solid #edf0f4;
 }
 
 .usage-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8rpx;
+  margin-bottom: 6rpx;
 }
 
 .user-name {
   font-size: 26rpx;
   font-weight: 600;
-  color: #333;
+  color: #222;
 }
 
 .duration {
@@ -156,24 +156,24 @@
 .device-id-small {
   display: block;
   font-size: 22rpx;
-  color: #888;
-  margin-bottom: 16rpx;
+  color: #999;
+  margin-bottom: 12rpx;
 }
 
 .photo-section {
-  margin-top: 16rpx;
+  margin-top: 12rpx;
 }
 
 .photo-label {
   display: block;
   font-size: 22rpx;
-  color: #666;
-  margin-bottom: 10rpx;
+  color: #777;
+  margin-bottom: 8rpx;
 }
 
 .usage-photo {
-  width: 160rpx;
-  height: 160rpx;
+  width: 144rpx;
+  height: 108rpx;
   border-radius: 8rpx;
   background: #eee;
 }
@@ -181,24 +181,7 @@
 .photo-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 12rpx;
-}
-
-.photo-item {
-  width: 160rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
-}
-
-.photo-tip {
-  width: 100%;
-  font-size: 20rpx;
-  color: #666;
-  line-height: 1.4;
-  text-align: center;
-  word-break: break-all;
+  gap: 10rpx;
 }
 
 /* 预约情况 */
@@ -220,11 +203,6 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8rpx;
-}
-
-.reserve-date {
-  font-size: 22rpx;
-  color: #666;
 }
 
 .reserve-time {
@@ -357,7 +335,6 @@
   margin-top: 8rpx;
 }
 
-/* 图片选择 */
 .edit-image-row {
   display: flex;
   align-items: center;
@@ -381,7 +358,6 @@
   color: #62BCC4;
 }
 
-/* 视频选择 */
 .edit-video-row {
   display: flex;
   align-items: center;
@@ -408,7 +384,6 @@
   white-space: nowrap;
 }
 
-/* 保存按钮 */
 .save-btn {
   width: 100%;
   height: 88rpx;
@@ -427,45 +402,21 @@
   color: white;
 }
 
-/* 取消编辑按钮变灰 */
 .info-edit-btn.cancel {
   background: #f0f0f0;
   color: #666;
 }
 
-/* ===== 第4步：微调 ===== */
-
-/* 内容区与信息卡片之间留一点间距 */
 .content {
   padding-top: 24rpx;
 }
 
-/* 信息卡片底部与内容区衔接 */
 .info-card {
   margin-bottom: 0;
 }
 
-/* 编辑文本输入框获得焦点时的边框高亮 */
 .edit-textarea:focus {
   border-color: #62BCC4;
-}
-
-/* 已选图片/视频的预览提示 */
-.edit-image-hint,
-.edit-video-btn {
-  color: #62BCC4;
-}
-
-/* 保存按钮禁用状态的样式 */
-.save-btn[disabled] {
-  background: #a8d8dc;
-  color: rgba(255,255,255,0.8);
-}
-
-/* 当编辑模式开启时，顶部按钮的文字微调 */
-.info-edit-btn.cancel {
-  background: #f0f0f0;
-  color: #666;
 }
 
 .edit-input {
@@ -510,7 +461,6 @@
   transform: rotate(-90deg);
 }
 
-/* 展开全部 */
 .expand-wrap {
   display: flex;
   justify-content: center;
@@ -644,4 +594,63 @@
 }
 .add-instance-btn::after {
   border: none;
+}
+
+/* 结束信息摘要 */
+
+.summary-title {
+  display: block;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #2d6a6e;
+  margin-bottom: 10rpx;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6rpx;
+}
+
+.summary-row:last-of-type {
+  margin-bottom: 0;
+}
+
+.summary-label {
+  font-size: 22rpx;
+  color: #888;
+}
+
+.summary-value {
+  font-size: 22rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.summary-value.yes {
+  color: #2e7d32;
+}
+
+.summary-value.no {
+  color: #c62828;
+}
+
+.summary-detail-hint {
+  display: block;
+  text-align: right;
+  font-size: 20rpx;
+  color: #62BCC4;
+  margin-top: 8rpx;
+}
+
+.device-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+
+.device-info-row .device-id-small {
+  margin-bottom: 0;
 }

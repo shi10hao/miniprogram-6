@@ -86,7 +86,9 @@ Page({
       photoUrls.reservePageUrl,
       photoUrls.startPhotoUrl,
       ...photoUrls.usageImageUrls,
-      ...photoUrls.endPhotoItems.map(item => item.url)
+      photoUrls.endChecklistDisplay?.totalPageUrl,
+      photoUrls.endChecklistDisplay?.supplementPageUrl,
+      ...photoUrls.feedbackPhotoUrls
     ].filter(Boolean) // 去掉空字符串
 
     // 计算预约真实状态
@@ -166,11 +168,17 @@ Page({
       if (Array.isArray(usage.usage_images)) {
         ids.push(...usage.usage_images)
       }
-
-      // 结束照片（对象，只要 value）
-      if (usage.end_photos && typeof usage.end_photos === 'object') {
-        Object.values(usage.end_photos).forEach(v => {
-          if (v) ids.push(v)
+      // 新增：结束信息中的图片
+      const ec = usage.end_checklist
+      if (ec) {
+        if (ec.total_page) ids.push(ec.total_page)
+        if (ec.supplement_page) ids.push(ec.supplement_page)
+      }
+      // 新增：反馈照片
+      const fb = usage.feedback
+      if (fb && Array.isArray(fb.photos)) {
+        fb.photos.forEach(pid => {
+          if (pid) ids.push(pid)
         })
       }
     }
@@ -194,33 +202,34 @@ Page({
   },
 
   applyPhotosToData(reserve, usage, map) {
+    let endChecklistDisplay = null
+    const ec = usage?.end_checklist
+    if (ec) {
+      endChecklistDisplay = {
+        instrumentOff: ec.instrument_off,
+        computerOff: ec.computer_off,
+        sampleCount: ec.sample_count,
+        totalPageUrl: map[ec.total_page] || '',
+        needSupplement: ec.need_supplement,
+        supplementPageUrl: map[ec.supplement_page] || ''
+      }
+    }
+    // 新增：处理反馈照片
+    let feedbackPhotoUrls = []
+    const fb = usage?.feedback
+    if (fb && Array.isArray(fb.photos)) {
+      feedbackPhotoUrls = fb.photos.map(pid => map[pid] || '').filter(Boolean)
+    }
     return {
-      // 预约单
       reservePageUrl: map[reserve?.reserve_page] || '',
-
       // 开始照片
       startPhotoUrl: map[usage?.start_photo] || '',
-
       // 使用照片（保持数组顺序）
       usageImageUrls: (usage?.usage_images || []).map(id => map[id] || ''),
-
-      // 结束照片（转带标签的数组，过滤空值）
-      endPhotoItems: usage?.end_photos ? [{
-          key: 'duty',
-          label: '值班台照片',
-          url: map[usage.end_photos.duty] || ''
-        },
-        {
-          key: 'device_off',
-          label: '设备断电照片',
-          url: map[usage.end_photos.device_off] || ''
-        },
-        {
-          key: 'door_closed',
-          label: '门已关闭照片',
-          url: map[usage.end_photos.door_closed] || ''
-        }
-      ].filter(item => !!item.url) : []
+      // 结束信息展示
+      endChecklistDisplay,
+      // 新增：反馈照片
+      feedbackPhotoUrls
     }
   },
 

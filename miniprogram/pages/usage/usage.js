@@ -10,8 +10,6 @@ Page({
     pendingReserves: [],
     usageHistory: [],
     isLoading: false,
-    endMode: false,
-    endPhotos: [null, null, null],
     unreadReminder: null,
     isAuthenticated: false,
     ifWorkingOK: true,
@@ -20,7 +18,17 @@ Page({
     currentReserveId: '', // 新增：当前反馈对应的预约ID
     feedbackScene: '',
     feedbackPhotos: [],
-    endWithFeedback: false
+    endWithFeedback: false,
+    // 结束信息表单
+    showEndForm: false,
+    endForm: {
+      instrumentOff: null, // true/false，仪器是否关闭
+      computerOff: null, // true/false，电脑是否关闭
+      sampleCount: '', // 运行样品总数
+      totalPage: '', // 总的预约单本地路径
+      needSupplement: null, // true/false，是否需要补充预约
+      supplementPage: '' // 补充预约单本地路径
+    },
   },
 
   onLoad() {
@@ -655,6 +663,7 @@ Page({
   },
   openUsageFeedback() {
     const currentUsage = this.data.currentUsage
+    console.log('openUsageFeedback - currentUsage:', currentUsage)  // 加日志
     // 兜底校验：没有使用记录时不允许提交
     if (!currentUsage || !currentUsage.reserve_id) {
       wx.showToast({
@@ -1024,20 +1033,16 @@ Page({
   },
   // 13
   startEndUsage() {
-    // this.requestSubscribeMessage()
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      success: () => {
-        this.setData({
-          endMode: true,
-          endPhotos: [null, null, null]
-        })
-        this.writeUsageEndReminder()
-      },
-      fail(err) {
-        console.error('选择照片失败:', err)
+    // 弹出结束信息表单，不再进入 endMode
+    this.setData({
+      showEndForm: true,
+      endForm: {
+        instrumentOff: null,
+        computerOff: null,
+        sampleCount: '',
+        totalPage: '',
+        needSupplement: null,
+        supplementPage: ''
       }
     })
   },
@@ -1073,148 +1078,8 @@ Page({
         console.error('写入结束使用提醒失败:', err)
       })
   },
-  // 15
-  pickEndPhoto(e) {
-    const slot = e.currentTarget.dataset.slot
 
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      success: res => {
-        const tempFilePath = res.tempFiles[0].tempFilePath
-        const endPhotos = this.data.endPhotos.slice()
-        endPhotos[slot] = tempFilePath
-        this.setData({
-          endPhotos
-        })
-      },
-      fail(err) {
-        console.error('选择照片失败:', err)
-      }
-    })
-  },
-  // 16
-  confirmEndUsage() {
-    // this.requestSubscribeMessage()
-    const endPhotos = this.data.endPhotos
-    if (!endPhotos[0] || !endPhotos[1] || !endPhotos[2]) {
-      wx.showToast({
-        title: '请上传全部3张照片',
-        icon: 'none'
-      })
-      return
-    }
 
-    this.setData({
-      isLoading: true
-    })
-    this.uploadEndPhotos(endPhotos)
-  },
-  // 17
-  uploadEndPhotos(localPaths) {
-    const currentUsage = this.data.currentUsage
-    const labels = ['duty', 'device_off', 'door_closed']
-    const uploadPromises = localPaths.map((path, i) => {
-      return new Promise((resolve, reject) => {
-        wx.cloud.uploadFile({
-          cloudPath: `usage_photos/end_${labels[i]}_${Date.now()}_${i}.jpg`,
-          filePath: path,
-          success(res) {
-            resolve(res.fileID)
-          },
-          fail(err) {
-            reject(err)
-          }
-        })
-      })
-    })
-
-    Promise.all(uploadPromises)
-      .then(fileIDs => {
-        const endTime = new Date().toISOString()
-        const usageCompletionData = {
-          end_time: endTime,
-          end_photos: {
-            duty: fileIDs[0],
-            device_off: fileIDs[1],
-            door_closed: fileIDs[2]
-          },
-          status: 'completed'
-        }
-
-        return this.completeUsageAndReserve(currentUsage, usageCompletionData)
-      })
-      .then(() => {
-        this.setData({
-          isLoading: false,
-          endMode: false,
-          endPhotos: [null, null, null],
-          currentUsage: null
-        })
-        wx.showToast({
-          title: '使用已结束',
-          icon: 'success'
-        })
-        this.loadData()
-      })
-      .catch(err => {
-        this.setData({
-          isLoading: false
-        })
-        console.error('结束使用失败:', err)
-        wx.showToast({
-          title: '结束失败，请重试',
-          icon: 'none'
-        })
-      })
-  },
-  // 18
-  completeUsageAndReserve(usage, usageCompletionData) {
-    let reserveUpdated = false
-
-    return Promise.resolve()
-      .then(() => {
-        if (!usage || !usage.reserve_id) {
-          return null
-        }
-
-        return db.collection('reserves')
-          .doc(usage.reserve_id)
-          .update({
-            data: {
-              usage_status: 'completed'
-            }
-          })
-          .then(() => {
-            reserveUpdated = true
-          })
-      })
-      .then(() => db.collection('device_usage')
-        .doc(usage._id)
-        .update({
-          data: usageCompletionData
-        }))
-      .catch(err => {
-        if (!reserveUpdated || !usage || !usage.reserve_id) {
-          throw err
-        }
-
-        return db.collection('reserves')
-          .doc(usage.reserve_id)
-          .update({
-            data: {
-              usage_status: 'active'
-            }
-          })
-          .catch(rollbackErr => {
-            console.error('回滚预约状态失败:', rollbackErr)
-          })
-          .then(() => {
-            throw err
-          })
-      })
-  },
   // 19
   cancelEnd() {
     this.setData({
@@ -1306,5 +1171,207 @@ Page({
     this.setData({
       endWithFeedback: checked
     })
+  },
+  // 取消结束表单
+  cancelEndForm() {
+    this.setData({
+      showEndForm: false
+    })
+  },
+  // 选择仪器是否关闭
+  selectInstrumentOff(e) {
+    const value = e.currentTarget.dataset.value === 'true'
+    this.setData({
+      'endForm.instrumentOff': value
+    })
+  },
+  // 选择电脑是否关闭
+  selectComputerOff(e) {
+    const value = e.currentTarget.dataset.value === 'true'
+    this.setData({
+      'endForm.computerOff': value
+    })
+  },
+  // 输入运行样品总数
+  onSampleCountInput(e) {
+    let val = e.detail.value
+    // 只允许正整数
+    val = val.replace(/\D/g, '')
+    if (val === '0') val = ''
+    this.setData({
+      'endForm.sampleCount': val
+    })
+  },
+  // 上传总的预约单
+  pickTotalPage() {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      success: res => {
+        this.setData({
+          'endForm.totalPage': res.tempFiles[0].tempFilePath
+        })
+      },
+      fail: err => {
+        console.error('选择预约单失败:', err)
+      }
+    })
+  },
+  // 选择是否需要补充预约
+  selectNeedSupplement(e) {
+    const value = e.currentTarget.dataset.value === 'true'
+    this.setData({
+      'endForm.needSupplement': value,
+      'endForm.supplementPage': '' // 切换时清空已选的补充预约单
+    })
+  },
+  // 上传补充预约单
+  pickSupplementPage() {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      success: res => {
+        this.setData({
+          'endForm.supplementPage': res.tempFiles[0].tempFilePath
+        })
+      },
+      fail: err => {
+        console.error('选择补充预约单失败:', err)
+      }
+    })
+  },
+  // 提交结束表单
+  async submitEndForm() {
+    const endForm = this.data.endForm
+
+    // 表单验证
+    if (endForm.instrumentOff === null) {
+      wx.showToast({
+        title: '请选择仪器是否关闭',
+        icon: 'none'
+      })
+      return
+    }
+    if (endForm.computerOff === null) {
+      wx.showToast({
+        title: '请选择电脑是否关闭',
+        icon: 'none'
+      })
+      return
+    }
+    if (!endForm.sampleCount) {
+      wx.showToast({
+        title: '请填写运行样品总数',
+        icon: 'none'
+      })
+      return
+    }
+    if (!endForm.totalPage) {
+      wx.showToast({
+        title: '请上传总的预约单',
+        icon: 'none'
+      })
+      return
+    }
+    if (endForm.needSupplement === null) {
+      wx.showToast({
+        title: '请选择是否需要补充预约',
+        icon: 'none'
+      })
+      return
+    }
+    if (endForm.needSupplement && !endForm.supplementPage) {
+      wx.showToast({
+        title: '请上传补充预约单',
+        icon: 'none'
+      })
+      return
+    }
+
+    this.setData({
+      isLoading: true
+    })
+
+    try {
+      // 上传所有图片
+      const uploadTasks = []
+      const fileMap = {}
+
+      // 上传总的预约单
+      const totalPageTask = wx.cloud.uploadFile({
+        cloudPath: `end_check/total_${Date.now()}.jpg`,
+        filePath: endForm.totalPage
+      })
+      uploadTasks.push(totalPageTask)
+
+      // 如果需要补充预约，上传补充预约单
+      let supplementTask = null
+      if (endForm.needSupplement) {
+        supplementTask = wx.cloud.uploadFile({
+          cloudPath: `end_check/supplement_${Date.now()}.jpg`,
+          filePath: endForm.supplementPage
+        })
+        uploadTasks.push(supplementTask)
+      }
+
+      const uploadResults = await Promise.all(uploadTasks)
+      const totalPageFileID = uploadResults[0].fileID
+      const supplementPageFileID = supplementTask ? uploadResults[1].fileID : ''
+
+      // 构建结束信息数据
+      const currentUsage = this.data.currentUsage
+      const endTime = new Date().toISOString()
+
+      const endChecklist = {
+        instrument_off: endForm.instrumentOff,
+        computer_off: endForm.computerOff,
+        sample_count: parseInt(endForm.sampleCount),
+        total_page: totalPageFileID,
+        need_supplement: endForm.needSupplement,
+        supplement_page: supplementPageFileID || ''
+      }
+
+      // 更新 device_usage 表
+      await db.collection('device_usage').doc(currentUsage._id).update({
+        data: {
+          end_time: endTime,
+          status: 'completed',
+          end_checklist: endChecklist
+        }
+      })
+
+      // 更新 reserves 表
+      if (currentUsage.reserve_id) {
+        await db.collection('reserves').doc(currentUsage.reserve_id).update({
+          data: {
+            usage_status: 'completed'
+          }
+        })
+      }
+
+      this.setData({
+        isLoading: false,
+        showEndForm: false,
+        currentUsage: null
+      })
+
+      wx.showToast({
+        title: '使用已结束',
+        icon: 'success'
+      })
+      this.loadData()
+
+    } catch (err) {
+      this.setData({
+        isLoading: false
+      })
+      console.error('结束使用失败:', err)
+      wx.showToast({
+        title: '结束失败，请重试',
+        icon: 'none'
+      })
+    }
   },
 })

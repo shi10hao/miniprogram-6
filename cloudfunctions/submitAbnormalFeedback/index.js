@@ -12,6 +12,7 @@ exports.main = async (event, context) => {
   const userInfo = event && event.userInfo ? event.userInfo : {}
   const userId = String(userInfo.userId || '').trim()
   const feedbackScene = event && event.feedbackScene ? String(event.feedbackScene).trim() : 'start'
+  const feedbackPhotos = event && event.feedbackPhotos ? event.feedbackPhotos : []
   // 参数校验
   if (!reserveId || !feedbackContent || !userId) {
     return buildErrorResult('INVALID_PARAMS', '参数不完整')

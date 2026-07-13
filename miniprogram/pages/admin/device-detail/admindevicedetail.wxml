@@ -41,10 +41,10 @@
           <text class="info-label">注意事项</text>
           <text class="info-text">{{deviceInfo.precautions ? '已设置' : '暂无'}}</text>
         </view>
-        <view class="info-field">
+        <!-- <view class="info-field">
           <text class="info-label">规格参数</text>
           <text class="info-text">{{deviceInfo.specifications && Object.keys(deviceInfo.specifications).length > 0 ? (Object.keys(deviceInfo.specifications).length + '项') : '暂无'}}</text>
-        </view>
+        </view> -->
       </view>
     </view>
 
@@ -190,14 +190,26 @@
               </view>
             </view>
 
-            <view wx:if="{{usage.endPhotoItems.length > 0}}" class="photo-section">
-              <text class="photo-label">结束核验照片</text>
-              <view class="photo-grid">
-                <view class="photo-item" wx:for="{{usage.endPhotoItems}}" wx:key="key" wx:for-item="endPhoto">
-                  <image class="usage-photo" src="{{endPhoto.url}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{endPhoto.url}}" data-urls="{{usage.allPhotoUrls}}"></image>
-                  <text class="photo-tip">{{endPhoto.label}}</text>
-                </view>
+            <!-- 结束信息摘要 -->
+            <view wx:if="{{usage.endChecklistDisplay}}" class="end-checklist-summary" catchtap="gotoReserveDetail" data-id="{{usage.reserve_id}}">
+              <text class="summary-title">结束使用信息</text>
+              <view class="summary-row">
+                <text class="summary-label">仪器关闭</text>
+                <text class="summary-value {{usage.endChecklistDisplay.instrumentOff ? 'yes' : 'no'}}">{{usage.endChecklistDisplay.instrumentOff ? '是' : '否'}}</text>
               </view>
+              <view class="summary-row">
+                <text class="summary-label">电脑关闭</text>
+                <text class="summary-value {{usage.endChecklistDisplay.computerOff ? 'yes' : 'no'}}">{{usage.endChecklistDisplay.computerOff ? '是' : '否'}}</text>
+              </view>
+              <view class="summary-row">
+                <text class="summary-label">样品总数</text>
+                <text class="summary-value">{{usage.endChecklistDisplay.sampleCount}} 个</text>
+              </view>
+              <view class="summary-row">
+                <text class="summary-label">补充预约</text>
+                <text class="summary-value {{usage.endChecklistDisplay.needSupplement ? 'yes' : 'no'}}">{{usage.endChecklistDisplay.needSupplement ? '是' : '否'}}</text>
+              </view>
+              <text class="summary-detail-hint">点击查看详情 ›</text>
             </view>
           </view>
         </view>
@@ -206,7 +218,7 @@
 
     <view class="section">
       <view class="section-title-wrap" bindtap="toggleSection" data-section="photos">
-        <text class="section-title">使用照片记录（{{usagePhotos.length}}）</text>
+        <text class="section-title">使用完成记录（{{usagePhotos.length}}）</text>
         <text class="section-arrow {{sectionCollapsed.photos ? 'collapsed' : ''}}">▾</text>
       </view>
       <view wx:if="{{!sectionCollapsed.photos}}">
@@ -220,29 +232,30 @@
               <text wx:else class="duration">{{record.abnormal_time_display}}出现异常</text>
               <!-- <text class="duration">{{record.status === 'using' ? '使用中' : record.status === 'completed' ? '已完成' : '出现异常'}}</text> -->
             </view>
-            <text class="device-id-small">设备：{{record.device_id}}</text>
-            <text class="device-id-small">预约时段：{{record.reserve_time}}</text>
-            <view wx:if="{{record.startPhotoUrl}}" class="photo-section">
-              <text class="photo-label">开始照片/预约单照片</text>
-              <image class="usage-photo" src="{{record.startPhotoUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{record.startPhotoUrl}}" data-urls="{{record.allPhotoUrls}}"></image>
-              <image class="usage-photo" src="{{record.reservePageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{record.reservePageUrl}}" data-urls="{{record.allPhotoUrls}}"></image>
+            <view class="device-info-row">
+              <text class="device-id-small">设备：{{record.device_id}}</text>
+              <text class="device-id-small">{{record.usageTimeDisplay}}</text>
             </view>
-
-            <view wx:if="{{record.usageImageUrls.length > 0}}" class="photo-section">
-              <text class="photo-label">使用照片（{{record.usageImageUrls.length}}）</text>
-              <view class="photo-grid">
-                <image class="usage-photo" wx:for="{{record.usageImageUrls}}" wx:key="*this" wx:for-item="photo" src="{{photo}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{photo}}" data-urls="{{record.allPhotoUrls}}"></image>
+            <!-- 结束信息摘要 -->
+            <view wx:if="{{record.endChecklistDisplay}}" class="end-checklist-summary" catchtap="gotoReserveDetail" data-id="{{record.reserve_id}}">
+              <text class="summary-title">结束使用信息</text>
+              <view class="summary-row">
+                <text class="summary-label">仪器关闭</text>
+                <text class="summary-value {{record.endChecklistDisplay.instrumentOff ? 'yes' : 'no'}}">{{record.endChecklistDisplay.instrumentOff ? '是' : '否'}}</text>
               </view>
-            </view>
-
-            <view wx:if="{{record.endPhotoItems.length > 0}}" class="photo-section">
-              <text class="photo-label">结束核验照片</text>
-              <view class="photo-grid">
-                <view class="photo-item" wx:for="{{record.endPhotoItems}}" wx:key="key" wx:for-item="endPhoto">
-                  <image class="usage-photo" src="{{endPhoto.url}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{endPhoto.url}}" data-urls="{{record.allPhotoUrls}}"></image>
-                  <text class="photo-tip">{{endPhoto.label}}</text>
-                </view>
+              <view class="summary-row">
+                <text class="summary-label">电脑关闭</text>
+                <text class="summary-value {{record.endChecklistDisplay.computerOff ? 'yes' : 'no'}}">{{record.endChecklistDisplay.computerOff ? '是' : '否'}}</text>
               </view>
+              <view class="summary-row">
+                <text class="summary-label">样品总数</text>
+                <text class="summary-value">{{record.endChecklistDisplay.sampleCount}} 个</text>
+              </view>
+              <view class="summary-row">
+                <text class="summary-label">补充预约</text>
+                <text class="summary-value {{record.endChecklistDisplay.needSupplement ? 'yes' : 'no'}}">{{record.endChecklistDisplay.needSupplement ? '是' : '否'}}</text>
+              </view>
+              <text class="summary-detail-hint">点击查看详情 ›</text>
             </view>
           </view>
         </view>
