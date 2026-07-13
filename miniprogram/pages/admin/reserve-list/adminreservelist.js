@@ -20,13 +20,12 @@ Page({
 
   onLoad(options) {
     this.bootstrapPage()
-    console.log("options.status:",options.status)
-    if (options.status)
-    {
+    console.log("options.status:", options.status)
+    if (options.status) {
       this.setData({
         filterStatus: options.status
       })
-      console.log("filterStatus:",this.data.filterStatus)
+      console.log("filterStatus:", this.data.filterStatus)
       this.applyFilter()
     }
   },
@@ -179,7 +178,7 @@ Page({
       const visibleCondition = this.buildVisibleDeviceIdsCondition(this.currentSession) //admin返回null
 
       //
-      console.log("visibleCondition:", visibleCondition)
+      // console.log("visibleCondition:", visibleCondition)
       let visibleDeviceIds = null
       if (visibleCondition) {
         const devices = await this.fetchAllByWhere('devices', visibleCondition)
@@ -198,10 +197,26 @@ Page({
           return
         }
       }
-      console.log("visibleDeviceIds:",visibleDeviceIds)
-      var reserveCondition = {
-        status: 'approved'
+      console.log("visibleDeviceIds:", visibleDeviceIds)
+      // 根据 filterStatus 构建查询条件
+      var filterStatus = this.data.filterStatus
+      var now = new Date()
+      var reserveCondition = {}
+
+      if (filterStatus === 'all') {
+        reserveCondition.status = 'approved'
+      } else if (filterStatus === 'upcoming') {
+        reserveCondition.status = 'approved'
+        reserveCondition.usage_status = 'not_started'
+        reserveCondition.start_ts = _.gt(now.getTime())
+      } else if (filterStatus === 'using') {
+        reserveCondition.usage_status = 'active'
+      } else if (filterStatus === 'completed') {
+        reserveCondition.usage_status = 'completed'
+      } else if (filterStatus === 'abnormal') {
+        reserveCondition.usage_status = 'abnormal'
       }
+
       if (visibleDeviceIds) {
         reserveCondition.device_id = _.in(visibleDeviceIds)
       }
@@ -211,12 +226,13 @@ Page({
       // var allReserves = await this.fetchAllByWhere('reserves', reserveCondition)
       const reserveRes = await db.collection('reserves')
         .where(reserveCondition)
+        .orderBy('start_time', 'desc')
         .skip(page * pageSize)
         .limit(pageSize)
         .get()
 
       const newReserves = reserveRes.data || []
-
+      // console.log("newReserves:",newReserves)
       let mergedReserves = []
 
       if (isRefresh) {
@@ -242,7 +258,13 @@ Page({
       })
 
       var now = new Date()
-      var processed  = mergedReserves.map(function (item)  {
+      console.log("前20条记录的usage_status:", mergedReserves.slice(0, 20).map(function (item) {
+        return {
+          _id: item._id,
+          usage_status: item.usage_status
+        }
+      }))
+      var processed = mergedReserves.map(function (item) {
         var statusInfo = getReserveDisplayStatus(item, usingReserveIdMap, now)
 
         return Object.assign({}, item, {
@@ -278,51 +300,65 @@ Page({
   onFilterChange(e) {
     var status = e.currentTarget.dataset.status
     this.setData({
-      filterStatus: status
+      filterStatus: status,
+      currentPage: 0,
+      totalLoaded: 0,
+      hasMore: true,
+      allReserves: [],
+      filteredReserves: []
+    }, () => {
+      this.loadReserves(true)
     })
-    this.applyFilter()
   },
 
   onSearchInput(e) {
     this.setData({
-      searchKeyword: e.detail.value
+      searchKeyword: e.detail.value,
+      currentPage: 0,
+      totalLoaded: 0,
+      hasMore: true,
+      allReserves: [],
+      filteredReserves: []
+    }, () => {
+      this.loadReserves(true)
     })
-    this.applyFilter()
   },
 
   clearSearch() {
     this.setData({
-      searchKeyword: ''
+      searchKeyword: '',
+      currentPage: 0,
+      totalLoaded: 0,
+      hasMore: true,
+      allReserves: [],
+      filteredReserves: []
+    }, () => {
+      this.loadReserves(true)
     })
-    this.applyFilter()
   },
 
   applyFilter() {
     var allReserves = this.data.allReserves
-    var filterStatus = this.data.filterStatus
     var searchKeyword = String(this.data.searchKeyword || '').trim().toLowerCase()
-
-    var filtered = allReserves
-
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(function (item) {
-        return item.displayStatus === filterStatus
+  
+    if (!searchKeyword) {
+      this.setData({
+        filteredReserves: allReserves
       })
+      return
     }
-
-    if (searchKeyword) {
-      filtered = filtered.filter(function (item) {
-        var name = String(item.device_name || '').toLowerCase()
-        var person = String(item.student_name || '').toLowerCase()
-        var userId = String(item.user_id || '').toLowerCase()
-        var deviceId = String(item.device_id || '').toLowerCase()
-        return name.indexOf(searchKeyword) !== -1 ||
-          person.indexOf(searchKeyword) !== -1 ||
-          userId.indexOf(searchKeyword) !== -1 ||
-          deviceId.indexOf(searchKeyword) !== -1
-      })
-    }
-
+  
+    var filtered = allReserves.filter(function (item) {
+      var name = String(item.device_name || '').toLowerCase()
+      var person = String(item.student_name || '').toLowerCase()
+      var userId = String(item.user_id || '').toLowerCase()
+      var deviceId = String(item.device_id || '').toLowerCase()
+      return name.indexOf(searchKeyword) !== -1 ||
+        person.indexOf(searchKeyword) !== -1 ||
+        userId.indexOf(searchKeyword) !== -1 ||
+        deviceId.indexOf(searchKeyword) !== -1
+    })
+  
     this.setData({
       filteredReserves: filtered
     })
@@ -330,9 +366,13 @@ Page({
 
   async loadMore() {
     if (!this.data.hasMore || this.data.isLoading) return
-    this.setData({ isLoading: true })
+    this.setData({
+      isLoading: true
+    })
     await this.loadReserves(false)
-    this.setData({ isLoading: false })
+    this.setData({
+      isLoading: false
+    })
   },
 
   getReserveDisplayStatus(item, usingReserveIdMap, now) {
@@ -393,8 +433,8 @@ function getReserveDisplayStatus(item, usingReserveIdMap, now) {
     }
   }
 
-   // 新增：优先判断异常状态
-   if (item.usage_status === 'abnormal') {
+  // 新增：优先判断异常状态
+  if (item.usage_status === 'abnormal') {
     return {
       displayStatus: 'abnormal',
       displayStatusText: '异常'

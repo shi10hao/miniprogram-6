@@ -554,6 +554,7 @@ Page({
     if (this.data.isLoading) return
     var ifWrong
     var reserveId = e.currentTarget.dataset.reserveid
+
     // 仪器是否启动
     await new Promise((resolve) => {
       wx.showModal({
@@ -565,43 +566,44 @@ Page({
           if (res.cancel) {
             console.log("仪器启动不正常")
             ifWrong = true
-            this.ifWrong(reserveId) // 传入预约ID
-            resolve()
+            this.setData({
+              ifWorkingOK: false,
+              feedbackTitle: '',
+              feedbackContent: '',
+              currentReserveId: reserveId || ''
+            }, () => {
+              resolve()
+            })
           }
 
           if (res.confirm) {
+            // 先订阅消息（在用户手势直接回调中）
+            if (TEMPLATE_ID && TEMPLATE_ID !== 'YOUR_TEMPLATE_ID_HERE') {
+              wx.requestSubscribeMessage({
+                tmplIds: [TEMPLATE_ID],
+                success: (subRes) => {
+                  console.log('订阅授权结果', subRes[TEMPLATE_ID])
+                },
+                fail: (err) => {
+                  console.error('订阅消息授权失败:', err)
+                }
+              })
+            }
             this.setData({
               ifWorkingOK: true,
               currentReserveId: reserveId
+            }, () => {
+              console.log("仪器正常启动")
+              ifWrong = false
+              resolve()
             })
-            console.log("仪器正常启动")
-            ifWrong = false
-            resolve()
           }
         }
       })
     })
 
     if (ifWrong) return
-    // 是否订阅消息
-    await new Promise((resolve) => {
-      if (!TEMPLATE_ID || TEMPLATE_ID === 'YOUR_TEMPLATE_ID_HERE') {
-        resolve()
-        return
-      }
-      wx.requestSubscribeMessage({
-        tmplIds: [TEMPLATE_ID],
-        success: res => {
-          // accept=同意则累加1次推送额度；用户勾选“总是保持以上选择”后无弹窗自动累加
-          console.log('订阅授权结果', res[TEMPLATE_ID])
-          resolve()
-        },
-        fail: err => {
-          console.error('订阅消息授权失败:', err)
-          resolve()
-        }
-      })
-    })
+
     // this.requestSubscribeMessage()
     wx.showLoading({
       title: '准备拍照...'
@@ -643,6 +645,7 @@ Page({
   },
 
   ifWrong(reserveId) {
+    console.log("ifWrong被调用，reserveId:", reserveId)
     this.setData({
       ifWorkingOK: false,
       feedbackTitle: '',
@@ -701,6 +704,17 @@ Page({
       feedbackPhotos,
       endWithFeedback
     } = this.data
+    console.log("this.data.currentReserveId:", this.data.currentReserveId)
+    console.log("解构的currentReserveId:", currentReserveId)
+    // 兜底：如果 currentReserveId 为空，从 pendingReserves 中查找
+    let finalReserveId = currentReserveId
+    if (!finalReserveId) {
+      const pending = this.data.pendingReserves
+      if (pending && pending.length > 0) {
+        finalReserveId = pending[0]._id
+      }
+    }
+
     // 校验：内容不能为空
     if (!feedbackContent.trim()) {
       wx.showToast({
@@ -709,7 +723,7 @@ Page({
       })
       return
     }
-    if (!currentReserveId) {
+    if (!finalReserveId) {
       console.log("预约信息异常")
       wx.showToast({
         title: '预约信息异常',
@@ -726,7 +740,7 @@ Page({
     wx.cloud.callFunction({
       name: 'submitAbnormalFeedback',
       data: {
-        reserveId: currentReserveId,
+        reserveId: finalReserveId,
         feedbackTitle: feedbackTitle.trim(),
         feedbackContent: feedbackContent.trim(),
         feedbackScene: feedbackScene,

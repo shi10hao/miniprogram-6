@@ -63,7 +63,7 @@ Page({
     const usage = usageRes.data[0] || null
     console.log('预约完整数据：', reserve)
     console.log('usage:', usage)
-    if (usage.feedback) {
+    if (usage && usage.feedback) {
       this.setData({
         feedback: {
           content: usage.feedback.content,

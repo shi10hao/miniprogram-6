@@ -648,7 +648,13 @@ Page({
 
     // 验证表单
     if (!this.validateForm()) return
-
+    if (!this.data.reservePage) {
+      wx.showToast({
+        title: '请上传系统预约单',
+        icon: 'none'
+      })
+      return
+    }
     // this.requestSubscribeMessage()
     wx.showModal({
       title: '开启预约开始提醒',
@@ -705,18 +711,6 @@ Page({
     this.setData({
       isPastTime: false
     })
-    // 检查是否上传系统预约单
-    // 检查并上传系统预约单
-    if (!this.data.reservePage) {
-      wx.showToast({
-        title: '请上传系统预约单',
-        icon: 'none'
-      })
-      this.setData({
-        isLoading: false
-      })
-      return
-    }
 
     try {
       // 等待预约单上传完成，拿到 fileID 后再继续
