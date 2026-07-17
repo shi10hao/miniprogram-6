@@ -25,6 +25,15 @@ Page({
   //
   checkAuthStatus() {
     try {
+       // 新增：先检查管理员登录状态
+       const adminInfo = wx.getStorageSync('adminInfo')
+       if (adminInfo && adminInfo.userId) {
+         // 有管理员登录信息，直接跳转到 admin 页面
+         wx.reLaunch({
+           url: '/pages/admin/admin'
+         })
+         return
+       }
       const userInfo = wx.getStorageSync('userInfo')
 
       if (userInfo) {

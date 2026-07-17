@@ -24,10 +24,13 @@ Page({
     endForm: {
       instrumentOff: null, // true/false，仪器是否关闭
       computerOff: null, // true/false，电脑是否关闭
+      nextUser:'',
       sampleCount: '', // 运行样品总数
       totalPage: '', // 总的预约单本地路径
       needSupplement: null, // true/false，是否需要补充预约
-      supplementPage: '' // 补充预约单本地路径
+      supplementPage: '', // 补充预约单本地路径
+      devicePage:'',
+      roomPage:''
     },
   },
 
@@ -1192,6 +1195,12 @@ Page({
       'endForm.computerOff': value
     })
   },
+  onNextUserInput(e) {
+    let val = e.detail.value.trim()
+    this.setData({
+      'endForm.nextUser': val
+    })
+  },
   // 输入运行样品总数
   onSampleCountInput(e) {
     let val = e.detail.value
@@ -1215,6 +1224,36 @@ Page({
       },
       fail: err => {
         console.error('选择预约单失败:', err)
+      }
+    })
+  },
+  pickDevicePage() {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      success: res => {
+        this.setData({
+          'endForm.devicePage': res.tempFiles[0].tempFilePath
+        })
+      },
+      fail: err => {
+        console.error('选择仪器关闭照片失败:', err)
+      }
+    })
+  },
+  pickRoomPage(){
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      success: res => {
+        this.setData({
+          'endForm.roomPage': res.tempFiles[0].tempFilePath
+        })
+      },
+      fail: err => {
+        console.error('选择实验室关门照片失败:', err)
       }
     })
   },
@@ -1275,6 +1314,20 @@ Page({
       })
       return
     }
+    if (!endForm.devicePage) {
+      wx.showToast({
+        title: '请上传仪器关闭照片',
+        icon: 'none'
+      })
+      return
+    }
+    if (!endForm.roomPage) {
+      wx.showToast({
+        title: '请上传实验室关门',
+        icon: 'none'
+      })
+      return
+    }
     if (endForm.needSupplement === null) {
       wx.showToast({
         title: '请选择是否需要补充预约',
@@ -1285,6 +1338,13 @@ Page({
     if (endForm.needSupplement && !endForm.supplementPage) {
       wx.showToast({
         title: '请上传补充预约单',
+        icon: 'none'
+      })
+      return
+    }
+    if (endForm.computerOff === false && !endForm.nextUser) {
+      wx.showToast({
+        title: '请上传下一个使用者姓名',
         icon: 'none'
       })
       return
@@ -1305,7 +1365,16 @@ Page({
         filePath: endForm.totalPage
       })
       uploadTasks.push(totalPageTask)
-
+      const devicePageTask = wx.cloud.uploadFile({
+        cloudPath: `end_check/device_${Date.now()}.jpg`,
+        filePath: endForm.devicePage
+      })
+      uploadTasks.push(devicePageTask)
+      const roomPageTask = wx.cloud.uploadFile({
+        cloudPath: `end_check/room_${Date.now()}.jpg`,
+        filePath: endForm.roomPage
+      })
+      uploadTasks.push(roomPageTask)
       // 如果需要补充预约，上传补充预约单
       let supplementTask = null
       if (endForm.needSupplement) {
@@ -1315,11 +1384,11 @@ Page({
         })
         uploadTasks.push(supplementTask)
       }
-
       const uploadResults = await Promise.all(uploadTasks)
       const totalPageFileID = uploadResults[0].fileID
-      const supplementPageFileID = supplementTask ? uploadResults[1].fileID : ''
-
+      const devicePageFileID = uploadResults[1].fileID
+      const roomPageFileID = uploadResults[2].fileID
+      const supplementPageFileID = supplementTask ? uploadResults[3].fileID : ''
       // 构建结束信息数据
       const currentUsage = this.data.currentUsage
       const endTime = new Date().toISOString()
@@ -1327,8 +1396,11 @@ Page({
       const endChecklist = {
         instrument_off: endForm.instrumentOff,
         computer_off: endForm.computerOff,
+        nextUser:endForm.nextUser || '',
         sample_count: parseInt(endForm.sampleCount),
         total_page: totalPageFileID,
+        device_page: devicePageFileID,    // 新增
+        room_page: roomPageFileID,        // 新增
         need_supplement: endForm.needSupplement,
         supplement_page: supplementPageFileID || ''
       }

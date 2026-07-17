@@ -172,6 +172,8 @@ Page({
       const ec = usage.end_checklist
       if (ec) {
         if (ec.total_page) ids.push(ec.total_page)
+        if (ec.device_page) ids.push(ec.device_page)  // 新增：仪器关闭照片
+        if (ec.room_page) ids.push(ec.room_page)      // 新增：实验室关门照片
         if (ec.supplement_page) ids.push(ec.supplement_page)
       }
       // 新增：反馈照片
@@ -208,13 +210,15 @@ Page({
       endChecklistDisplay = {
         instrumentOff: ec.instrument_off,
         computerOff: ec.computer_off,
+        nextUser: ec.nextUser || '',           // 新增：下一个使用者
         sampleCount: ec.sample_count,
         totalPageUrl: map[ec.total_page] || '',
+        devicePageUrl: map[ec.device_page] || '',  // 新增：仪器关闭照片
+        roomPageUrl: map[ec.room_page] || '',      // 新增：实验室关门照片
         needSupplement: ec.need_supplement,
         supplementPageUrl: map[ec.supplement_page] || ''
       }
     }
-    // 新增：处理反馈照片
     let feedbackPhotoUrls = []
     const fb = usage?.feedback
     if (fb && Array.isArray(fb.photos)) {

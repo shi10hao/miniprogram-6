@@ -132,7 +132,10 @@
           <text class="end-info-label">电脑关闭</text>
           <text class="end-info-value {{detail.endChecklistDisplay.computerOff ? 'yes' : 'no'}}">{{detail.endChecklistDisplay.computerOff ? '是' : '否'}}</text>
         </view>
-
+        <view wx:if="{{detail.endChecklistDisplay.computerOff === false}}" class="end-info-row">
+          <text class="end-info-label">下一个使用者</text>
+          <text class="end-info-value">{{detail.endChecklistDisplay.nextUser}}</text>
+        </view>
         <!-- 运行样品总数 -->
         <view class="end-info-row">
           <text class="end-info-label">运行样品总数</text>
@@ -150,7 +153,14 @@
           <text class="end-info-photo-label">总的预约单</text>
           <image class="usage-photo" src="{{detail.endChecklistDisplay.totalPageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.endChecklistDisplay.totalPageUrl}}" data-urls="{{allPhotos}}" />
         </view>
-
+        <view wx:if="{{detail.endChecklistDisplay.devicePageUrl}}" class="end-info-photo-section">
+          <text class="end-info-photo-label">仪器关闭图片</text>
+          <image class="usage-photo" src="{{detail.endChecklistDisplay.devicePageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.endChecklistDisplay.devicePageUrl}}" data-urls="{{allPhotos}}" />
+        </view>
+        <view wx:if="{{detail.endChecklistDisplay.roomPageUrl}}" class="end-info-photo-section">
+          <text class="end-info-photo-label">实验室关门图片</text>
+          <image class="usage-photo" src="{{detail.endChecklistDisplay.roomPageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.endChecklistDisplay.roomPageUrl}}" data-urls="{{allPhotos}}" />
+        </view>
         <!-- 补充预约单图片 -->
         <view wx:if="{{detail.endChecklistDisplay.supplementPageUrl}}" class="end-info-photo-section">
           <text class="end-info-photo-label">补充预约单</text>
@@ -158,6 +168,5 @@
         </view>
       </view>
     </view>
-
   </view>
 </view>
