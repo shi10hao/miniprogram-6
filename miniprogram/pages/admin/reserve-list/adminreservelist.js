@@ -266,12 +266,36 @@ Page({
       }))
       var processed = mergedReserves.map(function (item) {
         var statusInfo = getReserveDisplayStatus(item, usingReserveIdMap, now)
+        // 计算时间显示（支持跨天）
+        var timeDisplay = ''
+        if (item.start_time && item.end_time) {
+          var startDateOnly = formatDateOnly(item.start_time)
+          var endDateOnly = formatDateOnly(item.end_time)
+          var isCrossDay = startDateOnly && endDateOnly && startDateOnly !== endDateOnly
 
+          if (isCrossDay) {
+            // 跨天：2026-07-10 19:00 - 07-18 19:30
+            var pad = function (n) {
+              return String(n).padStart(2, '0')
+            }
+            var startD = parseDateTime(item.start_time)
+            var endD = parseDateTime(item.end_time)
+            if (startD && endD) {
+              var startTime = pad(startD.getHours()) + ':' + pad(startD.getMinutes())
+              var endDisplay = pad(endD.getMonth() + 1) + '-' + pad(endD.getDate()) + ' ' + pad(endD.getHours()) + ':' + pad(endD.getMinutes())
+              timeDisplay = item.reserve_date + ' ' + startTime + ' - ' + endDisplay
+            } else {
+              timeDisplay = item.reserve_date + ' ' + getTimePart(item.start_time) + '-' + getTimePart(item.end_time)
+            }
+          } else {
+            // 同天：2026-07-10 19:00 - 19:30
+            timeDisplay = item.reserve_date + ' ' + getTimePart(item.start_time) + '-' + getTimePart(item.end_time)
+          }
+        }
         return Object.assign({}, item, {
           displayStatus: statusInfo.displayStatus,
           displayStatusText: statusInfo.displayStatusText,
-          start_time_display: getTimePart(item.start_time),
-          end_time_display: getTimePart(item.end_time)
+          timeDisplay: timeDisplay
         })
       })
 
@@ -340,14 +364,14 @@ Page({
   applyFilter() {
     var allReserves = this.data.allReserves
     var searchKeyword = String(this.data.searchKeyword || '').trim().toLowerCase()
-  
+
     if (!searchKeyword) {
       this.setData({
         filteredReserves: allReserves
       })
       return
     }
-  
+
     var filtered = allReserves.filter(function (item) {
       var name = String(item.device_name || '').toLowerCase()
       var person = String(item.student_name || '').toLowerCase()
@@ -358,7 +382,7 @@ Page({
         userId.indexOf(searchKeyword) !== -1 ||
         deviceId.indexOf(searchKeyword) !== -1
     })
-  
+
     this.setData({
       filteredReserves: filtered
     })
@@ -499,4 +523,12 @@ function getTimeValue(dtStr) {
   if (!dtStr) return 0
   var d = parseDateTime(dtStr)
   return d ? d.getTime() : 0
+}
+
+function formatDateOnly(isoStr) {
+  if (!isoStr) return ''
+  var d = parseDateTime(isoStr)
+  if (!d) return ''
+  var pad = function(n) { return String(n).padStart(2, '0') }
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
 }

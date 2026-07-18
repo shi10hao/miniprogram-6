@@ -141,13 +141,20 @@ function validateReserveData(reserveData) {
     return createBusinessError('INVALID_TIME', '预约时间无效')
   }
 
-  const durationMs = endDate.getTime() - startDate.getTime()
+  // 修改：检查是否跨越超过2天
+  const twoDaysMs = 2 * 24 * 60 * 60 * 1000
+  if (endDate.getTime() - startDate.getTime() > twoDaysMs) {
+    return createBusinessError('INVALID_TIME', '预约最多跨越2天')
+  }
+
+  // 保留：时间必须以30分钟为单位
   const startMinute = startDate.getMinutes()
   const endMinute = endDate.getMinutes()
-  if (![0, 30].includes(startMinute) || ![0, 30].includes(endMinute) || durationMs % (30 * 60 * 1000) !== 0) {
+  if (![0, 30].includes(startMinute) || ![0, 30].includes(endMinute)) {
     return createBusinessError('INVALID_TIME', '预约时间需按 30 分钟为单位选择')
   }
 
+  // 保留：开始时间必须晚于当前时间
   if (startDate.getTime() <= Date.now()) {
     return createBusinessError('INVALID_TIME', '预约开始时间必须晚于当前时间')
   }
@@ -155,11 +162,11 @@ function validateReserveData(reserveData) {
   return null
 }
 
+// 【关键修改】移除 reserve_date 限制
 function buildOverlapCondition(reserveData) {
   return _.and([
     {
       device_id: reserveData.device_id,
-      reserve_date: reserveData.reserve_date,
       status: 'approved'
     },
     _.or([
@@ -183,7 +190,7 @@ function buildReservationSuccessMessage(reserveId, reserveData, now) {
   return {
     user_id: reserveData.user_id,
     title: '预约成功',
-    content: `您已成功预约${reserveData.device_name}，预约时间为${reserveData.start_time} 至 ${reserveData.end_time}。如需补传照片，请在开始使用后前往“仪器使用”页的“上传照片板块”。`,
+    content: `您已成功预约${reserveData.device_name}，预约时间为${reserveData.start_time} 至 ${reserveData.end_time}。如需补传照片，请在开始使用后前往"仪器使用"页的"上传照片板块"。`,
     type: 'reservation_success',
     related_id: reserveId,
     message_key: `reservation_success:${reserveId}`,
@@ -225,6 +232,7 @@ async function hasSlotLocks(reserveData) {
   return !!(res.data && res.data.length > 0)
 }
 
+// 【关键修改】slotLockIds 使用日期作为前缀，避免跨天冲突
 function buildSlotLockIds(reserveData) {
   const startDate = new Date(Number(reserveData.start_ts) || 0)
   const endDate = new Date(Number(reserveData.end_ts) || 0)
@@ -233,16 +241,24 @@ function buildSlotLockIds(reserveData) {
   }
 
   const deviceId = sanitizeIdPart(reserveData.device_id)
-  const reserveDate = sanitizeIdPart(reserveData.reserve_date)
   const slotIds = []
   let cursor = new Date(startDate.getTime())
 
   while (cursor.getTime() < endDate.getTime()) {
-    slotIds.push(`${deviceId}_${reserveDate}_${formatSlot(cursor)}`)
+    // 使用完整的日期时间作为 slot ID，而不是 reserve_date
+    const datePrefix = formatDateForSlot(cursor)
+    slotIds.push(`${deviceId}_${datePrefix}_${formatSlot(cursor)}`)
     cursor = new Date(cursor.getTime() + 30 * 60 * 1000)
   }
 
   return slotIds
+}
+
+// 新增：格式化日期用于 slot ID
+function formatDateForSlot(date) {
+  const pad = n => String(n).padStart(2, '0')
+  const beijingDate = new Date(date.getTime() + 8 * 60 * 60 * 1000)
+  return `${beijingDate.getUTCFullYear()}${pad(beijingDate.getUTCMonth() + 1)}${pad(beijingDate.getUTCDate())}`
 }
 
 function buildSlotLockRecord(slotLockId, reserveRecord, reserveId, now) {

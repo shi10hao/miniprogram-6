@@ -93,6 +93,31 @@ Page({
 
     // 计算预约真实状态
     const status = this.calcReserveStatus(reserve, usage)
+    // 计算时间显示（支持跨天）
+    let timeDisplay = ''
+    let dateDisplay = reserve.reserve_date || ''
+    if (reserve.start_time && reserve.end_time) {
+      const startDateOnly = this.formatDateOnly(reserve.start_time)
+      const endDateOnly = this.formatDateOnly(reserve.end_time)
+      const isCrossDay = startDateOnly && endDateOnly && startDateOnly !== endDateOnly
+
+      if (isCrossDay) {
+        // 跨天：2026-07-10 19:00 - 07-18 19:30
+        const pad = n => String(n).padStart(2, '0')
+        const startD = this.parseDateTime(reserve.start_time)
+        const endD = this.parseDateTime(reserve.end_time)
+        if (startD && endD) {
+          const startTime = `${pad(startD.getHours())}:${pad(startD.getMinutes())}`
+          const endDisplay = `${pad(endD.getMonth() + 1)}-${pad(endD.getDate())} ${pad(endD.getHours())}:${pad(endD.getMinutes())}`
+          timeDisplay = `${startTime} - ${endDisplay}`
+        } else {
+          timeDisplay = `${this.formatTime(reserve.start_time)} - ${this.formatTime(reserve.end_time)}`
+        }
+      } else {
+        // 同天：19:00 - 19:30
+        timeDisplay = `${this.formatTime(reserve.start_time)} - ${this.formatTime(reserve.end_time)}`
+      }
+    }
 
     this.setData({
       detail: {
@@ -100,14 +125,21 @@ Page({
         group_name: reserve.research_group || '',
         device_id: reserve.device_id || '',
         device_name: reserve.device_name || '',
-        dateDisplay: reserve.reserve_date,
-        timeDisplay: `${this.formatTime(reserve.start_time)}-${this.formatTime(reserve.end_time)}`,
+        dateDisplay: dateDisplay,
+        timeDisplay: timeDisplay,
         ...photoUrls,
       },
       allPhotos,
       status,
       isLoading: false
     })
+  },
+  formatDateOnly(isoStr) {
+    if (!isoStr) return ''
+    const d = this.parseDateTime(isoStr)
+    if (!d) return ''
+    const pad = n => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
   },
 
   formatUTCDisplay(utcStr) {
@@ -143,17 +175,31 @@ Page({
     }
 
     // 2. 按预约时间判断
-    const startStr = `${reserve.reserve_date} ${reserve.start_time}`
-    const endStr = `${reserve.reserve_date} ${reserve.end_time}`
-    const startTime = new Date(startStr.replace(/-/g, '/')).getTime()
-    const endTime = new Date(endStr.replace(/-/g, '/')).getTime()
+    const startTime = this.parseDateTime(reserve.start_time)
+    const endTime = this.parseDateTime(reserve.end_time)
     const nowTime = now.getTime()
 
     if (nowTime < startTime) return 'upcoming'
     if (nowTime >= startTime && nowTime < endTime) return 'using'
     return 'completed'
   },
+  parseDateTime(rawValue) {
+    if (!rawValue) return null
+    if (rawValue instanceof Date) return Number.isNaN(rawValue.getTime()) ? null : rawValue
 
+    const text = String(rawValue).trim()
+    if (!text) return null
+
+    let normalized = text
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+      normalized = `${text}T00:00:00`
+    } else if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(text)) {
+      normalized = text.replace(' ', 'T')
+    }
+
+    const d = new Date(normalized)
+    return Number.isNaN(d.getTime()) ? null : d
+  },
   collectFileIDs(reserve, usage) {
     const ids = []
 
@@ -172,8 +218,8 @@ Page({
       const ec = usage.end_checklist
       if (ec) {
         if (ec.total_page) ids.push(ec.total_page)
-        if (ec.device_page) ids.push(ec.device_page)  // 新增：仪器关闭照片
-        if (ec.room_page) ids.push(ec.room_page)      // 新增：实验室关门照片
+        if (ec.device_page) ids.push(ec.device_page) // 新增：仪器关闭照片
+        if (ec.room_page) ids.push(ec.room_page) // 新增：实验室关门照片
         if (ec.supplement_page) ids.push(ec.supplement_page)
       }
       // 新增：反馈照片
@@ -210,11 +256,11 @@ Page({
       endChecklistDisplay = {
         instrumentOff: ec.instrument_off,
         computerOff: ec.computer_off,
-        nextUser: ec.nextUser || '',           // 新增：下一个使用者
+        nextUser: ec.nextUser || '', // 新增：下一个使用者
         sampleCount: ec.sample_count,
         totalPageUrl: map[ec.total_page] || '',
-        devicePageUrl: map[ec.device_page] || '',  // 新增：仪器关闭照片
-        roomPageUrl: map[ec.room_page] || '',      // 新增：实验室关门照片
+        devicePageUrl: map[ec.device_page] || '', // 新增：仪器关闭照片
+        roomPageUrl: map[ec.room_page] || '', // 新增：实验室关门照片
         needSupplement: ec.need_supplement,
         supplementPageUrl: map[ec.supplement_page] || ''
       }

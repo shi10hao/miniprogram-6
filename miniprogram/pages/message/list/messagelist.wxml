@@ -1,11 +1,12 @@
 <view class="container">
   <view class="action-bar" wx:if="{{messageList.length > 0}}">
     <view class="count-group">
-      <text class="total-count">共 {{messageList.length}} 条消息</text>
+      <text class="total-count">共 {{totalCount}} 条消息</text>
       <text class="unread-count" wx:if="{{unreadCount > 0}}">{{unreadCount}}条未读</text>
     </view>
     <view class="action-buttons">
       <text class="action-btn" bindtap="markAllAsRead">全部已读</text>
+      <text class="action-btn danger" bindtap="deleteReadMessages">删除全部已读</text>
     </view>
   </view>
 
@@ -20,15 +21,7 @@
   </view>
 
   <view wx:else class="message-list">
-    <view
-      class="message-item {{item.is_read ? 'read' : 'unread'}}"
-      wx:for="{{messageList}}"
-      wx:key="_id"
-      data-messageid="{{item._id}}"
-      data-source="{{item.source}}"
-      data-index="{{index}}"
-      bindtap="viewMessageDetail"
-    >
+    <view class="message-item {{item.is_read ? 'read' : 'unread'}}" wx:for="{{messageList}}" wx:key="_id" data-messageid="{{item._id}}" data-source="{{item.source}}" data-index="{{index}}" bindtap="viewMessageDetail">
       <view class="message-status" wx:if="{{!item.is_read}}"></view>
       <view class="message-content">
         <view class="message-header">
@@ -40,16 +33,24 @@
           <view class="message-type {{item.styleType}}">
             {{item.typeLabel}}
           </view>
-          <text
-            wx:if="{{item.canDelete}}"
-            class="delete-btn"
-            data-messageid="{{item._id}}"
-            data-source="{{item.source}}"
-            data-index="{{index}}"
-            catchtap="deleteMessage"
-          >删除</text>
+          <text wx:if="{{item.canDelete}}" class="delete-btn" data-messageid="{{item._id}}" data-source="{{item.source}}" data-index="{{index}}" catchtap="deleteMessage">删除</text>
         </view>
       </view>
     </view>
+
+    <!-- ===== 新增：加载更多 ===== -->
+    <view class="load-more-container" wx:if="{{!allLoaded}}">
+      <view class="load-more-btn" bindtap="loadMore" wx:if="{{!isLoadingMore}}">
+        加载更多
+      </view>
+      <view class="load-more-loading" wx:else>
+        <view class="loading-spinner small"></view>
+        <text>加载中...</text>
+      </view>
+    </view>
+    <view class="no-more" wx:elif="{{messageList.length > 0}}">
+      已加载全部消息
+    </view>
+
   </view>
 </view>

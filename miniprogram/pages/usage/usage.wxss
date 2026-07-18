@@ -339,7 +339,7 @@
 .history-label {
   font-size: 24rpx;
   color: #888;
-  width: 100rpx;
+  width: 130rpx;
 }
 
 .history-val {

@@ -45,12 +45,8 @@
           <text class="info-value">{{item.research_group || '未设置'}}</text>
         </view>
         <view class="info-row">
-          <text class="info-label">预约日期</text>
-          <text class="info-value">{{item.reserve_date}}</text>
-        </view>
-        <view class="info-row">
-          <text class="info-label">预约时段</text>
-          <text class="info-value">{{item.start_time_display}} - {{item.end_time_display}}</text>
+          <text class="info-label">预约时间</text>
+          <text class="info-value">{{item.timeDisplay}}</text>
         </view>
         <view class="info-row">
           <text class="info-label">联系电话</text>

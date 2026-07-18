@@ -6,7 +6,7 @@ cloud.init({
 
 const db = cloud.database()
 
-const TEMPLATE_ID = 'FClBgpZO9KXJ79M0ZAqqrEDoqWlXWPmRz862s6zVP4M'
+const TEMPLATE_ID = 'rgRmn33I28JIm4REBjzpin2dV474fmrLRxYFTpSJbuk'
 const REMINDER_INTERVAL_MS = 3 * 60 * 60 * 1000 // 3小时
 const PAGE_SIZE = 100
 
@@ -101,41 +101,51 @@ exports.main = async () => {
                 thing1: {
                   value: clipText(usage.device_name || '仪器', 20)
                 },
-                time2: {
-                  value: formatTime(new Date(usage.start_time || now.toISOString()))
+                thing9: {
+                  value: clipText('请到仪器使用页，上传“使用中照片”', 20)
                 },
-                thing3: {
-                  value: clipText('请到仪器使用页上传照片板块补传照片', 20)
+                time4: {
+                  value: formatTime(now)
                 }
               }
             })
             subscribeResult = 'sent'
+          } else {
+            // ========== 【新增】找不到 openid 时记录日志 ==========
+            console.error('发送使用提醒订阅消息失败: 未找到 openid, usage._id:', usage._id)
+            subscribeResult = 'failed'
+            // ========== 新增结束 ==========
           }
         } catch (sendErr) {
           subscribeResult = 'failed'
-          console.error('发送使用提醒订阅消息失败:', usage._id, sendErr)
+          console.error('发送使用提醒订阅消息失败:', usage._id, '错误详情:', JSON.stringify(sendErr))
         }
       }
 
-      try {
-        await db.collection('device_usage')
-          .doc(usage._id)
-          .update({
-            data: {
-              last_reminder_time: now.toISOString()
-            }
+      if (subscribeResult === 'sent') {
+        try {
+          await db.collection('device_usage')
+            .doc(usage._id)
+            .update({
+              data: {
+                last_reminder_time: now.toISOString()
+              }
+            })
+        } catch (updateErr) {
+          console.error('更新使用提醒时间失败:', usage._id, updateErr)
+          results.push({
+            id: usage._id,
+            error: 'usage_update_failed',
+            subscribe: subscribeResult,
+            messageKey,
+            messageCreated,
+            detail: String(updateErr)
           })
-      } catch (updateErr) {
-        console.error('更新使用提醒时间失败:', usage._id, updateErr)
-        results.push({
-          id: usage._id,
-          error: 'usage_update_failed',
-          subscribe: subscribeResult,
-          messageKey,
-          messageCreated,
-          detail: String(updateErr)
-        })
-        continue
+          continue
+        }
+      } else {
+        // 订阅消息发送失败时，不更新 last_reminder_time，下次还会重试
+        console.log('订阅消息未成功发送，跳过更新 last_reminder_time，下次将重试')
       }
 
       results.push({
@@ -244,14 +254,15 @@ function formatTime(date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
     return ''
   }
-
+  const beijingOffset = 8 * 60 * 60 * 1000 // 8小时的毫秒数
+  const beijingTime = new Date(date.getTime() + beijingOffset)
   const pad = n => String(n).padStart(2, '0')
   return [
-    date.getFullYear(),
-    pad(date.getMonth() + 1),
-    pad(date.getDate())
+    beijingTime.getUTCFullYear(), // 注意：用 getUTC 系列
+    pad(beijingTime.getUTCMonth() + 1),
+    pad(beijingTime.getUTCDate())
   ].join('-') + ' ' + [
-    pad(date.getHours()),
-    pad(date.getMinutes())
+    pad(beijingTime.getUTCHours()),
+    pad(beijingTime.getUTCMinutes())
   ].join(':')
 }

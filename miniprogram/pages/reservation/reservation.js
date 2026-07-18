@@ -12,7 +12,6 @@ Page({
       phone: ''
     },
     reservedDevices: [],
-
     // 默认选中第一个
     selectedIndex: 0,
     device_id: null,
@@ -42,7 +41,8 @@ Page({
     minDate: '', // 最小日期（今天）
     maxDate: '', // 最大日期（30天后）
     reservePage: '',
-    reservePageFileID: ''
+    reservePageFileID: '',
+    maxEndDate: '', // 新增：结束日期最大可选值
   },
 
   onLoad() {
@@ -68,19 +68,18 @@ Page({
     const initialSlot = this.getInitialReservationSlot(today)
     //   reserveDate: this.formatDate(reserveDate),
     //   startTime: '08:00'
+    const startDateObj = new Date(initialSlot.reserveDate)
+    const maxEndDateObj = new Date(startDateObj)
+    maxEndDateObj.setDate(startDateObj.getDate() + 2)
     this.setData({
       minDate: this.formatDate(today),
       maxDate: this.formatDate(maxDate),
-      reserveDate: initialSlot.reserveDate,
-      startTime: initialSlot.startTime
-    }, () => {
-      const endTime = this.calculateEndTime(this.data.startTime)
-      this.setData({
-        endTime
-      })
+      startDate: initialSlot.reserveDate,
+      startTime: initialSlot.startTime,
+      endDate: initialSlot.reserveDate,
+      endTime: this.calculateEndTime(initialSlot.startTime),
+      maxEndDate: this.formatDate(maxEndDateObj)
     })
-
-    this.generateTimeSlots()
   },
 
   getInitialReservationSlot(now = new Date()) {
@@ -419,11 +418,10 @@ Page({
       if (!reserveDate || !startTime || !endTime) return 0
 
       const _ = db.command
-      const startDT = `${reserveDate} ${startTime}`
-      const endDT = `${reserveDate} ${endTime}`
+      const startDT = `${startDate} ${startTime}`
+      const endDT = `${endDate} ${endTime}`
       const whereConditions = [{
-          device_id: deviceId,
-          reserve_date: reserveDate
+          device_id: deviceId
         },
         {
           status: 'approved'
@@ -496,11 +494,59 @@ Page({
     })
   },
 
-  // 日期选择
-  onDateChange(e) {
+  onStartDateChange(e) {
     const selectedDate = e.detail.value
+
+    // 计算最大结束日期（开始日期+2天）
+    const startDateObj = new Date(selectedDate)
+    const maxEndDateObj = new Date(startDateObj)
+    maxEndDateObj.setDate(startDateObj.getDate() + 2)
+
+    // 如果当前结束日期早于开始日期或超出最大范围，自动调整
+    let newEndDate = this.data.endDate
+    if (newEndDate < selectedDate || newEndDate > this.formatDate(maxEndDateObj)) {
+      newEndDate = selectedDate
+    }
+
     this.setData({
-      reserveDate: selectedDate
+      startDate: selectedDate,
+      endDate: newEndDate,
+      maxEndDate: this.formatDate(maxEndDateObj)
+    }, () => {
+      this.getAvailableDevices()
+      this.checkTimeConflict()
+      this.checkPastTime()
+    })
+  },
+
+  onEndDateChange(e) {
+    const selectedDate = e.detail.value
+
+    // 验证：结束日期不能早于开始日期
+    if (selectedDate < this.data.startDate) {
+      wx.showToast({
+        title: '结束日期不能早于开始日期',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 验证：结束日期不能晚于开始日期+2天
+    const startDateObj = new Date(this.data.startDate)
+    const maxEndDateObj = new Date(startDateObj)
+    maxEndDateObj.setDate(startDateObj.getDate() + 2)
+    const maxEndDateStr = this.formatDate(maxEndDateObj)
+
+    if (selectedDate > maxEndDateStr) {
+      wx.showToast({
+        title: '预约最多跨越2天',
+        icon: 'none'
+      })
+      return
+    }
+
+    this.setData({
+      endDate: selectedDate
     }, () => {
       this.getAvailableDevices()
       this.checkTimeConflict()
@@ -511,11 +557,8 @@ Page({
   // 开始时间选择
   onStartTimeChange(e) {
     const startTime = e.detail.value
-    const endTime = this.calculateEndTime(startTime)
-
     this.setData({
-      startTime: startTime,
-      endTime: endTime
+      startTime: startTime
     }, () => {
       this.getAvailableDevices()
       this.checkTimeConflict()
@@ -539,35 +582,40 @@ Page({
   async checkTimeConflict(showToast = true) {
     const {
       selectedDevice,
-      reserveDate,
+      startDate,
       startTime,
+      endDate,
       endTime
     } = this.data
 
-    if (!selectedDevice || !reserveDate || !startTime || !endTime) return
+    if (!selectedDevice || !startDate || !startTime || !endDate || !endTime) return
 
     try {
       const _ = db.command
-      const startDT = `${reserveDate} ${startTime}`
-      const endDT = `${reserveDate} ${endTime}`
+      const startDT = `${startDate} ${startTime}`
+      const endDT = `${endDate} ${endTime}`
+
+      // 跨天冲突检测：查找任何与该时间段重叠的已批准预约
       const whereConditions = [{
-          device_id: selectedDevice.device_id,
-          reserve_date: reserveDate
+          device_id: selectedDevice.device_id
         },
         {
           status: 'approved'
         },
         _.or([
+          // 新预约的开始时间在已有预约时间段内
           _.and([{
             start_time: _.lte(startDT)
           }, {
             end_time: _.gt(startDT)
           }]),
+          // 新预约的结束时间在已有预约时间段内
           _.and([{
             start_time: _.lt(endDT)
           }, {
             end_time: _.gte(endDT)
           }]),
+          // 新预约完全包含已有预约
           _.and([{
             start_time: _.gte(startDT)
           }, {
@@ -595,7 +643,6 @@ Page({
 
       return hasConflict
     } catch (err) {
-      // console.error('检查时间冲突失败:', err)
       return false
     }
   },
@@ -603,13 +650,11 @@ Page({
   // 检查是否是过去时间
   checkPastTime() {
     const {
-      reserveDate,
+      startDate,
       startTime
     } = this.data
-
-    if (!reserveDate || !startTime) return
-
-    if (!this.isFutureReservationStart(reserveDate, startTime)) {
+    if (!startDate || !startTime) return
+    if (!this.isFutureReservationStart(startDate, startTime)) {
       this.setData({
         isPastTime: true
       })
@@ -620,7 +665,6 @@ Page({
       })
       return
     }
-
     this.setData({
       isPastTime: false
     })
@@ -704,7 +748,7 @@ Page({
     }
 
     // 再次检查是否是当前或过去时间
-    if (!this.isFutureReservationStart(this.data.reserveDate, this.data.startTime)) {
+    if (!this.isFutureReservationStart(this.data.startDate, this.data.startTime)) {
       this.setData({
         isPastTime: true
       })
@@ -755,11 +799,11 @@ Page({
       lab_type: this.data.selectedDevice.lab_type,
       lab_name: this.data.selectedDevice.lab_name,
 
-      reserve_date: this.data.reserveDate,
-      start_time: `${this.data.reserveDate} ${this.data.startTime}`,
-      end_time: `${this.data.reserveDate} ${this.data.endTime}`,
-      start_ts: this.getReservationTimeMs(this.data.reserveDate, this.data.startTime),
-      end_ts: this.getReservationTimeMs(this.data.reserveDate, this.data.endTime),
+      reserve_date: this.data.startDate, // 以开始日期为主
+      start_time: `${this.data.startDate} ${this.data.startTime}`,
+      end_time: `${this.data.endDate} ${this.data.endTime}`,
+      start_ts: this.getReservationTimeMs(this.data.startDate, this.data.startTime),
+      end_ts: this.getReservationTimeMs(this.data.endDate, this.data.endTime),
       reserve_page: this.data.reservePageFileID,
 
       user_id: this.data.userInfo.userId,
@@ -879,8 +923,7 @@ Page({
 
     var overlapRes = await db.collection('reserves')
       .where(_.and([{
-          device_id: reserveData.device_id,
-          reserve_date: reserveData.reserve_date
+          device_id: reserveData.device_id
         },
         {
           status: 'approved'
@@ -941,12 +984,12 @@ Page({
     })
   },
 
-  // 表单验证 - 添加时间验证
   validateForm() {
     const {
       selectedDevice,
-      reserveDate,
+      startDate,
       startTime,
+      endDate,
       endTime,
       userInfo
     } = this.data
@@ -959,29 +1002,42 @@ Page({
       return false
     }
 
-    if (!reserveDate) {
+    if (!startDate) {
       wx.showToast({
-        title: '请选择预约日期',
+        title: '请选择开始日期',
         icon: 'none'
       })
       return false
     }
 
-    if (!startTime || !endTime) {
+    if (!startTime) {
       wx.showToast({
-        title: '请选择预约时间',
+        title: '请选择开始时间',
         icon: 'none'
       })
       return false
     }
 
-    // 检查时间是否在8:00-22:00范围内
+    if (!endDate) {
+      wx.showToast({
+        title: '请选择结束日期',
+        icon: 'none'
+      })
+      return false
+    }
+
+    if (!endTime) {
+      wx.showToast({
+        title: '请选择结束时间',
+        icon: 'none'
+      })
+      return false
+    }
+
+    // 检查开始时间是否在8:00-22:30范围内
+    // 检查开始时间是否在8:00-22:00范围内
     const startHour = parseInt(startTime.split(':')[0])
     const startMinute = parseInt(startTime.split(':')[1])
-    const endHour = parseInt(endTime.split(':')[0])
-    const endMinute = parseInt(endTime.split(':')[1])
-
-    // 开始时间检查
     if (startHour < 8 || startHour > 22) {
       wx.showToast({
         title: '开始时间必须在8:00-22:00之间',
@@ -989,7 +1045,6 @@ Page({
       })
       return false
     }
-
     if (startHour === 22 && startMinute > 0) {
       wx.showToast({
         title: '开始时间不能晚于22:00',
@@ -998,7 +1053,9 @@ Page({
       return false
     }
 
-    // 结束时间检查
+    // 检查结束时间是否在8:00-22:00范围内
+    const endHour = parseInt(endTime.split(':')[0])
+    const endMinute = parseInt(endTime.split(':')[1])
     if (endHour < 8 || endHour > 22) {
       wx.showToast({
         title: '结束时间必须在8:00-22:00之间',
@@ -1006,7 +1063,6 @@ Page({
       })
       return false
     }
-
     if (endHour === 22 && endMinute > 0) {
       wx.showToast({
         title: '结束时间不能晚于22:00',
@@ -1015,20 +1071,43 @@ Page({
       return false
     }
 
-    // 结束时间必须晚于开始时间
-    const startTotalMinutes = startHour * 60 + startMinute
-    const endTotalMinutes = endHour * 60 + endMinute
-
-    if (endTotalMinutes <= startTotalMinutes) {
+    // 结束日期不能早于开始日期
+    if (endDate < startDate) {
       wx.showToast({
-        title: '结束时间必须晚于开始时间',
+        title: '结束日期不能早于开始日期',
         icon: 'none'
       })
       return false
     }
 
+    // 结束日期不能晚于开始日期+2天
+    const startDateObj = new Date(startDate)
+    const maxEndDateObj = new Date(startDateObj)
+    maxEndDateObj.setDate(startDateObj.getDate() + 2)
+    const maxEndDateStr = this.formatDate(maxEndDateObj)
+    if (endDate > maxEndDateStr) {
+      wx.showToast({
+        title: '预约最多跨越2天',
+        icon: 'none'
+      })
+      return false
+    }
+
+    // 如果是同一天，结束时间必须晚于开始时间
+    if (endDate === startDate) {
+      const startTotalMinutes = startHour * 60 + startMinute
+      const endTotalMinutes = endHour * 60 + endMinute
+      if (endTotalMinutes <= startTotalMinutes) {
+        wx.showToast({
+          title: '结束时间必须晚于开始时间',
+          icon: 'none'
+        })
+        return false
+      }
+    }
+
     // 检查是否是当前或过去时间
-    if (!this.isFutureReservationStart(reserveDate, startTime)) {
+    if (!this.isFutureReservationStart(startDate, startTime)) {
       wx.showToast({
         title: '预约开始时间必须晚于当前时间',
         icon: 'none'
@@ -1065,7 +1144,7 @@ Page({
   getReservationTimeMs(dateStr, timeStr) {
     const [year, month, day] = dateStr.split('-').map(Number)
     const [hours, minutes] = timeStr.split(':').map(Number)
-    return Date.UTC(year, month - 1, day, hours - 8, minutes, 0, 0)
+    return new Date(year, month - 1, day, hours, minutes, 0, 0).getTime()
   },
 
   isFutureReservationStart(dateStr, timeStr) {

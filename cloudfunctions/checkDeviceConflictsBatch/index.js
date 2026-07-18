@@ -9,14 +9,13 @@ exports.main = async (event) => {
 
   if (!deviceIds || deviceIds.length === 0) return {}
 
-  const startDT = `${reserveDate} ${startTime}`
-  const endDT = `${reserveDate} ${endTime}`
+  const startDT = startTime  // 例如 "2026-07-18 10:00"
+  const endDT = endTime      // 例如 "2026-07-19 08:00"
 
   const res = await db.collection('reserves').where(
     _.and([
       { device_id: _.in(deviceIds) },
       { reserve_date: reserveDate },
-      { status: 'approved' },
       _.or([
         _.and([{ start_time: _.lte(startDT) }, { end_time: _.gt(startDT) }]),
         _.and([{ start_time: _.lt(endDT) }, { end_time: _.gte(endDT) }]),
@@ -24,13 +23,13 @@ exports.main = async (event) => {
       ])
     ])
   ).get()
-console.log("res:",res)
+// console.log("res:",res)
   // 按 device_id 统计冲突数
   let reservedDevices = []
   reservedDevices = res.data.map(item => {
     return item.device_id
   })
-  console.log("reservedDevices:",reservedDevices)
+  // console.log("reservedDevices:",reservedDevices)
   const map = {}
   res.data.forEach(r => {
     map[r.device_id] = (map[r.device_id] || 0) + 1

@@ -153,15 +153,12 @@
     <view class="time-header">
       <text class="time-title">预约时间</text>
     </view>
-
-    <!-- 日期选择 -->
     <view class="time-section">
-      <text class="time-label">选择日期</text>
-      <picker mode="date" value="{{reserveDate}}" start="{{minDate}}" end="{{maxDate}}" bindchange="onDateChange" class="time-picker">
-        <view class="picker-view">{{reserveDate || '请选择日期'}}</view>
+      <text class="time-label">开始日期</text>
+      <picker mode="date" value="{{startDate}}" start="{{minDate}}" end="{{maxDate}}" bindchange="onStartDateChange" class="time-picker">
+        <view class="picker-view">{{startDate || '请选择开始日期'}}</view>
       </picker>
     </view>
-
     <!-- 开始时间 -->
     <view class="time-section">
       <text class="time-label">开始时间 (8:00-22:00)</text>
@@ -169,7 +166,12 @@
         <view class="picker-view">{{startTime || '08:00'}}</view>
       </picker>
     </view>
-
+    <view class="time-section">
+      <text class="time-label">结束日期</text>
+      <picker mode="date" value="{{endDate}}" start="{{startDate}}" end="{{maxEndDate}}" bindchange="onEndDateChange" class="time-picker">
+        <view class="picker-view">{{endDate || '请选择结束日期'}}</view>
+      </picker>
+    </view>
     <!-- 结束时间 -->
     <view class="time-section">
       <text class="time-label">结束时间 (8:00-22:00)</text>

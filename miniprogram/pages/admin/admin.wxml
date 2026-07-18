@@ -178,7 +178,7 @@
         </view>
         <view class="reserve-info">
           <text class="reserve-person">{{item.student_name || item.user_id}}</text>
-          <text class="reserve-time">{{item.reserve_date}} {{item.start_time_display}}-{{item.end_time_display}}</text>
+          <text class="reserve-time">{{item.timeDisplay}}</text>
         </view>
       </view>
     </view>

@@ -374,7 +374,7 @@ Page({
           collectionName,
           whereCondition,
           pageSize,
-          sortField   // 透传排序字段
+          sortField // 透传排序字段
         }
       })
 
@@ -546,7 +546,7 @@ Page({
       dutyPage: 1
     })
     try {
-      const records = await this.fetchAllByCloud('duty_records', {}, this.data.dutyPageSize,'submit_time')
+      const records = await this.fetchAllByCloud('duty_records', {}, this.data.dutyPageSize, 'submit_time')
       const formatted = records.map(item => ({
         ...item,
         submit_time_display: this.formatTime(item.submit_time)
@@ -581,7 +581,7 @@ Page({
           collectionName: 'duty_records',
           whereCondition: {},
           pageSize: this.data.dutyPageSize,
-          startSkip: startSkip,   // 改这里：skip → startSkip
+          startSkip: startSkip, // 改这里：skip → startSkip
           sortField: 'submit_time' // 补上排序，保证下一页顺序一致
         }
       })
@@ -844,14 +844,38 @@ Page({
         } else if (displayStatus === 'abnormal') { // 新增
           stats.abnormal++
         }
+        // 计算时间显示（支持跨天）
+        var timeDisplay = ''
+        if (item.start_time && item.end_time) {
+          var startDateOnly = this.formatDateOnly(item.start_time)
+          var endDateOnly = this.formatDateOnly(item.end_time)
+          var isCrossDay = startDateOnly && endDateOnly && startDateOnly !== endDateOnly
 
+          if (isCrossDay) {
+            // 跨天：2026-07-10 19:00 - 07-18 19:30
+            var pad = function (n) {
+              return String(n).padStart(2, '0')
+            }
+            var startD = this.parseDateTime(item.start_time)
+            var endD = this.parseDateTime(item.end_time)
+            if (startD && endD) {
+              var startTime = pad(startD.getHours()) + ':' + pad(startD.getMinutes())
+              var endDisplay = pad(endD.getMonth() + 1) + '-' + pad(endD.getDate()) + ' ' + pad(endD.getHours()) + ':' + pad(endD.getMinutes())
+              timeDisplay = item.reserve_date + ' ' + startTime + ' - ' + endDisplay
+            } else {
+              timeDisplay = item.reserve_date + ' ' + this.getTimePart(item.start_time) + '-' + this.getTimePart(item.end_time)
+            }
+          } else {
+            // 同天：2026-07-10 19:00 - 19:30
+            timeDisplay = item.reserve_date + ' ' + this.getTimePart(item.start_time) + '-' + this.getTimePart(item.end_time)
+          }
+        }
 
         return {
           ...item,
           displayStatus,
           displayStatusText,
-          start_time_display: this.getTimePart(item.start_time),
-          end_time_display: this.getTimePart(item.end_time)
+          timeDisplay: timeDisplay
         }
       })
 
@@ -869,7 +893,15 @@ Page({
       })
     }
   },
-
+  formatDateOnly(isoStr) {
+    if (!isoStr) return ''
+    var d = this.parseDateTime(isoStr)
+    if (!d) return ''
+    var pad = function (n) {
+      return String(n).padStart(2, '0')
+    }
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+  },
   parseDateTime(dtStr) {
     if (!dtStr) return null
     if (dtStr instanceof Date) return isNaN(dtStr.getTime()) ? null : dtStr

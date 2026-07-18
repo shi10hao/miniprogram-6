@@ -7,78 +7,118 @@ const TYPE_LABELS = {
   usage_end_remind: '结束提醒',
   admin_notice: '管理员公告'
 }
-const PAGE_SIZE = 100
+const PAGE_SIZE = 20
 
 Page({
   data: {
     messageList: [],
     isLoading: true,
-    unreadCount: 0
+    isLoadingMore: false,
+    unreadCount: 0,
+    totalCount: 0, // 总消息数（含公告）
+    hasMore: true, // 是否还有更多
+    page: 0, // 当前页码
+    allLoaded: false // 是否全部加载完毕
   },
 
   onLoad() {
-    this.getMessageList()
+    this.getMessageList(true)
   },
 
   onShow() {
-    this.getMessageList()
+    // 如果已经加载过数据，不再重新拉取（避免闪烁）
+    if (this.data.messageList.length === 0) {
+      this.getMessageList(true)
+    }
   },
 
-  getMessageList() {
+  getMessageList(isFirstLoad = false) {
     const userInfo = wx.getStorageSync('userInfo') || {}
     if (!userInfo.userId) {
       this.setData({
         isLoading: false,
         messageList: [],
-        unreadCount: 0
+        unreadCount: 0,
+        totalCount: 0,
+        hasMore: false
       })
       this.updateTabBarBadge(0)
       return Promise.resolve([])
     }
+    if (isFirstLoad) {
+      this.setData({
+        isLoading: true,
+        page: 0,
+        messageList: [],
+        allLoaded: false
+      })
+    } else {
+      this.setData({
+        isLoadingMore: true
+      })
+    }
+    const page = this.data.page
 
-    this.setData({ isLoading: true })
-
-    const messagePromise = this.fetchAllRecords('messages', {
-      where: { user_id: userInfo.userId },
-      orderByField: 'create_time'
+    const messagePromise = this.fetchPage('messages', {
+      where: {
+        user_id: userInfo.userId
+      },
+      orderByField: 'create_time',
+      page: page,
+      pageSize: PAGE_SIZE
     })
-    const noticePromise = this.fetchAllRecords('notice', {
-      where: { type: 'admin' },
-      orderByField: 'publish_date'
+    const noticePromise = this.fetchPage('notice', {
+      where: {
+        type: 'admin'
+      },
+      orderByField: 'publish_date',
+      page: page,
+      pageSize: PAGE_SIZE
     })
+    // 查询数据库中该用户的所有消息总数
+    const totalCountPromise = db.collection('messages')
+      .where({
+        user_id: userInfo.userId
+      })
+      .count()
+      .then(res => res.total || 0)
+    // ===== 新增：查询数据库中该用户的真实未读数 =====
+    const unreadCountPromise = db.collection('messages')
+      .where({
+        user_id: userInfo.userId,
+        is_read: false
+      })
+      .count()
+      .then(res => res.total || 0)
 
-    return Promise.allSettled([messagePromise, noticePromise])
+    return Promise.allSettled([messagePromise, noticePromise, totalCountPromise, unreadCountPromise])
       .then(results => {
-        const messageRows = results[0].status === 'fulfilled' ? (results[0].value || []) : []
-        const noticeRows = results[1].status === 'fulfilled' ? (results[1].value || []) : []
+        const messageRows = results[0].status === 'fulfilled' ? (results[0].value?.data || []) : []
+        const noticeRows = results[1].status === 'fulfilled' ? (results[1].value?.data || []) : []
+        const messageHasMore = results[0].status === 'fulfilled' ? (results[0].value?.hasMore || false) : false
+        const noticeHasMore = results[1].status === 'fulfilled' ? (results[1].value?.hasMore || false) : false
 
-        if (results[0].status === 'rejected') {
-          console.error('获取用户消息失败:', results[0].reason)
-        }
-        if (results[1].status === 'rejected') {
-          console.error('获取管理员公告失败:', results[1].reason)
-        }
-
-        let unreadCount = 0
-        const normalizedMessages = messageRows.map(item => {
-          const normalized = this.normalizeMessageItem(item)
-          if (!normalized.is_read) {
-            unreadCount += 1
-          }
-          return normalized
-        })
+        const dbTotalCount = results[2].status === 'fulfilled' ? (results[2].value || 0) : 0
+        const dbUnreadCount = results[3].status === 'fulfilled' ? (results[3].value || 0) : 0
+        const normalizedMessages = messageRows.map(item => this.normalizeMessageItem(item))
         const normalizedNotices = noticeRows.map(item => this.normalizeNoticeItem(item))
-
-        const mergedList = normalizedMessages
-          .concat(normalizedNotices)
-          .sort((a, b) => b.sortTime - a.sortTime)
-
+        const newItems = normalizedMessages.concat(normalizedNotices)
+        // ===== 新代码 =====
+        const mergedList = isFirstLoad ?
+          newItems.sort((a, b) => b.sortTime - a.sortTime) :
+          this.data.messageList.concat(newItems).sort((a, b) => b.sortTime - a.sortTime)
+        const hasMore = messageHasMore || noticeHasMore
         this.setData({
           messageList: mergedList,
-          unreadCount,
-          isLoading: false
+          unreadCount: dbUnreadCount,
+          totalCount: isFirstLoad ? dbTotalCount : this.data.totalCount,
+          isLoading: false,
+          isLoadingMore: false,
+          hasMore: hasMore,
+          page: isFirstLoad ? 1 : this.data.page + 1,
+          allLoaded: !hasMore
         })
-        this.updateTabBarBadge(unreadCount)
+        this.updateTabBarBadge(dbUnreadCount)
 
         return mergedList
       })
@@ -86,12 +126,56 @@ Page({
         console.error('加载消息列表失败:', err)
         this.setData({
           isLoading: false,
+          isLoadingMore: false,
           messageList: [],
-          unreadCount: 0
+          unreadCount: 0,
+          totalCount: 0,
+          hasMore: false
         })
         this.updateTabBarBadge(0)
         return []
       })
+  },
+  // ===== 最可靠的方案 =====
+  fetchPage(collectionName, options) {
+    const {
+      where,
+      orderByField,
+      page,
+      pageSize
+    } = options
+    const skip = page * pageSize
+
+    let query = db.collection(collectionName)
+    if (where) query = query.where(where)
+    if (orderByField) query = query.orderBy(orderByField, 'desc')
+
+    // 先查总数
+    const countPromise = db.collection(collectionName)
+      .where(where || {})
+      .count()
+      .then(res => res.total || 0)
+
+    // 再查当前页数据
+    const dataPromise = query
+      .skip(skip)
+      .limit(pageSize)
+      .get()
+      .then(res => res.data || [])
+
+    return Promise.all([countPromise, dataPromise])
+      .then(([total, rows]) => {
+        const hasMore = skip + pageSize < total
+        return {
+          data: rows,
+          hasMore
+        }
+      })
+  },
+  // 新增：加载更多
+  loadMore() {
+    if (this.data.isLoadingMore || this.data.allLoaded) return
+    this.getMessageList(false)
   },
 
   normalizeMessageItem(item) {
@@ -191,26 +275,42 @@ Page({
     const userInfo = wx.getStorageSync('userInfo') || {}
     if (!userInfo.userId) return
 
-    wx.showLoading({ title: '处理中...' })
-    const _ = db.command
-    db.collection('messages')
-      .where({
-        user_id: userInfo.userId,
-        is_read: _.neq(true)
-      })
-      .update({
+    wx.showLoading({
+      title: '处理中...'
+    })
+
+    wx.cloud.callFunction({
+        name: 'batchMarkRead',
         data: {
-          is_read: true,
-          read_time: new Date().toISOString()
+          userId: userInfo.userId
         }
       })
-      .then(() => {
+      .then(res => {
         wx.hideLoading()
+        const result = res.result || {}
+        console.log("res:", res)
+        console.log("result:", result)
+        console.log('批量标记已读完成，共更新', result.updated, '条')
+        // 直接更新本地数据
+        const updatedList = this.data.messageList.map(item => {
+          if (item.source === 'message' && !item.is_read) {
+            return {
+              ...item,
+              is_read: true
+            }
+          }
+          return item
+        })
+        this.setData({
+          messageList: updatedList,
+          unreadCount: 0
+        })
+        this.updateTabBarBadge(0)
+
         wx.showToast({
           title: '已全部标记为已读',
           icon: 'success'
         })
-        return this.getMessageList()
       })
       .catch(err => {
         wx.hideLoading()
@@ -221,7 +321,6 @@ Page({
         })
       })
   },
-
   deleteMessage(e) {
     const messageId = e.currentTarget.dataset.messageid
     const source = e.currentTarget.dataset.source || 'message'
@@ -249,7 +348,9 @@ Page({
       success: res => {
         if (!res.confirm) return
 
-        wx.showLoading({ title: '删除中...' })
+        wx.showLoading({
+          title: '删除中...'
+        })
         this.removeMessageRecord(messageId, userInfo.userId)
           .then(removeRes => {
             wx.hideLoading()
@@ -265,7 +366,7 @@ Page({
               title: '删除成功',
               icon: 'success'
             })
-            this.getMessageList()
+            this.getMessageList(true)
           })
           .catch(err => {
             wx.hideLoading()
@@ -363,38 +464,53 @@ Page({
     return `${value.slice(0, maxLength - 1)}…`
   },
 
-  fetchAllRecords(collectionName, options) {
-    const where = options && options.where ? options.where : null
-    const orderByField = options && options.orderByField ? options.orderByField : ''
-
-    const loadPage = skip => {
-      let query = db.collection(collectionName)
-      if (where) {
-        query = query.where(where)
-      }
-      if (orderByField) {
-        query = query.orderBy(orderByField, 'desc')
-      }
-
-      return query
-        .skip(skip)
-        .limit(PAGE_SIZE)
-        .get()
-        .then(res => {
-          const rows = res.data || []
-          if (rows.length < PAGE_SIZE) {
-            return rows
-          }
-          return loadPage(skip + PAGE_SIZE).then(nextRows => rows.concat(nextRows))
-        })
-    }
-
-    return loadPage(0)
+  onPullDownRefresh() {
+    this.getMessageList(true).finally(() => { // ← 加 true
+      wx.stopPullDownRefresh()
+    })
   },
 
-  onPullDownRefresh() {
-    this.getMessageList().finally(() => {
-      wx.stopPullDownRefresh()
+  // 删除所有已读消息（优化版）
+  deleteReadMessages() {
+    const userInfo = wx.getStorageSync('userInfo') || {}
+    if (!userInfo.userId) return
+
+    wx.showModal({
+      title: '删除已读消息',
+      content: '确定要删除所有已读消息吗？此操作不可恢复。',
+      success: res => {
+        if (!res.confirm) return
+
+        wx.showLoading({
+          title: '删除中...'
+        })
+
+        wx.cloud.callFunction({
+            name: 'batchDeleteReadMessages',
+            data: {
+              userId: userInfo.userId
+            }
+          })
+          .then(res => {
+            wx.hideLoading()
+            const result = res.result || {}
+            const deletedCount = result.deleted || 0
+
+            wx.showToast({
+              title: `已删除 ${deletedCount} 条已读消息`,
+              icon: 'success'
+            })
+            this.getMessageList(true) // 重新加载
+          })
+          .catch(err => {
+            wx.hideLoading()
+            console.error('删除已读消息失败:', err)
+            wx.showToast({
+              title: '删除失败，请重试',
+              icon: 'none'
+            })
+          })
+      }
     })
   }
 })

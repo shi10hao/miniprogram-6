@@ -24,16 +24,22 @@ Page({
   },
   //
   checkAuthStatus() {
+    if (this._checkingAuth) return
+    this._checkingAuth = true
     try {
-       // 新增：先检查管理员登录状态
-       const adminInfo = wx.getStorageSync('adminInfo')
-       if (adminInfo && adminInfo.userId) {
-         // 有管理员登录信息，直接跳转到 admin 页面
-         wx.reLaunch({
-           url: '/pages/admin/admin'
-         })
-         return
-       }
+      // 新增：先检查管理员登录状态
+      const adminInfo = wx.getStorageSync('adminInfo')
+      if (adminInfo && adminInfo.userId) {
+        setTimeout(() => {
+          wx.reLaunch({
+            url: '/pages/admin/admin',
+            complete: () => {
+              this._checkingAuth = false
+            }
+          })
+        }, 500)
+        return
+      }
       const userInfo = wx.getStorageSync('userInfo')
 
       if (userInfo) {
@@ -62,6 +68,8 @@ Page({
       })
       this.getCommonDevices()
       this.getLatestNotices()
+    } finally {
+      this._checkingAuth = false
     }
   },
   //
@@ -69,12 +77,19 @@ Page({
     const userInfo = wx.getStorageSync('userInfo') || {}
     const groupName = String(userInfo.groupName || '').trim()
     const _ = db.command
-    const visibilityCondition = groupName
-      ? _.or([{ lab_type: 'public' }, { lab_name: groupName }])
-      : { lab_type: 'public' }
+    const visibilityCondition = groupName ?
+      _.or([{
+        lab_type: 'public'
+      }, {
+        lab_name: groupName
+      }]) : {
+        lab_type: 'public'
+      }
 
     return db.collection('devices')
-      .where(_.and([{ status: 'available' }, visibilityCondition]))
+      .where(_.and([{
+        status: 'available'
+      }, visibilityCondition]))
       .field({
         device_id: true,
         device_name: true,
@@ -86,23 +101,23 @@ Page({
       .orderBy('device_id', 'asc')
       .get()
       .then(res => {
-        const groupedDevices = {}
-          ; (res.data || []).forEach(device => {
-            const specs = device.specifications || {}
-            const model = specs && typeof specs === 'object'
-              ? (specs['型号'] || specs.model || '')
-              : ''
-            const key = `${device.device_name || ''}::${String(model || '').trim()}`
-            if (!groupedDevices[key]) {
-              groupedDevices[key] = {
-                device_id: device.device_id,
-                device_name: device.device_name,
-                picture: device.picture,
-                lab_name: device.lab_name,
-                device_room: device.device_room
-              }
+        const groupedDevices = {};
+        (res.data || []).forEach(device => {
+          const specs = device.specifications || {}
+          const model = specs && typeof specs === 'object' ?
+            (specs['型号'] || specs.model || '') :
+            ''
+          const key = `${device.device_name || ''}::${String(model || '').trim()}`
+          if (!groupedDevices[key]) {
+            groupedDevices[key] = {
+              device_id: device.device_id,
+              device_name: device.device_name,
+              picture: device.picture,
+              lab_name: device.lab_name,
+              device_room: device.device_room
             }
-          })
+          }
+        })
 
         this.setData({
           commonDevices: Object.values(groupedDevices).slice(0, 3),
@@ -136,18 +151,24 @@ Page({
           ...item,
           publish_date: this.formatDate(item.publish_date)
         }))
-        this.setData({ latestNotices: formattedList })
+        this.setData({
+          latestNotices: formattedList
+        })
       })
       .catch(err => {
         // console.error('获取公告列表失败:', err)
-        this.setData({ latestNotices: [] })
+        this.setData({
+          latestNotices: []
+        })
       })
   },
   //
   loadUnreadReminder() {
     const userInfo = wx.getStorageSync('userInfo') || {}
     if (!userInfo.userId) {
-      this.setData({ unreadReminder: null })
+      this.setData({
+        unreadReminder: null
+      })
       return Promise.resolve(null)
     }
 
@@ -170,7 +191,9 @@ Page({
       })
       .catch(err => {
         // console.error('获取首页未读提醒失败:', err)
-        this.setData({ unreadReminder: null })
+        this.setData({
+          unreadReminder: null
+        })
         return null
       })
   },
@@ -230,9 +253,9 @@ Page({
   },
 
   gotoDeviceList(e) {
-    const deviceId = e && e.currentTarget && e.currentTarget.dataset
-      ? e.currentTarget.dataset.deviceid
-      : ''
+    const deviceId = e && e.currentTarget && e.currentTarget.dataset ?
+      e.currentTarget.dataset.deviceid :
+      ''
     let url = '/pages/device/list/devicelist'
     if (deviceId) {
       url += `?deviceId=${encodeURIComponent(deviceId)}`

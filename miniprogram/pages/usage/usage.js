@@ -24,13 +24,13 @@ Page({
     endForm: {
       instrumentOff: null, // true/false，仪器是否关闭
       computerOff: null, // true/false，电脑是否关闭
-      nextUser:'',
+      nextUser: '',
       sampleCount: '', // 运行样品总数
       totalPage: '', // 总的预约单本地路径
       needSupplement: null, // true/false，是否需要补充预约
       supplementPage: '', // 补充预约单本地路径
-      devicePage:'',
-      roomPage:''
+      devicePage: '',
+      roomPage: ''
     },
   },
 
@@ -209,6 +209,29 @@ Page({
               state = 'ready'
             }
           }
+          // 判断是否跨天
+          const startDateOnly = item.start_time ? this.formatDateOnly(item.start_time) : ''
+          const endDateOnly = item.end_time ? this.formatDateOnly(item.end_time) : ''
+          const isCrossDay = startDateOnly && endDateOnly && startDateOnly !== endDateOnly
+
+          let startDisplay = ''
+          let endDisplay = ''
+          if (isCrossDay) {
+            const pad = n => String(n).padStart(2, '0')
+            const startD = this.parseDateValue(item.start_time)
+            const endD = this.parseDateValue(item.end_time)
+            if (startD && endD) {
+              startDisplay = `${pad(startD.getMonth() + 1)}-${pad(startD.getDate())} ${pad(startD.getHours())}:${pad(startD.getMinutes())}`
+              endDisplay = `${pad(endD.getMonth() + 1)}-${pad(endD.getDate())} ${pad(endD.getHours())}:${pad(endD.getMinutes())}`
+            } else {
+              startDisplay = this.formatClock(item.start_time)
+              endDisplay = this.formatClock(item.end_time)
+            }
+          } else {
+            startDisplay = this.formatClock(item.start_time)
+            endDisplay = this.formatClock(item.end_time)
+          }
+
           return {
             _id: item._id,
             device_name: item.device_name || '',
@@ -216,8 +239,8 @@ Page({
             start_time: item.start_time || '',
             end_time: item.end_time || '',
             reserve_date: item.reserve_date || '',
-            start_display: this.formatClock(item.start_time),
-            end_display: this.formatClock(item.end_time),
+            start_display: startDisplay,
+            end_display: endDisplay,
             state: state
           }
         })
@@ -320,12 +343,40 @@ Page({
     const startDisplay = usage.start_time ? this.formatTime(usage.start_time) : ''
     const endDisplay = usage.end_time ? this.formatTime(usage.end_time) : ''
 
+    // 判断是否跨天：比较开始和结束的日期部分
+    const startDateOnly = usage.start_time ? this.formatDateOnly(usage.start_time) : ''
+    const endDateOnly = usage.end_time ? this.formatDateOnly(usage.end_time) : ''
+    const isCrossDay = startDateOnly && endDateOnly && startDateOnly !== endDateOnly
+
+    let periodDisplay = ''
+    if (usage.start_time && usage.end_time) {
+      if (isCrossDay) {
+        // 跨天显示完整格式：07-17 18:00 - 07-18 10:00
+        const pad = n => String(n).padStart(2, '0')
+        const startD = this.parseDateValue(usage.start_time)
+        const endD = this.parseDateValue(usage.end_time)
+        if (startD && endD) {
+          periodDisplay = `${pad(startD.getMonth() + 1)}-${pad(startD.getDate())} ${pad(startD.getHours())}:${pad(startD.getMinutes())} - ${pad(endD.getMonth() + 1)}-${pad(endD.getDate())} ${pad(endD.getHours())}:${pad(endD.getMinutes())}`
+        } else {
+          periodDisplay = `${this.formatClock(usage.start_time)} - ${this.formatClock(usage.end_time)}`
+        }
+      } else {
+        // 同天显示完整格式：2026-07-17 15:52 - 15:53
+        const pad = n => String(n).padStart(2, '0')
+        const startD = this.parseDateValue(usage.start_time)
+        if (startD) {
+          periodDisplay = `${startD.getFullYear()}-${pad(startD.getMonth() + 1)}-${pad(startD.getDate())} ${pad(startD.getHours())}:${pad(startD.getMinutes())} - ${this.formatClock(usage.end_time)}`
+        } else {
+          periodDisplay = `${this.formatClock(usage.start_time)} - ${this.formatClock(usage.end_time)}`
+        }
+      }
+    }
+
     return Object.assign({}, usage, {
       start_time_display: startDisplay,
       end_time_display: endDisplay,
       usage_date_display: usage.start_time ? this.formatDateOnly(usage.start_time) : '',
-      usage_period_display: usage.start_time && usage.end_time ?
-        `${this.formatClock(usage.start_time)} - ${this.formatClock(usage.end_time)}` : ''
+      usage_period_display: periodDisplay
     })
   },
   //
@@ -666,7 +717,7 @@ Page({
   },
   openUsageFeedback() {
     const currentUsage = this.data.currentUsage
-    console.log('openUsageFeedback - currentUsage:', currentUsage)  // 加日志
+    console.log('openUsageFeedback - currentUsage:', currentUsage) // 加日志
     // 兜底校验：没有使用记录时不允许提交
     if (!currentUsage || !currentUsage.reserve_id) {
       wx.showToast({
@@ -1242,7 +1293,7 @@ Page({
       }
     })
   },
-  pickRoomPage(){
+  pickRoomPage() {
     wx.chooseMedia({
       count: 1,
       mediaType: ['image'],
@@ -1396,11 +1447,11 @@ Page({
       const endChecklist = {
         instrument_off: endForm.instrumentOff,
         computer_off: endForm.computerOff,
-        nextUser:endForm.nextUser || '',
+        nextUser: endForm.nextUser || '',
         sample_count: parseInt(endForm.sampleCount),
         total_page: totalPageFileID,
-        device_page: devicePageFileID,    // 新增
-        room_page: roomPageFileID,        // 新增
+        device_page: devicePageFileID, // 新增
+        room_page: roomPageFileID, // 新增
         need_supplement: endForm.needSupplement,
         supplement_page: supplementPageFileID || ''
       }

@@ -131,8 +131,8 @@
           <text class="history-val">{{item.device_id}}</text>
         </view>
         <view class="history-row">
-          <text class="history-label">使用日期：</text>
-          <text class="history-val">{{item.usage_date_display}}</text>
+          <text class="history-label">预约日期：</text>
+          <text class="history-val">{{item.reserve_date}}</text>
         </view>
         <view class="history-row">
           <text class="history-label">使用时段：</text>

@@ -275,7 +275,7 @@
               <text class="user-name">{{item.student_name || item.user_id}}</text>
               <view class="reserve-status {{item.displayStatus}}">{{item.statusText}}</view>
             </view>
-            <text class="reserve-time">{{item.timeDisplay}} · {{item.dateDisplay}}</text>
+            <text class="reserve-time">{{item.start_time}} ~ {{item.end_time}}</text>
             <text class="device-id-small">设备：{{item.device_id}}</text>
           </view>
         </view>
