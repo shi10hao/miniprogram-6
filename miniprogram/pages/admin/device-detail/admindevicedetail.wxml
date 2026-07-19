@@ -206,6 +206,14 @@
                 <text class="summary-value">{{usage.endChecklistDisplay.sampleCount}} 个</text>
               </view>
               <view class="summary-row">
+                <text class="summary-label">是否多余预约</text>
+                <text class="summary-value {{usage.endChecklistDisplay.moreSample ? 'yes' : 'no'}}">{{usage.endChecklistDisplay.moreSample ? '是' : '否'}}</text>
+              </view>
+              <view wx:if="{{usage.endChecklistDisplay.moreSample}}" class="summary-row">
+                <text class="summary-label">剩余样品</text>
+                <text class="summary-value">{{usage.endChecklistDisplay.moreSampleCount}} 个</text>
+              </view>
+              <view class="summary-row">
                 <text class="summary-label">补充预约</text>
                 <text class="summary-value {{usage.endChecklistDisplay.needSupplement ? 'yes' : 'no'}}">{{usage.endChecklistDisplay.needSupplement ? '是' : '否'}}</text>
               </view>
@@ -250,6 +258,14 @@
               <view class="summary-row">
                 <text class="summary-label">样品总数</text>
                 <text class="summary-value">{{record.endChecklistDisplay.sampleCount}} 个</text>
+              </view>
+              <view class="summary-row">
+                <text class="summary-label">是否多余预约</text>
+                <text class="summary-value {{record.endChecklistDisplay.moreSample ? 'yes' : 'no'}}">{{record.endChecklistDisplay.moreSample ? '是' : '否'}}</text>
+              </view>
+              <view wx:if="{{record.endChecklistDisplay.moreSample}}" class="summary-row">
+                <text class="summary-label">剩余样品</text>
+                <text class="summary-value">{{record.endChecklistDisplay.moreSampleCount}} 个</text>
               </view>
               <view class="summary-row">
                 <text class="summary-label">补充预约</text>

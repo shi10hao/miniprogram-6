@@ -100,7 +100,21 @@ Page({
       showExitConfirm: false
     })
   },
-
+  requestSubscribeMessage() {
+    wx.requestSubscribeMessage({
+      tmplIds: ['rEryURnzJ73glhEiqTmrGi3sNio16MDmUcMrIc0LPiY'],
+      success: (res) => {
+        if (res['rEryURnzJ73glhEiqTmrGi3sNio16MDmUcMrIc0LPiY'] === 'accept') {
+          console.log('管理员已同意接收订阅消息')
+        } else {
+          console.log('管理员拒绝了订阅消息')
+        }
+      },
+      fail: (err) => {
+        console.error('订阅授权失败:', err)
+      }
+    })
+  },
   onLabTypeChange(e) {
     const type = e.currentTarget.dataset.type
     this.setData({

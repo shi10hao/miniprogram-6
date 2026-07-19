@@ -868,6 +868,8 @@ Page({
         instrumentOff: ec.instrument_off,
         computerOff: ec.computer_off,
         sampleCount: ec.sample_count,
+        moreSample: ec.more_sample,
+        moreSampleCount: ec.more_sample_count || 0,
         totalPageUrl: this.resolvePhotoUrl(ec.total_page, tempUrlMap),
         needSupplement: ec.need_supplement,
         supplementPageUrl: this.resolvePhotoUrl(ec.supplement_page, tempUrlMap)

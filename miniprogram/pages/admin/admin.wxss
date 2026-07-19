@@ -139,7 +139,7 @@
   background: rgba(255, 255, 255, 0.15);
 }
 
-.admin-3d-btn {
+.subscribe-btn {
   display: flex;
   align-items: center;
   gap: 4rpx;
@@ -149,11 +149,11 @@
   margin-right: 12rpx;
 }
 
-.btn-3d-icon {
+.subscribe-icon {
   font-size: 24rpx;
 }
 
-.btn-3d-text {
+.subscribe-text {
   font-size: 20rpx;
   color: rgba(255, 255, 255, 0.9);
   font-weight: 500;

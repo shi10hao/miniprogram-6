@@ -162,7 +162,6 @@
 
       <input class="feedback-input" placeholder="请输入问题标题（选填）" value="{{feedbackTitle}}" bindinput="onTitleInput" />
       <textarea value="{{feedbackContent}}" class="feedback-textarea" placeholder="请详细描述您遇到的问题，例如故障现象、报错信息等" bindinput="onContentInput" maxlength="500" />
-
       <!-- 故障照片上传 -->
       <view class="feedback-photo-section">
         <text class="feedback-label">故障照片（选填）</text>
@@ -176,7 +175,6 @@
           </view>
         </view>
       </view>
-
       <!-- 结束使用选项 -->
       <!-- <view class="feedback-end-option" wx:if="{{feedbackScene === 'using'}}">
         <label class="checkbox-label">
@@ -227,7 +225,17 @@
         <text class="form-label required">运行样品总数</text>
         <input class="form-input" type="number" placeholder="请输入正整数" value="{{endForm.sampleCount}}" bindinput="onSampleCountInput" />
       </view>
-
+      <view class="form-row">
+        <text class="form-label required">是否过多预约</text>
+        <view class="form-options">
+          <text class="option-btn {{endForm.moreSample === true ? 'active' : ''}}" data-value="true" bindtap="selectMoreSample">是</text>
+          <text class="option-btn {{endForm.moreSample === false ? 'active' : ''}}" data-value="false" bindtap="selectMoreSample">否</text>
+        </view>
+      </view>
+      <view wx:if="{{endForm.moreSample}}" class="form-row">
+        <text class="form-label required">剩余的样品数量</text>
+        <input class="form-input" type="number" placeholder="请输入剩余样品数量" value="{{endForm.moreSampleCount}}" bindinput="onMoreSampleCountInput" />
+      </view>
       <!-- 总的预约单 -->
       <view class="form-row">
         <text class="form-label required">总的预约单</text>

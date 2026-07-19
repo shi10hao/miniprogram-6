@@ -1,5 +1,4 @@
 const db = wx.cloud.database()
-
 const TEMPLATE_ID = 'rgRmn33I28JIm4REBjzpin2dV474fmrLRxYFTpSJbuk'
 const BANNER_REMINDER_TYPES = ['reservation_remind', 'usage_photo_remind', 'usage_end_remind']
 const PHOTO_REMINDER_TYPES = ['usage_photo_remind', 'usage_end_remind']
@@ -16,7 +15,7 @@ Page({
     feedbackTitle: '',
     feedbackContent: '',
     currentReserveId: '', // 新增：当前反馈对应的预约ID
-    feedbackScene: '',
+    feedbackScene: 'start',
     feedbackPhotos: [],
     endWithFeedback: false,
     // 结束信息表单
@@ -25,7 +24,9 @@ Page({
       instrumentOff: null, // true/false，仪器是否关闭
       computerOff: null, // true/false，电脑是否关闭
       nextUser: '',
+      moreSample: null,
       sampleCount: '', // 运行样品总数
+      moreSampleCount: '',
       totalPage: '', // 总的预约单本地路径
       needSupplement: null, // true/false，是否需要补充预约
       supplementPage: '', // 补充预约单本地路径
@@ -758,7 +759,6 @@ Page({
 
   submitFeedback() {
     // console.log("0")
-
     const {
       feedbackTitle,
       feedbackContent,
@@ -777,12 +777,11 @@ Page({
         finalReserveId = pending[0]._id
       }
     }
-
     // 校验：内容不能为空
     if (!feedbackContent.trim()) {
       wx.showToast({
         title: '请填写问题描述',
-        icon: 'none'
+        icon:"none"
       })
       return
     }
@@ -798,7 +797,7 @@ Page({
       title: '提交中...'
     })
     const userInfo = wx.getStorageSync('userInfo') || {}
-    // console.log("1")
+    console.log("feedbackScene:",feedbackScene)
     // 调用异常反馈云函数
     wx.cloud.callFunction({
       name: 'submitAbnormalFeedback',
@@ -820,8 +819,25 @@ Page({
     }).then(res => {
       wx.hideLoading()
       const result = res.result || {}
-      // console.log("res:",res)
+      console.log("res:",res)
       if (result.success) {
+        if (feedbackScene === 'using' || feedbackScene === 'start') {
+          wx.cloud.callFunction({
+            name: 'sendAbnormalNotification',
+            data: {
+              reserveId: finalReserveId,
+              deviceName: this.data.currentUsage?.device_name || '',
+              deviceId: this.data.currentUsage?.device_id || '',
+              userName: userInfo.name || userInfo.userId || '未知用户',
+              feedbackTitle: feedbackTitle.trim(),
+              feedbackContent: feedbackContent.trim()
+            }
+          }).then(notifyRes => {
+            console.log('异常通知发送结果:', notifyRes)
+          }).catch(err => {
+            console.error('发送异常通知失败:', err)
+          })
+        }
         if (feedbackScene === 'using' && endWithFeedback) {
           wx.showToast({
             title: '反馈已提交，使用已异常结束',
@@ -1094,6 +1110,8 @@ Page({
         instrumentOff: null,
         computerOff: null,
         sampleCount: '',
+        moreSample: null,
+        moreSampleCount: '',
         totalPage: '',
         needSupplement: null,
         supplementPage: ''
@@ -1246,6 +1264,12 @@ Page({
       'endForm.computerOff': value
     })
   },
+  selectMoreSample(e) {
+    const value = e.currentTarget.dataset.value === 'true'
+    this.setData({
+      'endForm.moreSample': value
+    })
+  },
   onNextUserInput(e) {
     let val = e.detail.value.trim()
     this.setData({
@@ -1260,6 +1284,15 @@ Page({
     if (val === '0') val = ''
     this.setData({
       'endForm.sampleCount': val
+    })
+  },
+  onMoreSampleCountInput(e) {
+    let val = e.detail.value
+    // 只允许正整数
+    val = val.replace(/\D/g, '')
+    if (val === '0') val = ''
+    this.setData({
+      'endForm.moreSampleCount': val
     })
   },
   // 上传总的预约单
@@ -1358,6 +1391,20 @@ Page({
       })
       return
     }
+    if (endForm.moreSample === null) {
+      wx.showToast({
+        title: '请选择是否多余预约',
+        icon: 'none'
+      })
+      return
+    }
+    if (endForm.moreSample && !endForm.moreSampleCount) {
+      wx.showToast({
+        title: '请填写剩余样品数量',
+        icon: 'none'
+      })
+      return
+    }
     if (!endForm.totalPage) {
       wx.showToast({
         title: '请上传总的预约单',
@@ -1449,6 +1496,8 @@ Page({
         computer_off: endForm.computerOff,
         nextUser: endForm.nextUser || '',
         sample_count: parseInt(endForm.sampleCount),
+        more_sample: endForm.moreSample,
+        more_sample_count: endForm.moreSample ? parseInt(endForm.moreSampleCount) : 0,
         total_page: totalPageFileID,
         device_page: devicePageFileID, // 新增
         room_page: roomPageFileID, // 新增

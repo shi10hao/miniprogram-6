@@ -8,11 +8,15 @@ Page({
   },
   //
   onUsernameInput(e) {
-    this.setData({ username: e.detail.value })
+    this.setData({
+      username: e.detail.value
+    })
   },
   //
   onPasswordInput(e) {
-    this.setData({ password: e.detail.value })
+    this.setData({
+      password: e.detail.value
+    })
   },
   //
   adminLogin() {
@@ -22,16 +26,24 @@ Page({
     const password = String(this.data.password || '').trim()
 
     if (!username) {
-      wx.showToast({ title: '请输入账号', icon: 'none' })
+      wx.showToast({
+        title: '请输入账号',
+        icon: 'none'
+      })
       return
     }
 
     if (!password) {
-      wx.showToast({ title: '请输入密码', icon: 'none' })
+      wx.showToast({
+        title: '请输入密码',
+        icon: 'none'
+      })
       return
     }
 
-    this.setData({ isLogging: true })
+    this.setData({
+      isLogging: true
+    })
 
     db.collection('users')
       .where({
@@ -43,16 +55,39 @@ Page({
       .then(res => {
         const userInfo = (res.data || [])[0]
         if (!userInfo) {
-          wx.showToast({ title: '账号不存在或无权限', icon: 'none' })
+          wx.showToast({
+            title: '账号不存在或无权限',
+            icon: 'none'
+          })
           return
         }
 
         const phone = String(userInfo.phone || '').trim()
         if (password !== phone) {
-          wx.showToast({ title: '密码错误', icon: 'none' })
+          wx.showToast({
+            title: '密码错误',
+            icon: 'none'
+          })
           return
         }
-
+        wx.cloud.callFunction({
+          name: 'getOpenId'
+        }).then(openidRes => {
+          const openid = openidRes.result.openid
+          if (openid) {
+            db.collection('users').doc(userInfo._id).update({
+              data: {
+                wx_openid: openid
+              }
+            }).then(() => {
+              console.log('openid 已保存:', openid)
+            }).catch(err => {
+              console.error('保存 openid 失败:', err)
+            })
+          }
+        }).catch(err => {
+          console.error('获取 openid 失败:', err)
+        })
         wx.setStorageSync('adminInfo', {
           userId: userInfo.user_id,
           name: userInfo.name || '管理员',
@@ -61,21 +96,33 @@ Page({
           loginTime: new Date().toISOString()
         })
 
-        wx.showToast({ title: '登录成功', icon: 'success' })
+        wx.showToast({
+          title: '登录成功',
+          icon: 'success'
+        })
         setTimeout(() => {
-          wx.reLaunch({ url: '/pages/admin/admin' })
+          wx.reLaunch({
+            url: '/pages/admin/admin'
+          })
         }, 600)
       })
       .catch(err => {
         console.error('管理端登录失败:', err)
-        wx.showToast({ title: '登录失败，请重试', icon: 'none' })
+        wx.showToast({
+          title: '登录失败，请重试',
+          icon: 'none'
+        })
       })
       .finally(() => {
-        this.setData({ isLogging: false })
+        this.setData({
+          isLogging: false
+        })
       })
   },
   //
   backToStudentAuth() {
-    wx.reLaunch({ url: '/pages/auth/auth' })
+    wx.reLaunch({
+      url: '/pages/auth/auth'
+    })
   }
 })

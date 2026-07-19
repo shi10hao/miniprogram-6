@@ -141,7 +141,15 @@
           <text class="end-info-label">运行样品总数</text>
           <text class="end-info-value">{{detail.endChecklistDisplay.sampleCount}} 个</text>
         </view>
-
+        <!-- ===== 新增：是否多余预约 ===== -->
+        <view class="end-info-row">
+          <text class="end-info-label">是否多余预约</text>
+          <text class="end-info-value {{detail.endChecklistDisplay.moreSample ? 'yes' : 'no'}}">{{detail.endChecklistDisplay.moreSample ? '是' : '否'}}</text>
+        </view>
+        <view wx:if="{{detail.endChecklistDisplay.moreSample}}" class="end-info-row">
+          <text class="end-info-label">剩余样品数量</text>
+          <text class="end-info-value">{{detail.endChecklistDisplay.moreSampleCount}} 个</text>
+        </view>
         <!-- 是否需要补充预约 -->
         <view class="end-info-row">
           <text class="end-info-label">补充预约</text>

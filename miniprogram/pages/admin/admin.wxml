@@ -16,9 +16,8 @@
     <view class="admin-info">
       <text class="admin-title">欢迎您，{{adminName}}</text>
     </view>
-    <view class="admin-3d-btn" bindtap="goTo3DBoard">
-      <text class="btn-3d-icon">🌐</text>
-      <text class="btn-3d-text">三维看板</text>
+    <view class="subscribe-btn" bindtap="requestSubscribeMessage">
+      <text class="subscribe-text">订阅信息</text>
     </view>
     <view class="admin-logout" bindtap="confirmLogout">
       <text class="logout-text">退出</text>

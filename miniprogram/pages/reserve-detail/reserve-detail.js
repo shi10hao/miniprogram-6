@@ -258,6 +258,8 @@ Page({
         computerOff: ec.computer_off,
         nextUser: ec.nextUser || '', // 新增：下一个使用者
         sampleCount: ec.sample_count,
+        moreSample: ec.more_sample,
+        moreSampleCount: ec.more_sample_count || 0,
         totalPageUrl: map[ec.total_page] || '',
         devicePageUrl: map[ec.device_page] || '', // 新增：仪器关闭照片
         roomPageUrl: map[ec.room_page] || '', // 新增：实验室关门照片

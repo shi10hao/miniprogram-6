@@ -265,12 +265,56 @@ Page({
   viewMessageDetail(e) {
     const messageId = e.currentTarget.dataset.messageid
     const source = e.currentTarget.dataset.source || 'message'
+    const index = e.currentTarget.dataset.index
 
+    // 如果是消息且未读，先标记为已读
+    if (source === 'message') {
+      const item = this.data.messageList[index]
+      if (item && !item.is_read) {
+        this.markAsRead(messageId, index)
+      }
+    }
     wx.navigateTo({
       url: `/pages/message/detail/messagedetail?messageId=${encodeURIComponent(messageId)}&source=${source}`
     })
   },
+  // 新增：单条消息标记已读
+  markAsRead(messageId, index) {
+    const userInfo = wx.getStorageSync('userInfo') || {}
+    if (!userInfo.userId) return
 
+    // 更新本地数据（立即响应，提升体验）
+    const updatedList = [...this.data.messageList]
+    if (updatedList[index]) {
+      updatedList[index] = {
+        ...updatedList[index],
+        is_read: true
+      }
+    }
+
+    const newUnreadCount = Math.max(0, this.data.unreadCount - 1)
+    this.setData({
+      messageList: updatedList,
+      unreadCount: newUnreadCount
+    })
+    this.updateTabBarBadge(newUnreadCount)
+
+    // 异步更新数据库
+    db.collection('messages')
+      .doc(messageId)
+      .update({
+        data: {
+          is_read: true
+        }
+      })
+      .then(res => {
+        console.log('标记已读成功:', messageId)
+      })
+      .catch(err => {
+        console.error('标记已读失败:', err)
+        // 如果数据库更新失败，下次加载时会恢复正确状态
+      })
+  },
   markAllAsRead() {
     const userInfo = wx.getStorageSync('userInfo') || {}
     if (!userInfo.userId) return
