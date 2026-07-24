@@ -33,6 +33,9 @@ Page({
       devicePage: '',
       roomPage: ''
     },
+    endMode: false,
+    endPhotos: [null, null, null]
+
   },
 
   onLoad() {
@@ -715,7 +718,19 @@ Page({
       wx.scanCode({
         onlyFromCamera: true,
         scanType: ['qrCode'],
-        success: (res) => resolve(res.result),
+        success: (res) => {
+          const parsed = this.parseSchoolQRCode(res.result)
+          console.log('解析结果:', parsed)
+          if (!parsed || !parsed.deviceId) {
+            wx.showToast({
+              title: '无法识别设备二维码',
+              icon: 'none'
+            })
+            reject(new Error('invalid qr code'))
+            return
+          }
+          resolve(parsed.deviceId) // 直接返回设备ID，比如 "S2205619"
+        },
         fail: (err) => {
           console.error('扫码失败:', err)
           wx.showToast({
@@ -727,7 +742,60 @@ Page({
       })
     })
   },
+  parseSchoolQRCode(qrResult) {
+    if (!qrResult) return null
+    // 去掉可能的 BOM 头和首尾空格
+    qrResult = qrResult.trim().replace(/^\uFEFF/, '')
+    // 如果不是 URL，可能是旧自研码
+    if (!qrResult.startsWith('http')) {
+      return {
+        deviceId: qrResult,
+        type: 'legacy'
+      }
+    }
 
+    try {
+      // ✅ 手动解析 ?ywlx=1&yqbh=S2205619
+      let yqbh = null
+      const queryStart = qrResult.indexOf('?')
+      if (queryStart !== -1) {
+        const queryStr = qrResult.substring(queryStart + 1)
+        const params = queryStr.split('&')
+        for (let i = 0; i < params.length; i++) {
+          const pair = params[i].split('=')
+          const key = decodeURIComponent(pair[0] || '')
+          const val = pair[1] !== undefined ? decodeURIComponent(pair[1]) : ''
+          if (key === 'yqbh') {
+            yqbh = val
+            break
+          }
+        }
+      }
+
+      if (yqbh) {
+        return {
+          deviceId: yqbh, // S2205619 / S2205624
+          type: 'school',
+          rawUrl: qrResult,
+          ywlx: null // 如需 ywlx 同理在上面解析
+        }
+      }
+
+      // 兜底：格式不符合预期
+      return {
+        deviceId: null,
+        type: 'unknown',
+        rawUrl: qrResult
+      }
+    } catch (e) {
+      console.error('URL解析失败:', e)
+      return {
+        deviceId: null,
+        type: 'unknown',
+        rawUrl: qrResult
+      }
+    }
+  },
   // 验证扫码结果
   validateScanResult(scannedCode, expectedDeviceId) {
     if (expectedDeviceId && scannedCode !== expectedDeviceId) {
@@ -1022,7 +1090,7 @@ Page({
           return
         }
         this.createUsageRecord(reserve, tempFilePath, userInfo)
-        
+
       })
       .catch(err => {
         wx.hideLoading()
