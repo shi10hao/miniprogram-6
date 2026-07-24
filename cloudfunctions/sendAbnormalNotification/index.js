@@ -59,16 +59,10 @@ exports.main = async (event) => {
 
   let sentCount = 0
   console.log('所有管理员的 user_id:', admins.map(a => a.user_id))
-  // 在查找管理员后添加
-  console.log('管理员完整信息:', JSON.stringify(adminUsers.data.map(a => ({
-    user_id: a.user_id,
-    wx_openid: a.wx_openid,
-    role: a.role
-  }))))
   const testAdmins = admins.filter(a => a.user_id === 'X42214039')
   console.log('筛选后的测试管理员数量:', testAdmins.length)
   // 2. 给每个管理员发送消息提醒
-  for (const admin of testAdmins) {
+  for (const admin of admins) {
     if (!admin.wx_openid) continue
 
     try {

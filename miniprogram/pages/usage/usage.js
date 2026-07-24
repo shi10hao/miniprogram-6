@@ -487,24 +487,7 @@ Page({
       })
   },
   // 5
-  startUsage() {
-    if (this.data.isLoading) return
 
-    this.requestSubscribeMessage()
-
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      success: res => {
-        const tempFilePath = res.tempFiles[0].tempFilePath
-        this.handleStartPhoto(tempFilePath, null)
-      },
-      fail(err) {
-        console.error('选择照片失败:', err)
-      }
-    })
-  },
 
   addWatermarkToPhoto(tempFilePath, deviceName, deviceId) {
     return new Promise((resolve, reject) => {
@@ -613,100 +596,227 @@ Page({
     })
   },
   // 6
+  // ===== 优化：扫码开始使用 =====
   async startUsageFromReserve(e) {
     if (this.data.isLoading) return
-    var ifWrong
-    var reserveId = e.currentTarget.dataset.reserveid
 
-    // 仪器是否启动
-    await new Promise((resolve) => {
+    const reserveId = e.currentTarget.dataset.reserveid
+    const userInfo = wx.getStorageSync('userInfo') || {}
+
+    // 第一步：仪器启动确认
+    const isNormal = await this.confirmDeviceStart(reserveId)
+    if (!isNormal) return
+
+    // 第二步：获取预约信息
+    const reserveInfo = await this.fetchReserveInfo(reserveId)
+    if (!reserveInfo) return
+
+    const {
+      deviceId: expectedDeviceId,
+      deviceName
+    } = reserveInfo
+
+    // 第三步：扫码
+    wx.showLoading({
+      title: '请扫描仪器二维码...'
+    })
+
+    try {
+      const scanResult = await this.scanDeviceQR()
+      wx.hideLoading()
+
+      // 第四步：验证扫码结果
+      if (!this.validateScanResult(scanResult, expectedDeviceId)) return
+
+      // 第五步：确认开始使用
+      const confirmed = await this.confirmStartUsage(deviceName, scanResult)
+      if (!confirmed) return
+
+      // 第六步：拍照加水印
+      await this.takeAndProcessPhoto(deviceName, scanResult, reserveId)
+
+    } catch (err) {
+      wx.hideLoading()
+      console.error('开始使用流程失败:', err)
+      wx.showToast({
+        title: '操作失败，请重试',
+        icon: 'none'
+      })
+    }
+  },
+
+  // ===== 拆分出的辅助函数 =====
+
+  // 确认设备启动
+  confirmDeviceStart(reserveId) {
+    return new Promise((resolve) => {
       wx.showModal({
         title: '仪器是否正常启动',
         content: '若出现问题请联系管理员',
         confirmText: '正常启动',
         cancelText: '出现问题',
-        complete: (res) => {
+        success: (res) => {
           if (res.cancel) {
             console.log("仪器启动不正常")
-            ifWrong = true
             this.setData({
               ifWorkingOK: false,
               feedbackTitle: '',
               feedbackContent: '',
               currentReserveId: reserveId || ''
-            }, () => {
-              resolve()
             })
+            resolve(false)
           }
 
           if (res.confirm) {
-            // 先订阅消息（在用户手势直接回调中）
-            if (TEMPLATE_ID && TEMPLATE_ID !== 'YOUR_TEMPLATE_ID_HERE') {
-              wx.requestSubscribeMessage({
-                tmplIds: [TEMPLATE_ID],
-                success: (subRes) => {
-                  console.log('订阅授权结果', subRes[TEMPLATE_ID])
-                },
-                fail: (err) => {
-                  console.error('订阅消息授权失败:', err)
-                }
-              })
-            }
+            // 订阅消息（仅在用户首次操作时触发）
+            this.requestSubscribeMessageOnce()
+
             this.setData({
               ifWorkingOK: true,
               currentReserveId: reserveId
-            }, () => {
-              console.log("仪器正常启动")
-              ifWrong = false
-              resolve()
             })
+            console.log("仪器正常启动")
+            resolve(true)
           }
         }
       })
     })
+  },
 
-    if (ifWrong) return
-
-    // this.requestSubscribeMessage()
-    wx.showLoading({
-      title: '准备拍照...'
-    })
-    let deviceName = ''
-    let deviceId = ''
+  // 获取预约信息
+  async fetchReserveInfo(reserveId) {
     try {
       const reserveRes = await db.collection('reserves').doc(reserveId).get()
       const reserveItem = reserveRes.data
-      if (reserveItem) {
-        deviceName = reserveItem.device_name || ''
-        deviceId = reserveItem.device_id || ''
+      if (!reserveItem) {
+        wx.showToast({
+          title: '预约信息不存在',
+          icon: 'none'
+        })
+        return null
+      }
+      return {
+        deviceId: reserveItem.device_id || '',
+        deviceName: reserveItem.device_name || ''
       }
     } catch (err) {
       console.error('获取预约信息失败:', err)
+      wx.showToast({
+        title: '获取预约信息失败',
+        icon: 'none'
+      })
+      return null
     }
+  },
 
-    wx.hideLoading()
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      success: async (res) => {
-        const tempFilePath = res.tempFiles[0].tempFilePath
-        // ===== 新增：给照片加水印 =====
-        wx.showLoading({
-          title: '添加水印...'
-        })
-        const watermarkedPath = await this.addWatermarkToPhoto(tempFilePath, deviceName, deviceId)
-        wx.hideLoading()
-        // ===== 新增结束 =====
+  // 扫码
+  scanDeviceQR() {
+    return new Promise((resolve, reject) => {
+      wx.scanCode({
+        onlyFromCamera: true,
+        scanType: ['qrCode'],
+        success: (res) => resolve(res.result),
+        fail: (err) => {
+          console.error('扫码失败:', err)
+          wx.showToast({
+            title: '扫码失败，请重试',
+            icon: 'none'
+          })
+          reject(err)
+        }
+      })
+    })
+  },
 
-        this.handleStartPhoto(watermarkedPath, reserveId)
+  // 验证扫码结果
+  validateScanResult(scannedCode, expectedDeviceId) {
+    if (expectedDeviceId && scannedCode !== expectedDeviceId) {
+      wx.showModal({
+        title: '设备不匹配',
+        content: `扫描到的设备编号 "${scannedCode}" 与预约的 "${expectedDeviceId}" 不一致，无法开始使用`,
+        showCancel: false,
+        confirmText: '知道了'
+      })
+      return false
+    }
+    return true
+  },
+
+  // 确认开始使用
+  confirmStartUsage(deviceName, deviceId) {
+    return new Promise((resolve) => {
+      wx.showModal({
+        title: '确认开始使用',
+        content: `仪器：${deviceName}\n编号：${deviceId}\n确认开始使用？`,
+        confirmText: '确认',
+        cancelText: '取消',
+        success: (res) => resolve(res.confirm)
+      })
+    })
+  },
+
+  // 拍照并处理
+  async takeAndProcessPhoto(deviceName, deviceId, reserveId) {
+    try {
+      const mediaRes = await this.chooseCameraPhoto()
+      const tempFilePath = mediaRes.tempFiles[0].tempFilePath
+
+      // 加水印
+      wx.showLoading({
+        title: '添加水印...'
+      })
+      const watermarkedPath = await this.addWatermarkToPhoto(tempFilePath, deviceName, deviceId)
+      wx.hideLoading()
+
+      // 走原有的开始使用流程
+      this.handleStartPhoto(watermarkedPath, reserveId)
+
+    } catch (err) {
+      console.error('拍照失败:', err)
+      wx.showToast({
+        title: '拍照失败，请重试',
+        icon: 'none'
+      })
+    }
+  },
+
+  // 选择相机拍照
+  chooseCameraPhoto() {
+    return new Promise((resolve, reject) => {
+      wx.chooseMedia({
+        count: 1,
+        mediaType: ['image'],
+        sourceType: ['camera'],
+        success: resolve,
+        fail: reject
+      })
+    })
+  },
+
+  // 订阅消息（只订阅一次）
+  requestSubscribeMessageOnce() {
+    if (!TEMPLATE_ID || TEMPLATE_ID === 'YOUR_TEMPLATE_ID_HERE') return
+
+    // 检查是否已经订阅过（用本地缓存标记）
+    const subscribed = wx.getStorageSync('msg_subscribed_' + TEMPLATE_ID)
+    if (subscribed) return
+
+    wx.requestSubscribeMessage({
+      tmplIds: [TEMPLATE_ID],
+      success: (res) => {
+        if (res[TEMPLATE_ID] === 'accept') {
+          // 标记已订阅，下次不再弹窗
+          wx.setStorageSync('msg_subscribed_' + TEMPLATE_ID, true)
+        }
+        console.log('订阅授权结果', res[TEMPLATE_ID])
       },
-      fail(err) {
-        console.error('选择照片失败:', err)
+      fail: (err) => {
+        console.error('订阅消息授权失败:', err)
       }
     })
   },
 
+  // ===== 新增结束 =====
   ifWrong(reserveId) {
     console.log("ifWrong被调用，reserveId:", reserveId)
     this.setData({
@@ -781,7 +891,7 @@ Page({
     if (!feedbackContent.trim()) {
       wx.showToast({
         title: '请填写问题描述',
-        icon:"none"
+        icon: "none"
       })
       return
     }
@@ -797,7 +907,7 @@ Page({
       title: '提交中...'
     })
     const userInfo = wx.getStorageSync('userInfo') || {}
-    console.log("feedbackScene:",feedbackScene)
+    console.log("feedbackScene:", feedbackScene)
     // 调用异常反馈云函数
     wx.cloud.callFunction({
       name: 'submitAbnormalFeedback',
@@ -819,7 +929,7 @@ Page({
     }).then(res => {
       wx.hideLoading()
       const result = res.result || {}
-      console.log("res:",res)
+      console.log("res:", res)
       if (result.success) {
         if (feedbackScene === 'using' || feedbackScene === 'start') {
           wx.cloud.callFunction({
@@ -911,19 +1021,8 @@ Page({
           })
           return
         }
-
-        const reservePeriod = `${reserve.start_time || ''} - ${reserve.end_time || ''}`
-        wx.showModal({
-          title: '确认开始使用',
-          content: `仪器：${reserve.device_name}\n预约时段：${reservePeriod}\n确认开始使用？`,
-          confirmText: '确认',
-          cancelText: '取消',
-          success: modal => {
-            if (modal.confirm) {
-              this.createUsageRecord(reserve, tempFilePath, userInfo)
-            }
-          }
-        })
+        this.createUsageRecord(reserve, tempFilePath, userInfo)
+        
       })
       .catch(err => {
         wx.hideLoading()

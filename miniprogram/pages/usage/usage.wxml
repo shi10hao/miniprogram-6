@@ -82,7 +82,7 @@
           <text class="pending-label">仪器编号：</text>
           <text class="pending-val">{{item.device_id}}</text>
         </view>
-        <button class="start-reserve-btn" data-reserveid="{{item._id}}" bindtap="startUsageFromReserve" disabled="{{isLoading || !isAuthenticated|| item.state === 'expired'}}">拍照开始使用</button>
+        <button class="start-reserve-btn" data-reserveid="{{item._id}}" bindtap="startUsageFromReserve" disabled="{{isLoading || !isAuthenticated|| item.state === 'expired'}}">扫码拍照开始使用</button>
       </view>
     </view>
   </view>
@@ -190,128 +190,128 @@
     </view>
   </view>
   <!-- 结束信息表单浮层 -->
-<view class="end-form-mask" wx:if="{{showEndForm}}">
-  <view class="end-form-card">
-    <view class="end-form-header">
-      <text class="end-form-title">结束使用信息</text>
-      <text class="end-form-close" bindtap="cancelEndForm">✕</text>
-    </view>
-
-    <scroll-view scroll-y class="end-form-body">
-      <!-- 仪器是否关闭 -->
-      <view class="form-row">
-        <text class="form-label required">仪器是否关闭</text>
-        <view class="form-options">
-          <text class="option-btn {{endForm.instrumentOff === true ? 'active' : ''}}" data-value="true" bindtap="selectInstrumentOff">是</text>
-          <text class="option-btn {{endForm.instrumentOff === false ? 'active' : ''}}" data-value="false" bindtap="selectInstrumentOff">否</text>
-        </view>
+  <view class="end-form-mask" wx:if="{{showEndForm}}">
+    <view class="end-form-card">
+      <view class="end-form-header">
+        <text class="end-form-title">结束使用信息</text>
+        <text class="end-form-close" bindtap="cancelEndForm">✕</text>
       </view>
 
-      <!-- 电脑是否关闭 -->
-      <view class="form-row">
-        <text class="form-label required">电脑是否关闭</text>
-        <view class="form-options">
-          <text class="option-btn {{endForm.computerOff === true ? 'active' : ''}}" data-value="true" bindtap="selectComputerOff">是</text>
-          <text class="option-btn {{endForm.computerOff === false ? 'active' : ''}}" data-value="false" bindtap="selectComputerOff">否</text>
+      <scroll-view scroll-y class="end-form-body">
+        <!-- 仪器是否关闭 -->
+        <view class="form-row">
+          <text class="form-label required">仪器是否关闭</text>
+          <view class="form-options">
+            <text class="option-btn {{endForm.instrumentOff === true ? 'active' : ''}}" data-value="true" bindtap="selectInstrumentOff">是</text>
+            <text class="option-btn {{endForm.instrumentOff === false ? 'active' : ''}}" data-value="false" bindtap="selectInstrumentOff">否</text>
+          </view>
         </view>
-      </view>
-      <view wx:if="{{endForm.computerOff === false}}" class="form-row">
-        <text class="form-label required">下一个使用者姓名</text>
-        <input class="form-input" type="text" placeholder="请输入下一个使用者姓名" value="{{endForm.nextUser}}" bindinput="onNextUserInput" />
-      </view>
 
-      <!-- 运行样品总数 -->
-      <view class="form-row">
-        <text class="form-label required">运行样品总数</text>
-        <input class="form-input" type="number" placeholder="请输入正整数" value="{{endForm.sampleCount}}" bindinput="onSampleCountInput" />
-      </view>
-      <view class="form-row">
-        <text class="form-label required">是否过多预约</text>
-        <view class="form-options">
-          <text class="option-btn {{endForm.moreSample === true ? 'active' : ''}}" data-value="true" bindtap="selectMoreSample">是</text>
-          <text class="option-btn {{endForm.moreSample === false ? 'active' : ''}}" data-value="false" bindtap="selectMoreSample">否</text>
-        </view>
-      </view>
-      <view wx:if="{{endForm.moreSample}}" class="form-row">
-        <text class="form-label required">剩余的样品数量</text>
-        <input class="form-input" type="number" placeholder="请输入剩余样品数量" value="{{endForm.moreSampleCount}}" bindinput="onMoreSampleCountInput" />
-      </view>
-      <!-- 总的预约单 -->
-      <view class="form-row">
-        <text class="form-label required">总的预约单</text>
-        <view class="form-upload" bindtap="pickTotalPage">
-          <view wx:if="{{endForm.totalPage}}" class="upload-preview">
-            <image class="upload-img" src="{{endForm.totalPage}}" mode="aspectFill" />
-            <text class="upload-change">重新选择</text>
-          </view>
-          <view wx:else class="upload-empty">
-            <text class="upload-plus">+</text>
-            <text class="upload-tip">点击上传预约单截图</text>
+        <!-- 电脑是否关闭 -->
+        <view class="form-row">
+          <text class="form-label required">电脑是否关闭</text>
+          <view class="form-options">
+            <text class="option-btn {{endForm.computerOff === true ? 'active' : ''}}" data-value="true" bindtap="selectComputerOff">是</text>
+            <text class="option-btn {{endForm.computerOff === false ? 'active' : ''}}" data-value="false" bindtap="selectComputerOff">否</text>
           </view>
         </view>
-      </view>
+        <view wx:if="{{endForm.computerOff === false}}" class="form-row">
+          <text class="form-label required">下一个使用者姓名</text>
+          <input class="form-input" type="text" placeholder="请输入下一个使用者姓名" value="{{endForm.nextUser}}" bindinput="onNextUserInput" />
+        </view>
 
-      <!-- 仪器照片，实验室关门照片 -->
-      <view class="form-row">
-        <text class="form-label required">仪器关闭照片</text>
-        <view class="form-upload" bind:tap="pickDevicePage">
-          <view wx:if="{{endForm.devicePage}}" class="upload-preview" mode="aspectFill">
-            <image src="{{endForm.devicePage}}" mode="aspectFill" class="upload-img"/>
-            <text class="upload-change">重新选择</text>
-          </view>
-          <view wx:else class="upload-empty">
-            <text class="upload-plus">+</text>
-            <text class="upload-tip">点击上传仪器关闭图像</text>
+        <!-- 运行样品总数 -->
+        <view class="form-row">
+          <text class="form-label required">运行样品总数</text>
+          <input class="form-input" type="number" placeholder="请输入正整数" value="{{endForm.sampleCount}}" bindinput="onSampleCountInput" />
+        </view>
+        <view class="form-row">
+          <text class="form-label required">是否过多预约</text>
+          <view class="form-options">
+            <text class="option-btn {{endForm.moreSample === true ? 'active' : ''}}" data-value="true" bindtap="selectMoreSample">是</text>
+            <text class="option-btn {{endForm.moreSample === false ? 'active' : ''}}" data-value="false" bindtap="selectMoreSample">否</text>
           </view>
         </view>
-      </view>
-      <view class="form-row">
-        <text class="form-label required">实验室关门照片</text>
-        <view class="form-upload" bind:tap="pickRoomPage">
-          <view wx:if="{{endForm.roomPage}}" class="upload-preview" mode="aspectFill">
-            <image src="{{endForm.roomPage}}" mode="aspectFill" class="upload-img"/>
-            <text class="upload-change">重新选择</text>
-          </view>
-          <view wx:else class="upload-empty">
-            <text class="upload-plus">+</text>
-            <text class="upload-tip">点击上传仪器关闭图像</text>
+        <view wx:if="{{endForm.moreSample}}" class="form-row">
+          <text class="form-label required">剩余的样品数量</text>
+          <input class="form-input" type="number" placeholder="请输入剩余样品数量" value="{{endForm.moreSampleCount}}" bindinput="onMoreSampleCountInput" />
+        </view>
+        <!-- 总的预约单 -->
+        <view class="form-row">
+          <text class="form-label required">总的预约单</text>
+          <view class="form-upload" bindtap="pickTotalPage">
+            <view wx:if="{{endForm.totalPage}}" class="upload-preview">
+              <image class="upload-img" src="{{endForm.totalPage}}" mode="aspectFill" />
+              <text class="upload-change">重新选择</text>
+            </view>
+            <view wx:else class="upload-empty">
+              <text class="upload-plus">+</text>
+              <text class="upload-tip">点击上传预约单截图</text>
+            </view>
           </view>
         </view>
-      </view>
-      <!-- 是否需要补充预约 -->
-      <view class="form-row">
-        <text class="form-label required">是否需要补充预约</text>
-        <view class="form-options">
-          <text class="option-btn {{endForm.needSupplement === true ? 'active' : ''}}" data-value="true" bindtap="selectNeedSupplement">是</text>
-          <text class="option-btn {{endForm.needSupplement === false ? 'active' : ''}}" data-value="false" bindtap="selectNeedSupplement">否</text>
-        </view>
-      </view>
 
-      <!-- 补充预约单 -->
-      <view wx:if="{{endForm.needSupplement}}" class="form-row">
-        <text class="form-label required">补充预约单</text>
-        <view class="form-upload" bindtap="pickSupplementPage">
-          <view wx:if="{{endForm.supplementPage}}" class="upload-preview">
-            <image class="upload-img" src="{{endForm.supplementPage}}" mode="aspectFill" />
-            <text class="upload-change">重新选择</text>
-          </view>
-          <view wx:else class="upload-empty">
-            <text class="upload-plus">+</text>
-            <text class="upload-tip">点击上传补充预约单截图</text>
+        <!-- 仪器照片，实验室关门照片 -->
+        <view class="form-row">
+          <text class="form-label required">仪器关闭照片</text>
+          <view class="form-upload" bind:tap="pickDevicePage">
+            <view wx:if="{{endForm.devicePage}}" class="upload-preview" mode="aspectFill">
+              <image src="{{endForm.devicePage}}" mode="aspectFill" class="upload-img" />
+              <text class="upload-change">重新选择</text>
+            </view>
+            <view wx:else class="upload-empty">
+              <text class="upload-plus">+</text>
+              <text class="upload-tip">点击上传仪器关闭图像</text>
+            </view>
           </view>
         </view>
-      </view>
-    </scroll-view>
+        <view class="form-row">
+          <text class="form-label required">实验室关门照片</text>
+          <view class="form-upload" bind:tap="pickRoomPage">
+            <view wx:if="{{endForm.roomPage}}" class="upload-preview" mode="aspectFill">
+              <image src="{{endForm.roomPage}}" mode="aspectFill" class="upload-img" />
+              <text class="upload-change">重新选择</text>
+            </view>
+            <view wx:else class="upload-empty">
+              <text class="upload-plus">+</text>
+              <text class="upload-tip">点击上传实验室关门图像</text>
+            </view>
+          </view>
+        </view>
+        <!-- 是否需要补充预约 -->
+        <view class="form-row">
+          <text class="form-label required">是否需要补充预约</text>
+          <view class="form-options">
+            <text class="option-btn {{endForm.needSupplement === true ? 'active' : ''}}" data-value="true" bindtap="selectNeedSupplement">是</text>
+            <text class="option-btn {{endForm.needSupplement === false ? 'active' : ''}}" data-value="false" bindtap="selectNeedSupplement">否</text>
+          </view>
+        </view>
 
-    <!-- 提交按钮 -->
-    <view class="end-form-footer">
-      <button class="form-cancel-btn" bindtap="cancelEndForm">取消</button>
-      <button class="form-submit-btn" bindtap="submitEndForm" disabled="{{isLoading}}">
-        {{isLoading ? '提交中...' : '确认结束使用'}}
-      </button>
+        <!-- 补充预约单 -->
+        <view wx:if="{{endForm.needSupplement}}" class="form-row">
+          <text class="form-label required">补充预约单</text>
+          <view class="form-upload" bindtap="pickSupplementPage">
+            <view wx:if="{{endForm.supplementPage}}" class="upload-preview">
+              <image class="upload-img" src="{{endForm.supplementPage}}" mode="aspectFill" />
+              <text class="upload-change">重新选择</text>
+            </view>
+            <view wx:else class="upload-empty">
+              <text class="upload-plus">+</text>
+              <text class="upload-tip">点击上传补充预约单截图</text>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <!-- 提交按钮 -->
+      <view class="end-form-footer">
+        <button class="form-cancel-btn" bindtap="cancelEndForm">取消</button>
+        <button class="form-submit-btn" bindtap="submitEndForm" disabled="{{isLoading}}">
+          {{isLoading ? '提交中...' : '确认结束使用'}}
+        </button>
+      </view>
     </view>
   </view>
-</view>
 </view>
 
 <!-- ===== 新增：隐藏的 Canvas，用于绘制水印 ===== -->
