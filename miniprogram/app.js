@@ -1,5 +1,5 @@
 // app.js
-const CLOUD_ENV = ''
+const CLOUD_ENV = 'cloud1-d2g3kx3un05924a95'
 
 App({
   onLaunch: function() {

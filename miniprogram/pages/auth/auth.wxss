@@ -337,7 +337,6 @@
 .admin-button::after {
   border: none;
 }
-
 /* 新增隐私弹窗样式 */
 .privacy-mask {
   position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);
@@ -382,4 +381,113 @@
 
 .privacy-static checkbox-group {
   margin-right: 12rpx;
+}
+
+.goto-register-wrap {
+  text-align: center;
+  margin-bottom: 40rpx;
+}
+.goto-register-text {
+  font-size: 28rpx;
+  color: #ffffff;
+}
+.goto-register-link {
+  font-size: 28rpx;
+  color: #ffffff;
+  text-decoration: underline;
+  margin-left: 8rpx;
+}
+
+/* ==========注册弹窗样式 追加到wxss末尾========== */
+.register-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  animation: fadeIn 0.3s ease;
+}
+
+.register-box {
+  width: 620rpx;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 40rpx 36rpx;
+  animation: slideUp 0.3s ease;
+  box-sizing: border-box;
+}
+
+.register-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 12rpx;
+}
+
+.register-desc {
+  font-size: 24rpx;
+  color:#777;
+  text-align:center;
+  margin-bottom:36rpx;
+}
+
+.register-form-item {
+  margin-bottom:28rpx;
+}
+
+.register-label {
+  display:block;
+  font-size:28rpx;
+  font-weight:600;
+  color:#333;
+  margin-bottom:12rpx;
+}
+
+.register-input {
+  width:100%;
+  height:72rpx;
+  border:2rpx solid #e1e1e1;
+  border-radius:12rpx;
+  padding:0 24rpx;
+  font-size:28rpx;
+  box-sizing: border-box;
+}
+
+.register-btn-group {
+  margin-top:40rpx;
+  display:flex;
+  gap:24rpx;
+}
+
+.register-confirm-btn {
+  flex:1;
+  height:84rpx;
+  line-height:84rpx;
+  background:#62BCC4;
+  color:#fff;
+  border-radius:12rpx;
+  font-size:28rpx;
+}
+
+.register-cancel-btn {
+  flex:1;
+  height:84rpx;
+  line-height:84rpx;
+  background:#f2f3f5;
+  color:#333;
+  border-radius:12rpx;
+  font-size:28rpx;
+}
+
+/* 去除button默认边框 */
+.register-confirm-btn::after,
+.register-cancel-btn::after {
+  border:none;
 }

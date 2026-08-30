@@ -20,6 +20,39 @@
   </view>
 </view>
 
+<view wx:if="{{showRigisterModal}}" class="register-mask" catch:tap="">
+  <view class="register-box">
+    <view class="register-title">用户注册申请</view>
+    <view class="register-desc">提交信息后等待管理员审核通过方可登录</view>
+
+    <view class="register-form-item">
+      <text class="register-label">学号</text>
+      <input class="register-input" placeholder="请输入学号" value="{{registerForm.regStudentId}}" bindinput="onRegStudentIdInput" maxlength="20" />
+    </view>
+    <view class="register-form-item">
+      <text class="register-label">姓名</text>
+      <input class="register-input" placeholder="请输入真实姓名" value="{{registerForm.regName}}" bindinput="onRegNameInput" />
+    </view>
+    <view class="register-form-item">
+      <text class="register-label">手机号</text>
+      <input class="register-input" placeholder="请输入11位手机号" value="{{registerForm.regPhone}}" bindinput="onRegPhoneInput" type="number" maxlength="11" />
+    </view>
+    <view class="register-form-item">
+      <text class="register-label">专业</text>
+      <input class="register-input" placeholder="请输入专业名称" value="{{registerForm.regMajor}}" bindinput="onRegMajorInput" />
+    </view>
+    <view class="register-form-item">
+      <text class="register-label">课题组(可选)</text>
+      <input class="register-input" placeholder="请输入课题组名称" value="{{registerForm.regGroup}}" bindinput="onRegGroupInput" />
+    </view>
+
+    <view class="register-btn-group">
+      <button class="register-confirm-btn" bind:tap="onRegisterSubmit">提交申请</button>
+      <button class="register-cancel-btn" bind:tap="onRegisterCancel">取消</button>
+    </view>
+  </view>
+</view>
+
 <view class="auth-container">
   <view class="auth-header">
     <text class="auth-title">学生身份认证</text>
@@ -71,14 +104,6 @@
   <button class="submit-button {{!isStudentVerified ? 'disabled' : ''}}" bindtap="submitAuth" disabled="{{!isStudentVerified}}">
     立即登录
   </button>
-
-  <view class="info-card">
-    <view class="info-title">认证说明</view>
-    <view class="info-item">1. 请输入真实学号和手机号后点击验证按钮。</view>
-    <view class="info-item">2. 系统将自动填充您的个人信息。</view>
-    <view class="info-item">3. 请确保手机号准确无误。</view>
-  </view>
-
   <view class="privacy-static">
     <checkbox-group bindchange="onCheckPrivacy">
       <checkbox checked="{{privacyChecked}}" />
@@ -89,7 +114,21 @@
     <text class="privacy-link" bindtap="openAgreementPage">《用户协议》</text>
   </view>
 
+  <view class="info-card">
+    <view class="info-title">认证说明</view>
+    <view class="info-item">1. 请输入真实学号和手机号后点击验证按钮。</view>
+    <view class="info-item">2. 系统将自动填充您的个人信息。</view>
+    <view class="info-item">3. 请确保手机号准确无误。</view>
+  </view>
+
+  <!-- 没有账号？去注册 -->
+  <view class="goto-register-wrap">
+    <text class="goto-register-text">没有账号？</text>
+    <text class="goto-register-link" bindtap="openRegisterModal">去注册</text>
+  </view>
+
   <view class="admin-entry">
     <button class="admin-button" bindtap="navigateToAdminLogin">管理员登录</button>
   </view>
+
 </view>
