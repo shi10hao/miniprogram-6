@@ -78,10 +78,10 @@ Page({
 
     // 3. 一次性转 URL
     const urlMap = await this.fetchTempURLs(fileIDs)
-
+    console.log("map:",urlMap)
     // 4. 回填
     const photoUrls = this.applyPhotosToData(reserve, usage, urlMap)
-
+    console.log("photoUrls:",photoUrls)
     const allPhotos = [
       photoUrls.reservePageUrl,
       photoUrls.startPhotoUrl,
@@ -238,12 +238,12 @@ Page({
   async fetchTempURLs(fileIDs) {
     if (fileIDs.length === 0) return {}
 
-    const res = await wx.cloud.getTempFileURL({
-      fileList: fileIDs
+    const fileList = await wx.cloud.callFunction({
+      name:'getBatchTempUrl',
+      data:{ fileList: fileIDs }
     })
-
     const map = {}
-    res.fileList.forEach(f => {
+    fileList.result.forEach(f => {
       map[f.fileID] = f.tempFileURL
     })
     return map
