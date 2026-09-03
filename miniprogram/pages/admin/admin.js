@@ -123,8 +123,6 @@ Page({
       this.loadDeviceStatus()
     })
   },
-
-
   onDeviceTypeChange(e) {
     const type = e.currentTarget.dataset.type
     this.setData({
@@ -561,10 +559,8 @@ Page({
     })
     try {
       const records = await this.fetchAllByCloud('duty_records', {}, this.data.dutyPageSize, 'submit_time')
-      const formatted = records.map(item => ({
-        ...item,
-        submit_time_display: this.formatTime(item.submit_time)
-      }))
+      // 【改动】调用上面函数转换fileID为临时url
+      const formatted = await this.resolveDutyImages.call(this, records)
       this.setData({
         dutyRecords: formatted,
         hasMoreDuty: records.length === this.data.dutyPageSize,
@@ -587,24 +583,21 @@ Page({
       isLoadingDuty: true
     })
     const nextPage = this.data.dutyPage + 1
+    const skip = (nextPage - 1) * this.data.dutyPageSize
     try {
-      const skip = (nextPage - 1) * this.data.dutyPageSize
       const res = await wx.cloud.callFunction({
         name: 'getCollectionData',
         data: {
           collectionName: 'duty_records',
           whereCondition: {},
           pageSize: this.data.dutyPageSize,
-          startSkip: startSkip, // 改这里：skip → startSkip
+          startSkip: skip, // 改这里：skip → startSkip
           sortField: 'submit_time' // 补上排序，保证下一页顺序一致
         }
       })
 
       if (res.result.code !== 0) throw new Error(res.result.message)
-      const newRecords = res.result.data.map(item => ({
-        ...item,
-        submit_time_display: this.formatTime(item.submit_time)
-      }))
+      const newRecords = await this.resolveDutyImages.call(this, res.result.data)
       this.setData({
         dutyRecords: this.data.dutyRecords.concat(newRecords),
         dutyPage: nextPage,
@@ -1345,6 +1338,37 @@ Page({
   gotoAbnormal() {
     wx.navigateTo({
       url: '/pages/admin/reserve-list/adminreservelist?status=abnormal'
+    })
+  },
+
+  // 批量处理卫生记录：提取fileID，云函数拿临时url，映射回每一条记录
+  async resolveDutyImages(records) {
+    if (!records || records.length === 0) return []
+    const allFileIds = []
+    records.forEach(r => {
+      if(Array.isArray(r.images)){
+        allFileIds.push(...r.images)
+      }
+    })
+    const dedupIds = [...new Set(allFileIds.filter(Boolean))]
+    if(dedupIds.length === 0){
+      return records.map(item=> ({...item, imageUrls:[]}))
+    }
+    const res = await wx.cloud.callFunction({
+      name:"getBatchTempUrl",
+      data:{ fileList: dedupIds }
+    })
+    const map = {}
+    res.result.forEach(f=>{
+      map[f.fileID] = f.tempFileURL || ""
+    })
+    return records.map(item=>{
+      const imageUrls = (item.images || []).map(fid=> map[fid] || "").filter(Boolean)
+      return {
+        ...item,
+        submit_time_display: this.formatTime(item.submit_time),
+        imageUrls
+      }
     })
   }
 })

@@ -258,8 +258,8 @@
         </view>
 
         <!-- 照片网格 -->
-        <view class="duty-photos" wx:if="{{item.images && item.images.length > 0}}">
-          <image class="duty-photo" wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill" data-src="{{img}}" data-list="{{item.images}}" bindtap="previewDutyImage"></image>
+        <view class="duty-photos" wx:if="{{item.imageUrls && item.imageUrls.length > 0}}">
+          <image class="duty-photo" wx:for="{{item.imageUrls}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill" data-src="{{img}}" data-list="{{item.imageUrls}}" bindtap="previewDutyImage"></image>
         </view>
       </view>
     </view>
