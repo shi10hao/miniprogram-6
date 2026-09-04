@@ -61,6 +61,11 @@
       <text class="menu-text">安全员</text>
       <text class="menu-arrow">›</text>
     </view>
+    <view class="menu-item" bindtap="navigateToCommunication">
+      <text class="menu-icon">👥</text>
+      <text class="menu-text">与学长学姐交流</text>
+      <text class="menu-arrow">›</text>
+    </view>
     <view class="menu-item" bindtap="navigateAbout">
       <text class="menu-icon">ℹ️</text>
       <text class="menu-text">关于我们</text>

@@ -157,5 +157,11 @@ Page({
         }
       }
     })
+  },
+
+  navigateToCommunication() {
+    wx.navigateTo({
+      url: '/pages/communication/communication'
+    })
   }
 })

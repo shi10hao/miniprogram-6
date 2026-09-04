@@ -1,0 +1,55 @@
+<view class="container">
+  <!--功能引导提示-->
+  <view class="guide-tip">
+    <text>选择一台仪器，查看使用过它的学长学姐，请教实操经验</text>
+  </view>
+
+  <!--搜索框-->
+  <view class="search-box">
+    <text class="search-icon">🔍</text>
+    <input 
+      class="search-input" 
+      placeholder="搜索仪器名称" 
+      value="{{keyword}}" 
+      bindinput="onInput" 
+      bindconfirm="onSearch" 
+      confirm-type="search"
+    />
+  </view>
+
+  <!--最近使用仪器模块-->
+  <view class="recent-wrap">
+    <view class="block-title">最近使用仪器</view>
+    <view wx:if="{{recentList.length === 0}}" class="empty-small">暂无使用记录，可上方搜索仪器来找学长学姐</view>
+    <view class="device-list" wx:else>
+      <view 
+        class="device-card" 
+        wx:for="{{recentList}}" 
+        wx:key="deviceId" 
+        bindtap="onTapDevice" 
+        data-item="{{item}}"
+      >
+        <view class="dev-name">{{item.deviceName}}</view>
+        <view class="card-tag">找使用者</view>
+      </view>
+    </view>
+  </view>
+
+  <!--搜索结果区域-->
+  <view wx:if="{{keyword.trim() !== ''}}" class="search-result-wrap">
+    <view class="block-title">搜索结果</view>
+    <view wx:if="{{searchList.length === 0}}" class="empty">未查询到对应仪器，请更换关键词重试</view>
+    <view class="device-list" wx:else>
+      <view 
+        class="device-card" 
+        wx:for="{{searchList}}" 
+        wx:key="deviceId" 
+        bindtap="onTapDevice" 
+        data-item="{{item}}"
+      >
+        <view class="dev-name">{{item.deviceName}}</view>
+        <view class="card-tag">找使用者</view>
+      </view>
+    </view>
+  </view>
+</view>
