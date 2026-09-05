@@ -1,25 +1,32 @@
 Page({
   data: {
+    // 登录表单
     studentId: '',
-    name: '',
-    phone: '',
-    major: '',
-    groupName: '',
+    password: '',
+
+    // 登录状态
     isVerifying: false,
-    studentInfo: null,
-    verificationStatus: '',
-    canVerify: false,
-    isStudentVerified: false,
+    canSubmit: false,
+    loginErrMsg: '',
+
+    // 隐私协议
     showPrivacyModal: false,
     privacyChecked: false,
     privacyAgreed: false,
+
+    // 注册弹窗
+    showRegisterModal: false,
     registerForm: {
       regStudentId: '',
       regName: '',
       regPhone: '',
       regMajor: '',
       regGroup: ''
-    }
+    },
+
+    // 初始密码提示
+    showPwdTipModal: false,
+    tempLoginInfo: null
   },
 
   onLoad() {
@@ -42,9 +49,182 @@ Page({
     })
   },
 
+  // ==================== 输入监听 ====================
+  onStudentIdInput(e) {
+    this.updateSubmitState(e.detail.value, this.data.password)
+  },
+
+  onPwdInput(e) {
+    this.updateSubmitState(this.data.studentId, e.detail.value)
+  },
+
+  /** 统一更新提交按钮状态 */
+  updateSubmitState(studentId, password) {
+    this.setData({
+      studentId: studentId,
+      password: password,
+      canSubmit: Boolean(studentId.trim() && password.trim()),
+      loginErrMsg: ''
+    })
+  },
+
+  // ==================== 隐私协议 ====================
   onCheckPrivacy(e) {
     this.setData({
       privacyChecked: e.detail.value.length > 0
+    })
+  },
+
+  openPrivacyPage() {
+    wx.navigateTo({
+      url: '/pages/privacy/privacy'
+    })
+  },
+
+  openAgreementPage() {
+    wx.navigateTo({
+      url: '/pages/agreement/agreement'
+    })
+  },
+
+  // ==================== 登录 ====================
+  async doLogin() {
+    if (!this.data.privacyChecked) {
+      this.setData({
+        showPrivacyModal: true
+      })
+      return
+    }
+    const {
+      studentId,
+      password
+    } = this.data
+    if (!studentId.trim() || !password.trim()) {
+      return this.showError("请填写学号和密码")
+    }
+    this.setData({
+      isVerifying: true,
+      loginErrMsg: ""
+    })
+    try {
+      const res = await wx.cloud.callFunction({
+        name: "loginUser",
+        data: {
+          user_id: studentId.trim(),
+          password: password.trim()
+        }
+      })
+      const ret = res.result
+      if (ret.code !== 0) {
+        this.setData({
+          loginErrMsg: ret.msg
+        })
+        return
+      }
+      //登录成功，存储本地userInfo，不再存phone
+      const userPayload = ret.data
+      wx.setStorageSync('userInfo', {
+        userId: userPayload.userId,
+        name: userPayload.name,
+        groupName: userPayload.group_name,
+        major: userPayload.major,
+        role: userPayload.role
+      })
+      //检测是否初始未改密码，弹出提示
+      if (userPayload.pwd_modified === false) {
+        this.setData({
+          tempLoginInfo: userPayload,
+          showPwdTipModal: true
+        })
+      } else {
+        wx.showToast({
+          title: "登录成功",
+          icon: "success"
+        })
+        this.loginSuccessNavigate()
+      }
+    } catch (err) {
+      console.error("登录异常", err)
+      this.setData({
+        loginErrMsg: "登录失败，请稍后重试"
+      })
+    } finally {
+      this.setData({
+        isVerifying: false
+      })
+    }
+  },
+
+  /** 登录成功跳转 */
+  loginSuccessNavigate() {
+    wx.showToast({
+      title: '登录成功',
+      icon: 'success'
+    })
+    setTimeout(() => {
+      wx.switchTab({
+        url: '/pages/index/index'
+      })
+    }, 1200)
+  },
+
+  // ==================== 初始密码提示弹窗 ====================
+  goChangePwd() {
+    this.setData({
+      showPwdTipModal: false
+    })
+    wx.navigateTo({
+      url: '/pages/changePwd/changePwd'
+    })
+  },
+
+  closePwdTip() {
+    this.setData({
+      showPwdTipModal: false
+    })
+    this.loginSuccessNavigate()
+  },
+
+  // ==================== 注册 ====================
+  openRegisterModal() {
+    this.setData({
+      showRegisterModal: true
+    })
+  },
+
+  onRegisterCancel() {
+    this.setData({
+      showRegisterModal: false
+    })
+  },
+
+  onRegStudentIdInput(e) {
+    this.setData({
+      'registerForm.regStudentId': e.detail.value
+    })
+  },
+
+  onRegNameInput(e) {
+    this.setData({
+      'registerForm.regName': e.detail.value
+    })
+  },
+
+  onRegPhoneInput(e) {
+    this.setData({
+      'registerForm.regPhone': e.detail.value
+    })
+  },
+
+  onRegMajorInput(e) {
+    this.setData({
+      'registerForm.regMajor': e.detail.value
+    })
+  },
+
+  onRegGroupInput(e) {
+    this.setData({
+      'registerForm.regGroup': e.detail.value
     })
   },
 
@@ -63,223 +243,57 @@ Page({
     })
   },
 
-  onStudentIdInput(e) {
-    const studentId = e.detail.value
-    this.setData({
-      studentId,
-      canVerify: Boolean(studentId.trim() && this.data.phone.trim()),
-      studentInfo: null,
-      isStudentVerified: false,
-      verificationStatus: ''
-    })
-  },
-
-  onPhoneInput(e) {
-    const phone = e.detail.value
-    this.setData({
-      phone,
-      canVerify: Boolean(this.data.studentId.trim() && phone.trim()),
-      studentInfo: null,
-      isStudentVerified: false,
-      verificationStatus: ''
-    })
-  },
-
-  async verifyStudent() {
-    if (!this.data.privacyChecked) {
-      this.setData({
-        showPrivacyModal: true
-      })
-      return
-    }
-
-    const studentId = this.data.studentId.trim()
-    const phone = this.data.phone.trim()
-
-    if (!studentId || !phone) {
-      this.showError('请输入学号和手机号')
-      return
-    }
-
-    const phoneRegex = /^1[3-9]\d{9}$/
-    if (!phoneRegex.test(phone)) {
-      this.showError('请输入11位手机号')
-      return
-    }
-
-    this.setData({
-      isVerifying: true
-    })
-
-    try {
-      const db = wx.cloud.database()
-      const res = await db.collection('users')
-        .where({
-          user_id: studentId,
-          phone,
-          role: 'student'
-        })
-        .get()
-
-      if (res.data.length) {
-        const info = res.data[0]
-        this.setData({
-          studentInfo: info,
-          name: info.name,
-          major: info.major,
-          groupName: info.group_name,
-          verificationStatus: 'success',
-          isStudentVerified: true
-        })
-      } else {
-        this.setData({
-          verificationStatus: 'error',
-          isStudentVerified: false
-        })
-      }
-    } finally {
-      this.setData({
-        isVerifying: false
-      })
-    }
-  },
-
-  async submitAuth() {
-    const cachedUser = wx.getStorageSync('userInfo')
-    if (cachedUser && cachedUser.userId) {
-      wx.showToast({
-        title: '您已登录',
-        icon: 'none'
-      })
-      return
-    }
-
-    if (!this.validateForm()) return
-
-    const {
-      studentId,
-      name,
-      phone,
-      major,
-      groupName,
-      studentInfo
-    } = this.data
-
-    const wechatUserInfo = wx.getStorageSync('wechatUserInfo') || {}
-
-    const userInfoPayload = {
-      userId: studentInfo?.user_id || studentId.trim(),
-      name: name.trim(),
-      phone: phone.trim(),
-      major: major.trim(),
-      groupName: groupName.trim(),
-      role: 'student',
-      openid: wechatUserInfo.openid || ''
-    }
-
-    wx.setStorageSync('userInfo', userInfoPayload)
-    wx.showToast({
-      title: '认证成功',
-      icon: 'success'
-    })
-
-    setTimeout(() => {
-      wx.switchTab({
-        url: '/pages/index/index'
-      })
-    }, 1500)
-  },
-
-  validateForm() {
-    const {
-      studentId,
-      phone,
-      isStudentVerified
-    } = this.data
-    if (!studentId.trim()) return this.showError('请输入学号'), false
-    if (!phone.trim()) return this.showError('请输入手机号'), false
-    if (!isStudentVerified) return this.showError('请先完成验证'), false
-    return true
-  },
-
-  showError(msg) {
-    wx.showToast({
-      title: msg,
-      icon: 'none'
-    })
-  },
-
-  navigateToAdminLogin() {
-    wx.navigateTo({
-      url: '/pages/admin/login/adminlogin'
-    })
-  },
-
-  openPrivacyPage() {
-    wx.navigateTo({
-      url: '/pages/privacy/privacy'
-    })
-  },
-
-  openAgreementPage() {
-    wx.navigateTo({
-      url: '/pages/agreement/agreement'
-    })
-  },
-
   async onRegisterSubmit() {
-    const {
-      registerForm
-    } = this.data
     const {
       regStudentId,
       regName,
       regPhone,
-      regMajor,
-      regGroup
-    } = registerForm
+      regMajor
+    } = this.data.registerForm
+    // 前端校验
     if (!regStudentId.trim()) return this.showError('请填写学号')
     if (!regName.trim()) return this.showError('请填写姓名')
     if (!regPhone.trim()) return this.showError('请填写手机号')
     const phoneReg = /^1[3-9]\d{9}$/
     if (!phoneReg.test(regPhone)) return this.showError('手机号格式错误')
     if (!regMajor.trim()) return this.showError('请填写专业')
-    const db = wx.cloud.database()
-    // 订阅是否通过申请的通知
-    let subscribeAccepted = false
+
+    // 请求订阅消息
     try {
-      // 弹出订阅授权框
       const subRes = await wx.requestSubscribeMessage({
         tmplIds: ['你的审核通知模板ID']
       })
-      // 判断该模板用户是否允许
       if (subRes['你的审核通知模板ID'] === 'accept') {
-        subscribeAccepted = true
+        // 用户同意订阅
+        console.log('用户已订阅审核通知')
       }
     } catch (err) {
       console.log('订阅消息弹窗结果', err)
     }
-    // 提交到待处理申请数据表中
+
+    // 提交注册申请
     try {
+      const db = wx.cloud.database()
       await db.collection('user_apply').add({
         data: {
           user_id: regStudentId.trim(),
           name: regName.trim(),
           phone: regPhone.trim(),
           major: regMajor.trim(),
-          group_name: regGroup.trim(),
+          group_name: this.data.registerForm.regGroup.trim(),
           role: 'student',
           status: 'pending',
           create_time: db.serverDate()
         }
       })
+
       wx.showToast({
         title: '提交成功，请等待管理员审核',
         icon: 'success',
         duration: 2000
       })
       this.setData({
-        showRigisterModal: false,
+        showRegisterModal: false,
         registerForm: {
           regStudentId: '',
           regName: '',
@@ -294,39 +308,20 @@ Page({
     }
   },
 
-  openRegisterModal() {
-    this.setData({
-      showRigisterModal: true
-    })
-  },
-  onRegisterCancel() {
-    this.setData({
-      showRigisterModal: false
-    })
-  },
-  onRegStudentIdInput(e) {
-    this.setData({
-      "registerForm.regStudentId": e.detail.value
-    })
-  },
-  onRegNameInput(e) {
-    this.setData({
-      "registerForm.regName": e.detail.value
-    })
-  },
-  onRegPhoneInput(e) {
-    this.setData({
-      "registerForm.regPhone": e.detail.value
-    })
-  },
-  onRegMajorInput(e) {
-    this.setData({
-      "registerForm.regMajor": e.detail.value
-    })
-  },
-  onRegGroupInput(e) {
-    this.setData({
-      "registerForm.regGroup": e.detail.value
-    })
-  }
+
+ // ==================== 其他 ====================
+ navigateToAdminLogin() {
+  wx.navigateTo({ url: '/pages/admin/login/adminlogin' })
+},
+
+showError(msg) {
+  wx.showToast({ title: msg, icon: 'none' })
+},
+
+testABCDE(){
+  wx.cloud.callFunction({
+    name: 'migrateInitPwd',
+    data: {}
+  }).then(res => console.log('迁移结果', res))
+}
 })

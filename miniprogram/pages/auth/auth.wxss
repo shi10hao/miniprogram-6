@@ -1,214 +1,42 @@
+/* ==================== 全局容器 ==================== */
 .auth-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #62BCC4 0%, #4aa8b0 100%);
-  padding: 40rpx 30rpx;
+  background: linear-gradient(160deg, #62BCC4 0%, #4aa8b0 40%, #3a9ca4 100%);
+  padding: 40rpx 30rpx 60rpx;
   position: relative;
+  box-sizing: border-box;
 }
 
-/* 微信登录弹框遮罩层 */
-.modal-mask {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.modal-dialog {
-  width: 600rpx;
-  background: white;
-  border-radius: 32rpx;
-  overflow: hidden;
-  animation: slideUp 0.3s ease;
-  box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.3);
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(100rpx);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.modal-header {
-  background: linear-gradient(135deg, #62BCC4, #4aa8b0);
-  padding: 60rpx 40rpx 48rpx;
-  text-align: center;
-}
-
-.wechat-icon {
-  width: 144rpx;
-  height: 116rpx;
-  margin: 0 auto 24rpx;
-  position: relative;
-}
-
-.wechat-bubble {
-  position: absolute;
-  border-radius: 50%;
-  box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.08);
-}
-
-.bubble-front {
-  width: 92rpx;
-  height: 92rpx;
-  top: 0;
-  right: 0;
-  background: #ffffff;
-}
-
-.bubble-back {
-  width: 76rpx;
-  height: 76rpx;
-  left: 12rpx;
-  bottom: 6rpx;
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.bubble-front::after,
-.bubble-back::after {
-  content: '';
-  position: absolute;
-  width: 18rpx;
-  height: 18rpx;
-  background: inherit;
-  border-radius: 4rpx;
-  transform: rotate(28deg);
-}
-
-.bubble-front::after {
-  left: 16rpx;
-  bottom: 6rpx;
-}
-
-.bubble-back::after {
-  right: 12rpx;
-  bottom: 4rpx;
-}
-
-.bubble-dot {
-  position: absolute;
-  top: 38rpx;
-  width: 8rpx;
-  height: 8rpx;
-  border-radius: 50%;
-  background: #62BCC4;
-}
-
-.bubble-back .bubble-dot {
-  top: 30rpx;
-}
-
-.dot-left {
-  left: 22rpx;
-}
-
-.dot-center {
-  left: 40rpx;
-}
-
-.dot-right {
-  left: 58rpx;
-}
-
-.bubble-back .dot-left {
-  left: 16rpx;
-}
-
-.bubble-back .dot-center {
-  left: 32rpx;
-}
-
-.bubble-back .dot-right {
-  left: 48rpx;
-}
-
-.modal-title {
-  display: block;
-  font-size: 36rpx;
-  font-weight: 700;
-  color: white;
-  margin-bottom: 12rpx;
-}
-
-.modal-subtitle {
-  display: block;
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.modal-body {
-  padding: 48rpx 40rpx;
-}
-
-.wechat-login-btn {
-  width: 100%;
-  height: 96rpx;
-  background: linear-gradient(135deg, #62BCC4, #4aa8b0);
-  color: white;
-  border-radius: 48rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16rpx;
-  font-size: 32rpx;
-  font-weight: 600;
-  border: none;
-  box-shadow: 0 8rpx 24rpx rgba(98, 188, 196, 0.4);
-}
-
-.wechat-login-btn::after {
-  border: none;
-}
-
-.btn-icon {
-  font-size: 36rpx;
-}
-
-.btn-text {
-  font-size: 32rpx;
-}
-
+/* ==================== 头部 ==================== */
 .auth-header {
   text-align: center;
-  margin-bottom: 60rpx;
+  margin-bottom: 56rpx;
+  padding-top: 20rpx;
 }
 
 .auth-title {
   display: block;
-  font-size: 48rpx;
-  font-weight: bold;
+  font-size: 52rpx;
+  font-weight: 700;
   color: white;
-  margin-bottom: 16rpx;
+  margin-bottom: 14rpx;
+  letter-spacing: 2rpx;
 }
 
 .auth-subtitle {
   display: block;
   font-size: 28rpx;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 1rpx;
 }
 
+/* ==================== 登录卡片 ==================== */
 .form-card {
   background: white;
-  border-radius: 20rpx;
-  padding: 40rpx 30rpx;
-  box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.1);
-  margin-bottom: 40rpx;
+  border-radius: 28rpx;
+  padding: 44rpx 36rpx;
+  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.12);
+  margin-bottom: 36rpx;
 }
 
 .form-item {
@@ -221,56 +49,61 @@
 
 .form-label {
   display: block;
-  font-size: 28rpx;
+  font-size: 26rpx;
   font-weight: 600;
-  color: #333;
-  margin-bottom: 16rpx;
+  color: #444;
+  margin-bottom: 14rpx;
+  padding-left: 4rpx;
 }
 
 .form-input {
   width: 100%;
-  height: 72rpx;
-  border: 2rpx solid #e1e1e1;
-  border-radius: 12rpx;
+  height: 80rpx;
+  border: 2rpx solid #e8eef0;
+  border-radius: 14rpx;
   padding: 0 24rpx;
   font-size: 28rpx;
-  background: white;
+  background: #f8fafb;
   box-sizing: border-box;
+  transition: border-color 0.2s;
 }
 
-.form-input.disabled {
-  background: #f8f9fa;
-  color: #666;
-  border-color: #e9ecef;
+.form-input:focus {
+  border-color: #62BCC4;
+  background: #fff;
 }
 
+/* ==================== 登录按钮 ==================== */
 .verify-button {
   width: 100%;
-  height: 72rpx;
-  line-height: 72rpx;
-  background: #62BCC4;
+  height: 84rpx;
+  line-height: 84rpx;
+  background: linear-gradient(135deg, #62BCC4, #4aa8b0);
   color: white;
-  border-radius: 12rpx;
-  font-size: 28rpx;
+  border-radius: 14rpx;
+  font-size: 30rpx;
+  font-weight: 600;
   border: none;
+  margin-top: 8rpx;
+  box-shadow: 0 8rpx 24rpx rgba(98, 188, 196, 0.35);
+  letter-spacing: 4rpx;
 }
 
 .verify-button.verifying {
-  background: #a0d8de;
+  background: linear-gradient(135deg, #a0d8de, #8ccbd2);
+  box-shadow: none;
 }
 
 .verify-button[disabled] {
-  background: #cccccc;
+  background: #c8d6d8;
+  box-shadow: none;
 }
 
+/* ==================== 错误提示 ==================== */
 .status-display {
-  margin-top: 16rpx;
+  margin-top: 20rpx;
   min-height: 40rpx;
-}
-
-.status-success {
-  color: #07c160;
-  font-size: 26rpx;
+  text-align: center;
 }
 
 .status-error {
@@ -278,216 +111,343 @@
   font-size: 26rpx;
 }
 
-.submit-button {
-  width: 100%;
-  height: 96rpx;
-  line-height: 96rpx;
-  background: #68e9be;
-  color: white;
-  border-radius: 48rpx;
-  font-size: 32rpx;
-  font-weight: 600;
-  border: none;
-  box-shadow: 0 8rpx 20rpx rgba(98, 188, 196, 0.3);
-  margin-bottom: 40rpx;
-}
-
-.submit-button.disabled {
-  background: #cccccc;
-  box-shadow: none;
-}
-
-.info-card {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 20rpx;
-  padding: 32rpx 30rpx;
-  margin-bottom: 40rpx;
-}
-
-.info-title {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 20rpx;
-}
-
-.info-item {
-  font-size: 26rpx;
-  color: #666;
-  line-height: 44rpx;
-  margin-bottom: 8rpx;
-}
-
-.admin-entry {
-  text-align: center;
-  padding: 32rpx 0;
-}
-
-.admin-button {
-  width: 300rpx;
-  height: 80rpx;
-  line-height: 80rpx;
-  background: transparent;
-  color: white;
-  border: 2rpx solid white;
-  border-radius: 40rpx;
-  font-size: 28rpx;
-}
-
-.admin-button::after {
-  border: none;
-}
-/* 新增隐私弹窗样式 */
-.privacy-mask {
-  position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);
-  display:flex;align-items:center;justify-content:center;z-index:99999;
-}
-.privacy-box {
-  width:620rpx;background:#fff;border-radius:24rpx;padding:40rpx;
-}
-.privacy-title {
-  font-size:32rpx;font-weight:bold;text-align:center;margin-bottom:30rpx;
-}
-.privacy-content {
-  font-size:28rpx;color:#555;line-height:48rpx;margin-bottom:30rpx;
-}
-.privacy-check {
-  display:flex;align-items:center;margin-bottom:30rpx;font-size:28rpx;
-}
-.privacy-confirm-btn {
-  background:#62BCC4;color:#fff;border-radius:12rpx;
-}
-
-/* ✅ 常驻隐私勾选区域 */
+/* ==================== 常驻隐私勾选 ==================== */
 .privacy-static {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   font-size: 24rpx;
-  padding: 20rpx 24rpx;
-  background: #f7f9fb;
-  border-radius: 12rpx;
-  margin: 24rpx 0;
+  padding: 24rpx 28rpx;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 14rpx;
+  margin: 28rpx 0;
+  backdrop-filter: blur(10rpx);
 }
 
 .privacy-text {
-  color: #666;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .privacy-link {
-  color: #007aff;
+  color: #ffffff;
+  font-weight: 600;
   margin: 0 4rpx;
+  text-decoration: underline;
 }
 
 .privacy-static checkbox-group {
   margin-right: 12rpx;
 }
 
+/* ==================== 说明卡片 ==================== */
+.info-card {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 20rpx;
+  padding: 32rpx 32rpx;
+  margin-bottom: 36rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+}
+
+.info-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+.info-item {
+  font-size: 25rpx;
+  color: #666;
+  line-height: 44rpx;
+}
+
+/* ==================== 去注册 ==================== */
 .goto-register-wrap {
   text-align: center;
-  margin-bottom: 40rpx;
+  margin-bottom: 36rpx;
 }
+
 .goto-register-text {
-  font-size: 28rpx;
-  color: #ffffff;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.8);
 }
+
 .goto-register-link {
   font-size: 28rpx;
   color: #ffffff;
+  font-weight: 600;
   text-decoration: underline;
   margin-left: 8rpx;
 }
 
-/* ==========注册弹窗样式 追加到wxss末尾========== */
+/* ==================== 管理员入口 ==================== */
+.admin-entry {
+  text-align: center;
+  padding: 16rpx 0;
+}
+
+.admin-button {
+  width: 280rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  border: 2rpx solid rgba(255, 255, 255, 0.6);
+  border-radius: 36rpx;
+  font-size: 26rpx;
+}
+
+.admin-button::after {
+  border: none;
+}
+
+/* ==================== 隐私协议弹窗 ==================== */
+.privacy-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  animation: fadeIn 0.25s ease;
+}
+
+.privacy-box {
+  width: 640rpx;
+  background: #fff;
+  border-radius: 28rpx;
+  padding: 48rpx 40rpx 40rpx;
+  animation: slideUp 0.3s ease;
+  box-shadow: 0 24rpx 64rpx rgba(0, 0, 0, 0.2);
+}
+
+.privacy-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 32rpx;
+  color: #333;
+}
+
+.privacy-content {
+  font-size: 27rpx;
+  color: #555;
+  line-height: 52rpx;
+  margin-bottom: 32rpx;
+  padding: 20rpx 24rpx;
+  background: #f8fafb;
+  border-radius: 12rpx;
+}
+
+.privacy-check {
+  display: flex;
+  align-items: center;
+  margin-bottom: 32rpx;
+  font-size: 27rpx;
+  color: #444;
+}
+
+.privacy-confirm-btn {
+  background: linear-gradient(135deg, #62BCC4, #4aa8b0);
+  color: #fff;
+  border-radius: 14rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  font-size: 28rpx;
+  margin-bottom: 16rpx;
+}
+
+.privacy-confirm-btn[disabled] {
+  background: #c8d6d8;
+}
+
+/* ==================== 注册弹窗 ==================== */
 .register-mask {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 99999;
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn 0.25s ease;
 }
 
 .register-box {
-  width: 620rpx;
-  max-height: 85vh;
+  width: 640rpx;
+  max-height: 88vh;
   overflow-y: auto;
   background: #fff;
-  border-radius: 24rpx;
-  padding: 40rpx 36rpx;
+  border-radius: 28rpx;
+  padding: 48rpx 40rpx 40rpx;
   animation: slideUp 0.3s ease;
   box-sizing: border-box;
+  box-shadow: 0 24rpx 64rpx rgba(0, 0, 0, 0.2);
 }
 
 .register-title {
-  font-size: 32rpx;
-  font-weight: bold;
+  font-size: 34rpx;
+  font-weight: 700;
   text-align: center;
   margin-bottom: 12rpx;
+  color: #333;
 }
 
 .register-desc {
   font-size: 24rpx;
-  color:#777;
-  text-align:center;
-  margin-bottom:36rpx;
+  color: #999;
+  text-align: center;
+  margin-bottom: 40rpx;
 }
 
 .register-form-item {
-  margin-bottom:28rpx;
+  margin-bottom: 28rpx;
+  padding: 4rpx 0;
 }
 
 .register-label {
-  display:block;
-  font-size:28rpx;
-  font-weight:600;
-  color:#333;
-  margin-bottom:12rpx;
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 12rpx;
+  padding-left: 4rpx;
 }
 
 .register-input {
-  width:100%;
-  height:72rpx;
-  border:2rpx solid #e1e1e1;
-  border-radius:12rpx;
-  padding:0 24rpx;
-  font-size:28rpx;
+  width: 100%;
+  height: 80rpx;
+  border: 2rpx solid #e8eef0;
+  border-radius: 14rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  background: #f8fafb;
   box-sizing: border-box;
 }
 
 .register-btn-group {
-  margin-top:40rpx;
-  display:flex;
-  gap:24rpx;
+  margin-top: 44rpx;
+  display: flex;
+  gap: 24rpx;
 }
 
 .register-confirm-btn {
-  flex:1;
-  height:84rpx;
-  line-height:84rpx;
-  background:#62BCC4;
-  color:#fff;
-  border-radius:12rpx;
-  font-size:28rpx;
+  flex: 1;
+  height: 84rpx;
+  line-height: 84rpx;
+  background: linear-gradient(135deg, #62BCC4, #4aa8b0);
+  color: #fff;
+  border-radius: 14rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  box-shadow: 0 8rpx 20rpx rgba(98, 188, 196, 0.3);
 }
 
 .register-cancel-btn {
-  flex:1;
-  height:84rpx;
-  line-height:84rpx;
-  background:#f2f3f5;
-  color:#333;
-  border-radius:12rpx;
-  font-size:28rpx;
+  flex: 1;
+  height: 84rpx;
+  line-height: 84rpx;
+  background: #f2f4f6;
+  color: #666;
+  border-radius: 14rpx;
+  font-size: 28rpx;
 }
 
-/* 去除button默认边框 */
 .register-confirm-btn::after,
 .register-cancel-btn::after {
-  border:none;
+  border: none;
+}
+
+/* ==================== 初始密码提示弹窗 ==================== */
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  animation: fadeIn 0.25s ease;
+}
+
+.modal-box {
+  width: 600rpx;
+  background: #fff;
+  border-radius: 28rpx;
+  padding: 48rpx 40rpx 40rpx;
+  animation: slideUp 0.3s ease;
+  box-shadow: 0 24rpx 64rpx rgba(0, 0, 0, 0.2);
+}
+
+.modal-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 24rpx;
+  color: #333;
+}
+
+.modal-content {
+  font-size: 27rpx;
+  color: #666;
+  line-height: 48rpx;
+  text-align: center;
+  margin-bottom: 36rpx;
+  padding: 20rpx 12rpx;
+  background: #fff8f0;
+  border-radius: 12rpx;
+}
+
+.modal-btn-group {
+  display: flex;
+  gap: 20rpx;
+}
+
+.modal-btn-group button {
+  flex: 1;
+  height: 76rpx;
+  line-height: 76rpx;
+  border-radius: 14rpx;
+  font-size: 27rpx;
+}
+
+.modal-btn-group button:first-child {
+  background: linear-gradient(135deg, #62BCC4, #4aa8b0);
+  color: #fff;
+}
+
+.modal-btn-group button:last-child {
+  background: #f2f4f6;
+  color: #666;
+}
+
+.modal-btn-group button::after {
+  border: none;
+}
+
+/* ==================== 动画 ==================== */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(60rpx);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }

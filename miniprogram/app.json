@@ -29,7 +29,8 @@
     "pages/reserve-detail/reserve-detail",
     "pages/device-instance-detail/device-instance-detail",
     "pages/communication/communication",
-    "pages/communicationDetail/communicationDetail"
+    "pages/communicationDetail/communicationDetail",
+    "pages/changePwd/changePwd"
   ],
   "subPackages": [
     {
