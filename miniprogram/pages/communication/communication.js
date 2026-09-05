@@ -76,8 +76,8 @@ Page({
   onTapDevice(e) {
     const item = e.currentTarget.dataset.item
     console.log('点击仪器卡片：', item)
-    // wx.navigateTo({
-    //   url: `/pages/communicationDetail/communicationDetail?deviceId=${item.deviceId}&deviceName=${encodeURIComponent(item.deviceName)}`
-    // })
+    wx.navigateTo({
+      url: `/pages/communicationDetail/communicationDetail?deviceId=${item.deviceId}&deviceName=${encodeURIComponent(item.deviceName)}`
+    })
   }
 })

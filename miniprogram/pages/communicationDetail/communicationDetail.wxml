@@ -1,0 +1,46 @@
+<view class="container">
+  <view class="header-bar">
+    <text class="device-title">{{deviceName}}</text>
+    <text class="sub-tip">历史使用者</text>
+  </view>
+
+  <view wx:if="{{isLoading}}" class="loading-wrap">
+    <view class="loading-spin"></view>
+    <text>加载中…</text>
+  </view>
+
+  <view wx:elif="{{userList.length === 0 && !isLoading}}" class="empty-wrap">
+    <text class="empty-text">暂无该仪器的历史使用记录</text>
+  </view>
+
+  <view wx:else class="list-wrap">
+    <view class="user-card" wx:for="{{userList}}" wx:key="userId">
+      <view class="row">
+        <text class="label">姓名</text>
+        <text class="val">{{item.student_name}}</text>
+      </view>
+      <view class="row">
+        <text class="label">学号</text>
+        <text class="val">{{item.student_id}}</text>
+      </view>
+      <view class="row">
+        <text class="label">组别</text>
+        <text class="val">{{item.group_name}}</text>
+      </view>
+      <view class="row">
+        <text class="label">手机号</text>
+        <text class="val">{{item.phone}}</text>
+      </view>
+      <view class="row">
+        <text class="label">最近使用</text>
+        <text class="val">{{item.fmtTime}}</text>
+      </view>
+    </view>
+
+    <!-- 加载更多 / 没有更多 -->
+    <view class="more-area">
+      <button wx:if="{{hasMore}}" class="load-more-btn" bindtap="loadMore" loading="{{btnLoading}}">加载更多</button>
+      <text wx:elif="{{!hasMore && userList.length>0}}" class="no-more-tip">没有更多记录</text>
+    </view>
+  </view>
+</view>
