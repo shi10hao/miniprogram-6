@@ -38,10 +38,6 @@
       <text class="tab-label">发布通知</text>
     </view>
     <view class="tab-item {{activeTab === 3 ? 'active' : ''}}" bindtap="switchTab" data-tab="3">
-      <text class="tab-icon">🧹</text>
-      <text class="tab-label">卫生记录</text>
-    </view>
-    <view class="tab-item {{activeTab === 4 ? 'active' : ''}}" bindtap="switchTab" data-tab="4">
       <text class="tab-icon">🧰</text>
       <text class="tab-label">更多</text>
     </view>
@@ -233,52 +229,16 @@
     </view>
   </view>
 
-  <!-- Tab 3: 卫生安全记录 -->
+  <!-- Tab 3: 更多 -->
   <view wx:if="{{activeTab === 3}}" class="tab-content">
-    <view wx:if="{{isLoadingDuty}}" class="center-hint">
-      <view class="loading-spin"></view>
-      <text>加载中...</text>
-    </view>
-
-    <view wx:elif="{{dutyRecords.length === 0}}" class="center-hint">
-      <text class="hint-icon">🧹</text>
-      <text>暂无卫生记录</text>
-    </view>
-
-    <view wx:else class="duty-list">
-      <view class="duty-card" wx:for="{{dutyRecords}}" wx:key="_id">
-        <view class="duty-header">
-          <text class="duty-lab">{{item.lab_name}}</text>
-          <text class="duty-time">{{item.submit_time_display}}</text>
-        </view>
-
-        <view class="duty-info-row">
-          <text class="duty-label">提交人：</text>
-          <text class="duty-value">{{item.name}}（{{item.user_id}}）</text>
-        </view>
-        <view class="duty-info-row">
-          <text class="duty-label">联系电话：</text>
-          <text class="duty-value">{{item.phone}}</text>
-        </view>
-
-        <!-- 照片网格 -->
-        <view class="duty-photos" wx:if="{{item.imageUrls && item.imageUrls.length > 0}}">
-          <image class="duty-photo" wx:for="{{item.imageUrls}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill" data-src="{{img}}" data-list="{{item.imageUrls}}" bindtap="previewDutyImage"></image>
-        </view>
-      </view>
-    </view>
-
-    <!-- 加载更多 -->
-    <view wx:if="{{hasMoreDuty && !isLoadingDuty}}" class="load-more-wrap">
-      <button class="load-more-btn" bindtap="loadMoreDuty">加载更多</button>
-    </view>
-  </view>
-
-  <view wx:if="{{activeTab === 4}}" class="tab-content">
     <view class="more-grid">
       <view class="more-card" bindtap="goResetPwd">
         <text class="more-card-icon">🔑</text>
         <text class="more-card-label">重置密码</text>
+      </view>
+      <view class="more-card" bindtap="goToDutyRecords">
+        <text class="more-card-icon">🧹</text>
+        <text class="more-card-label">卫生记录</text>
       </view>
     </view>
   </view>

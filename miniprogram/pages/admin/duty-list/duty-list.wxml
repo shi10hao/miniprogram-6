@@ -1,0 +1,58 @@
+<!--pages/admin/duty-list/dutylist.wxml-->
+<view class="container">
+
+  <!-- 标题栏 -->
+  <view class="header">
+    <text class="title">卫生打卡记录</text>
+  </view>
+
+  <!-- 加载中 -->
+  <view wx:if="{{isLoadingDuty && dutyPage === 1}}" class="loading">
+    <text>加载中...</text>
+  </view>
+
+  <!-- 空状态 -->
+  <view wx:elif="{{!isLoadingDuty && dutyRecords.length === 0}}" class="empty">
+    <text>暂无卫生打卡记录</text>
+  </view>
+
+  <!-- 记录列表 -->
+  <view wx:else class="record-list">
+
+    <view wx:for="{{dutyRecords}}" wx:key="_id" class="record-card">
+      <!-- 用户信息 -->
+      <view class="record-header">
+        <text class="user-name">{{item.name || '未知用户'}}</text>
+        <text class="time">{{item.submit_time_display}}</text>
+      </view>
+      <view class="record-phone" wx:if="{{item.phone}}">
+        <text>📞 {{item.phone}}</text>
+      </view>
+      <!-- 实验室信息 -->
+      <view class="record-info">
+        <text class="lab-name">{{item.lab_name || ''}}</text>
+        <text class="room" wx:if="{{item.device_room}}">· {{item.device_room}}</text>
+      </view>
+
+      <!-- 备注 -->
+      <view class="record-remark" wx:if="{{item.remark}}">
+        <text>{{item.remark}}</text>
+      </view>
+
+      <!-- 图片 -->
+      <view class="image-list" wx:if="{{item.imageUrls && item.imageUrls.length > 0}}">
+        <image wx:for="{{item.imageUrls}}" wx:key="*this" wx:for-item="img" src="{{img}}" class="duty-image" mode="aspectFill" data-src="{{img}}" data-list="{{item.imageUrls}}" bindtap="previewImage" />
+      </view>
+    </view>
+
+    <!-- 加载更多 -->
+    <view wx:if="{{hasMoreDuty}}" class="load-more" bindtap="loadMoreDuty">
+      <text>{{isLoadingDuty ? '加载中...' : '加载更多'}}</text>
+    </view>
+    <view wx:else class="no-more">
+      <text>— 已加载全部 —</text>
+    </view>
+
+  </view>
+
+</view>

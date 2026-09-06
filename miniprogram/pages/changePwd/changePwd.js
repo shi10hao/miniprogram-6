@@ -61,7 +61,11 @@ Page({
       }, 1500)
     } catch (err) {
       console.error('改密失败', err)
-      this.setData({ errMsg: '网络异常，请稍后重试' })
+      wx.showModal({
+        title: '调试信息',
+        content: JSON.stringify(err),
+        showCancel: false
+      })
     } finally {
       this.setData({ loading: false })
     }

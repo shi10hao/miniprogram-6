@@ -31,7 +31,8 @@
     "pages/communication/communication",
     "pages/communicationDetail/communicationDetail",
     "pages/changePwd/changePwd",
-    "pages/resetPwd/resetPwd"
+    "pages/resetPwd/resetPwd",
+    "pages/admin/duty-list/duty-list"
   ],
   "subPackages": [
     {
