@@ -250,27 +250,57 @@
   font-size: 27rpx;
   color: #444;
 }
+.privacy-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  margin-top: 8rpx;
+}
 
 .privacy-confirm-btn {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
   background: linear-gradient(135deg, #62BCC4, #4aa8b0);
   color: #fff;
-  border-radius: 14rpx;
-  height: 80rpx;
-  line-height: 80rpx;
-  font-size: 28rpx;
-  margin-bottom: 16rpx;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  border: none;
+  box-shadow: 0 8rpx 24rpx rgba(98, 188, 196, 0.35);
+  margin-bottom: 0;
 }
-.privacy-cancel-btn {
-  background: linear-gradient(135deg, #62BCC4, #4aa8b0);
-  color: #fff;
-  border-radius: 14rpx;
-  height: 80rpx;
-  line-height: 80rpx;
-  font-size: 28rpx;
-  margin-bottom: 16rpx;
+
+.privacy-confirm-btn:active {
+  opacity: 0.85;
+  box-shadow: 0 4rpx 12rpx rgba(98, 188, 196, 0.3);
 }
+
 .privacy-confirm-btn[disabled] {
-  background: #c8d6d8;
+  background: #d4e8ea;
+  color: #aac4c7;
+  box-shadow: none;
+}
+
+.privacy-cancel-btn {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  background: transparent;
+  color: #62BCC4;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  border: 2rpx solid #62BCC4;
+  margin-bottom: 0;
+}
+
+.privacy-cancel-btn:active {
+  background: rgba(98, 188, 196, 0.08);
+}
+
+.privacy-link-inline {
+  color: #62BCC4;
+  font-weight: 500;
 }
 
 /* ==================== 注册弹窗 ==================== */
