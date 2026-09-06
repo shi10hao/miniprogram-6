@@ -1,6 +1,6 @@
-<page-container show="{{showExitConfirm}}" overlay="{{true}}" position="bottom" custom-style="height:auto;max-height:40vh;" bindbeforeleave="onBeforeLeaveExit">
-
-  <view class="exit-confirm-panel">
+<!-- 退出确认弹窗（替换原来的 page-container） -->
+<view class="modal-mask" wx:if="{{showExitConfirm}}" bindtap="cancelExit">
+  <view class="exit-confirm-panel" catchtap="">
     <text class="exit-confirm-title">退出管理端</text>
     <text class="exit-confirm-desc">确定要退出管理端吗？退出后需重新登录。</text>
     <view class="exit-confirm-btns">
@@ -8,7 +8,7 @@
       <button class="exit-confirm-btn" bindtap="doLogout">退出</button>
     </view>
   </view>
-</page-container>
+</view>
 
 <view class="container">
   <view class="admin-header">

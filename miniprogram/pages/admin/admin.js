@@ -881,6 +881,16 @@ Page({
     })
   },
 
+  /** 显示文档链接填写提示 */
+  showDocUrlHint: function () {
+    wx.showModal({
+      title: '协作文档链接',
+      content: '请粘贴腾讯文档的分享链接（需以 https://docs.qq.com/ 开头）。\n\n在腾讯文档中点击"分享"→"复制链接"，权限需设为"任何人可编辑"，学生点击即可协作。',
+      showCancel: false,
+      confirmText: '知道了'
+    })
+  },
+
   /** 删除通知（带二次确认） */
   deleteNotice: function (e) {
     var self = this

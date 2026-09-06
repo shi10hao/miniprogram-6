@@ -602,7 +602,6 @@
   align-items: flex-start;
   margin-bottom: 12rpx;
   gap: 16rpx;
-  padding-right: 60rpx;  /* ← 新增：给垃圾桶留空间 */
 }
 
 .sent-title {
@@ -670,6 +669,9 @@
 }
 
 .exit-confirm-panel {
+  width: 600rpx;              /* ← 加这行 */
+  background: white;          /* ← 加这行 */
+  border-radius: 20rpx;
   padding: 48rpx 40rpx;
   display: flex;
   flex-direction: column;
