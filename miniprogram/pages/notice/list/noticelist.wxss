@@ -80,4 +80,21 @@
   font-size: 26rpx;
   gap: 10rpx;
 }
-    
+/* 公告列表项内容区 */
+.notice-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  flex: 1;
+}
+
+/* "含文档"标签 */
+.notice-doc-tag {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 20rpx;
+  color: #888;
+  background: #f2f3f5;
+  padding: 4rpx 14rpx;
+  border-radius: 16rpx;
+}

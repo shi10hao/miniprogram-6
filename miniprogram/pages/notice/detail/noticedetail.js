@@ -57,5 +57,34 @@ Page({
     if (isNaN(date.getTime())) return dateStr
     const pad = n => String(n).padStart(2, '0')
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+  },
+
+  // 打开协作文档（跳腾讯文档小程序）
+  openDoc() {
+    const url = this.data.notice.doc_url
+    if (!url) return
+
+    wx.navigateToMiniProgram({
+      appId: 'wxd45c635d754dbf59',
+      path: 'pages/detail/detail?url=' + encodeURIComponent(url),
+      fail: () => {
+        // 兜底：复制链接到剪贴板
+        wx.setClipboardData({
+          data: url,
+          success: () => {
+            wx.showToast({
+              title: '链接已复制，去微信粘贴打开',
+              icon: 'none'
+            })
+          },
+          fail: () => {
+            wx.showToast({
+              title: '打开失败，请重试',
+              icon: 'none'
+            })
+          }
+        })
+      }
+    })
   }
 })

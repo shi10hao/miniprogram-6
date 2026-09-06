@@ -55,3 +55,32 @@
   color: #999;
   font-size: 30rpx;
 }
+
+/* 协作文档按钮 */
+.doc-btn {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 32rpx;
+  padding: 24rpx 28rpx;
+  background: linear-gradient(135deg, #e8f8f9, #d4f1f4);
+  border: 1rpx solid #b8e6ea;
+  border-radius: 16rpx;
+}
+
+.doc-btn-icon {
+  font-size: 32rpx;
+}
+
+.doc-btn-text {
+  flex: 1;
+  font-size: 28rpx;
+  color: #2d6a6e;
+  font-weight: 600;
+}
+
+.doc-btn-arrow {
+  font-size: 28rpx;
+  color: #62BCC4;
+  font-weight: bold;
+}

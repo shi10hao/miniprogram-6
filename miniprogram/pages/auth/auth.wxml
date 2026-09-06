@@ -16,7 +16,7 @@
     <button bindtap="confirmPrivacy" disabled="{{!privacyChecked}}" class="privacy-confirm-btn">
       确认同意
     </button>
-    <button bindtap="skipPrivacy">暂不登录</button>
+    <button bindtap="skipPrivacy" class="privacy-cancel-btn">暂不登录</button>
   </view>
 </view>
 

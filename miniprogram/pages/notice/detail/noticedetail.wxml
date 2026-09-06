@@ -17,6 +17,13 @@
       <view class="detail-content-text">
         {{notice.content || '暂无内容'}}
       </view>
+
+      <!-- ↓ 新增：协作文档按钮（有链接才显示） -->
+      <view wx:if="{{notice.doc_url}}" class="doc-btn" bindtap="openDoc">
+        <text class="doc-btn-icon">📄</text>
+        <text class="doc-btn-text">打开协作文档</text>
+        <text class="doc-btn-arrow">></text>
+      </view>
     </view>
 
     <!-- 无公告数据时显示 -->

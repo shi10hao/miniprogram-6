@@ -44,6 +44,7 @@ Page({
     isSending: false,
     sentMessages: [],
     isLoadingMessages: false,
+    msgDocUrl: '', // ← 新增：腾讯文档链接（可选）
 
     // 管理员信息
     adminName: '',
@@ -85,7 +86,7 @@ Page({
     isLoadingDuty: false,
     dutyPage: 1,
     dutyPageSize: 20,
-    hasMoreDuty: true
+    hasMoreDuty: true,
   },
 
   // ==================== 工具方法 ====================
@@ -200,7 +201,7 @@ Page({
   },
 
   /** 页面显示：按需刷新数据 */
-  onShow: function() {
+  onShow: function () {
     if (!this._ready) return
     var tab = this.data.activeTab
     if (tab === 0 && (!this.data.displayedGroups || this.data.displayedGroups.length === 0)) {
@@ -341,7 +342,9 @@ Page({
   /** 切换 Tab 页，按需加载对应数据 */
   switchTab: function (e) {
     var tab = Number(e.currentTarget.dataset.tab)
-    this.setData({ activeTab: tab })
+    this.setData({
+      activeTab: tab
+    })
 
     if (tab === 0) {
       if (!this.data.displayedGroups || this.data.displayedGroups.length === 0) {
@@ -379,11 +382,13 @@ Page({
   onSearchInput: function (e) {
     var self = this
     clearTimeout(self._searchTimer)
-    self._searchTimer = setTimeout(function() {
-      self.setData({ 'filters.searchKeyword': e.detail.value.trim() }, function() {
+    self._searchTimer = setTimeout(function () {
+      self.setData({
+        'filters.searchKeyword': e.detail.value.trim()
+      }, function () {
         self.loadDeviceStatus()
       })
-    }, 500)  // 用户停止输入 500ms 后才查
+    }, 500) // 用户停止输入 500ms 后才查
   },
 
   clearSearch: function () {
@@ -516,7 +521,7 @@ Page({
   },
 
   /** 加载更多仪器组（前端分页） */
-  loadMoreDevices: function() {
+  loadMoreDevices: function () {
     if (this._loadingMore) return
     this._loadingMore = true
 
@@ -537,7 +542,7 @@ Page({
         pageSize: pageSize,
         pageNum: currentPage + 1
       }
-    }).then(function(res) {
+    }).then(function (res) {
       self._loadingMore = false
       if (res.result.code !== 0) throw new Error(res.result.message || '加载失败')
       var groups = res.result.data.groups || []
@@ -547,10 +552,13 @@ Page({
         currentPage: currentPage + 1,
         hasMore: hasMore
       })
-    }).catch(function(err) {
+    }).catch(function (err) {
       self._loadingMore = false
       console.error('加载更多失败:', err)
-      wx.showToast({ title: '加载更多失败', icon: 'none' })
+      wx.showToast({
+        title: '加载更多失败',
+        icon: 'none'
+      })
     })
   },
 
@@ -781,13 +789,18 @@ Page({
       msgContent: e.detail.value
     })
   },
+  onDocUrlInput: function (e) {
+    this.setData({
+      msgDocUrl: e.detail.value.trim()
+    })
+  },
 
   /** 发布通知到 notice 集合 */
   sendMessage: function () {
     var self = this
     var title = String(self.data.msgTitle || '').trim()
     var content = String(self.data.msgContent || '').trim()
-
+    var docUrl = String(self.data.msgDocUrl || '').trim() // ←【新增 1】读取链接（可选）
     if (!title) return wx.showToast({
       title: '请填写标题',
       icon: 'none'
@@ -796,7 +809,19 @@ Page({
       title: '请填写内容',
       icon: 'none'
     })
-
+    // ↓ 新增：校验协作文档链接格式
+    if (docUrl) {
+      var urlPattern = /^https?:\/\/docs\.qq\.com(\/|$)/
+      if (!urlPattern.test(docUrl)) {
+        self.setData({
+          isSending: false
+        })
+        return wx.showToast({
+          title: '请输入有效的腾讯文档链接',
+          icon: 'none'
+        })
+      }
+    }
     self.setData({
       isSending: true
     })
@@ -806,6 +831,7 @@ Page({
       data: {
         title: title,
         content: content,
+        doc_url: docUrl || '',
         publish_date: now.toISOString(),
         notice_id: 'ADMIN_' + now.getTime(),
         type: 'admin',
@@ -815,7 +841,8 @@ Page({
       self.setData({
         isSending: false,
         msgTitle: '',
-        msgContent: ''
+        msgContent: '',
+        msgDocUrl: ''
       })
       wx.showToast({
         title: '发布成功',
@@ -834,6 +861,71 @@ Page({
     })
   },
 
+  openDoc: function (e) {
+    var url = e.currentTarget.dataset.url
+    wx.navigateToMiniProgram({
+      appId: 'wxd45c635d754dbf59', // 腾讯文档小程序 AppID
+      path: 'pages/detail/detail?url=' + encodeURIComponent(url),
+      fail: function () {
+        // 兜底：跳转失败就复制链接，让用户去微信粘贴打开
+        wx.setClipboardData({
+          data: url,
+          success: function () {
+            wx.showToast({
+              title: '链接已复制，去微信粘贴打开',
+              icon: 'none'
+            })
+          }
+        })
+      }
+    })
+  },
+
+  /** 删除通知（带二次确认） */
+  deleteNotice: function (e) {
+    var self = this
+    var dataset = e.currentTarget.dataset
+    // 优先用 _id，兜底用 notice_id
+    var noticeId = dataset.id || dataset.noticeid
+
+    if (!noticeId) {
+      wx.showToast({ title: '参数错误', icon: 'none' })
+      return
+    }
+
+    wx.showModal({
+      title: '确认删除',
+      content: '确定要删除这条通知吗？删除后不可恢复。',
+      confirmColor: '#e74c3c',
+      success: function (modal) {
+        if (!modal.confirm) return
+
+        wx.showLoading({ title: '删除中...' })
+
+        wx.cloud.callFunction({
+          name: 'deleteNotice',
+          data: { noticeId: noticeId }
+        }).then(function (res) {
+          wx.hideLoading()
+
+          if (res.result.code === 0) {
+            wx.showToast({ title: '删除成功', icon: 'success' })
+            // 前端列表立即移除，无需重新拉取
+            var list = self.data.sentMessages.filter(function (item) {
+              return item._id !== noticeId && item.notice_id !== noticeId
+            })
+            self.setData({ sentMessages: list })
+          } else {
+            wx.showToast({ title: res.result.message || '删除失败', icon: 'none' })
+          }
+        }).catch(function (err) {
+          wx.hideLoading()
+          console.error('删除通知失败:', err)
+          wx.showToast({ title: '删除失败，请重试', icon: 'none' })
+        })
+      }
+    })
+  },
   /** 加载已发布的历史通知 */
   loadSentMessages: function () {
     var self = this
@@ -1411,7 +1503,9 @@ Page({
     })
   },
 
-  goToDutyRecords: function() {
-    wx.navigateTo({ url: '/pages/admin/duty-list/duty-list' })
+  goToDutyRecords: function () {
+    wx.navigateTo({
+      url: '/pages/admin/duty-list/duty-list'
+    })
   },
 })

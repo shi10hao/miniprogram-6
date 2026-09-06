@@ -141,7 +141,8 @@ Page({
         title: true,
         publish_date: true,
         notice_id: true,
-        _id: true
+        _id: true,
+        doc_url: true 
       })
       .orderBy('publish_date', 'desc')
       .limit(3)

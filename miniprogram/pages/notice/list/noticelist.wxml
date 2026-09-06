@@ -12,15 +12,18 @@
 
   <!-- 公告列表（显示日期） -->
   <view wx:else class="notice-list">
-    <view 
-      class="notice-item" 
-      wx:for="{{noticeList}}" 
-      wx:key="_id"
-      bindtap="goToDetail"
-      data-noticeid="{{item.notice_id || item._id}}" 
-    >
+  <view 
+    class="notice-item" 
+    wx:for="{{noticeList}}" 
+    wx:key="_id"
+    bindtap="goToDetail"
+    data-noticeid="{{item.notice_id || item._id}}" 
+  >
+    <view class="notice-item-body">
       <text class="notice-title">{{item.title}}</text>
-      <text class="notice-date">{{item.publish_date}}</text>
+      <text class="notice-doc-tag" wx:if="{{item.doc_url}}">含文档</text>
     </view>
+    <text class="notice-date">{{item.publish_date}}</text>
   </view>
+</view>
 </view>

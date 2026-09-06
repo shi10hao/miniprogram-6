@@ -19,7 +19,8 @@ Page({
         title: true,
         publish_date: true,
         notice_id: true, // 保留唯一标识
-        _id: true // 数据库自带的唯一ID，备用
+        _id: true, // 数据库自带的唯一ID，备用
+        doc_url: true 
       })
       .orderBy('publish_date', 'desc') // 按日期倒序
       .get()

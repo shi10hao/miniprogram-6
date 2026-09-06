@@ -188,9 +188,16 @@
   </view>
 
   <view wx:if="{{activeTab === 2}}" class="tab-content">
+
+    <!-- 发布卡片 -->
     <view class="compose-card">
-      <text class="compose-heading">发布管理员通知</text>
-      <text class="compose-hint">发布后将继续写入公告流程，学生端可直接看到。</text>
+      <view class="compose-header">
+        <text class="compose-icon">📢</text>
+        <view class="compose-title-group">
+          <text class="compose-heading">发布通知</text>
+          <text class="compose-hint">发布后学生端将立即看到</text>
+        </view>
+      </view>
 
       <view class="input-group">
         <text class="input-label">标题</text>
@@ -202,30 +209,58 @@
         <textarea class="content-textarea" placeholder="请输入通知内容..." value="{{msgContent}}" bindinput="onContentInput" maxlength="500" auto-height />
       </view>
 
+      <!-- 协作文档链接 -->
+      <view class="input-group">
+        <text class="input-label">协作文档链接（选填）</text>
+        <view class="doc-url-row">
+          <input class="title-input doc-url-input" placeholder="粘贴腾讯文档链接" value="{{msgDocUrl}}" bindinput="onDocUrlInput" />
+          <view class="doc-url-tip-icon" bindtap="showDocUrlHint">?</view>
+        </view>
+        <text class="form-hint">权限需设为"任何人可编辑"，学生点击即可协作</text>
+      </view>
+
       <button class="send-btn {{isSending ? 'sending' : ''}}" bindtap="sendMessage" disabled="{{isSending}}">
-        {{isSending ? '发布中...' : '立即发布'}}
+        <text wx:if="{{!isSending}}">📤 立即发布</text>
+        <text wx:else>发布中...</text>
       </button>
     </view>
 
+    <!-- 历史通知 -->
     <view class="sent-section">
-      <text class="sent-heading">历史通知</text>
+      <view class="sent-header">
+        <text class="sent-heading">历史通知</text>
+        <text class="sent-count" wx:if="{{sentMessages.length > 0}}">{{sentMessages.length}} 条</text>
+      </view>
 
       <view wx:if="{{isLoadingMessages}}" class="center-hint">
+        <view class="loading-spin"></view>
         <text>加载中...</text>
       </view>
-      <view wx:elif="{{sentMessages.length === 0}}" class="center-hint">
-        <text class="hint-icon">-</text>
-        <text>暂无发布记录</text>
+
+      <view wx:elif="{{sentMessages.length === 0}}" class="empty-state">
+        <text class="empty-icon">📭</text>
+        <text class="empty-text">暂无发布记录</text>
       </view>
-      <view wx:else>
+
+      <view wx:else class="sent-list">
         <view class="sent-item" wx:for="{{sentMessages}}" wx:key="_id">
-          <view class="sent-row">
+          <view class="sent-top">
             <text class="sent-title">{{item.title}}</text>
-            <text class="sent-date">{{item.dateDisplay}}</text>
+            <view class="sent-top-right">
+              <text class="sent-date">{{item.dateDisplay}}</text>
+              <view class="sent-delete-btn" catchtap="deleteNotice" data-id="{{item._id}}" data-noticeid="{{item.notice_id}}">
+                🗑
+              </view>
+            </view>
           </view>
           <text class="sent-content">{{item.content}}</text>
+          <view wx:if="{{item.doc_url}}" class="doc-link-btn" bindtap="openDoc" data-url="{{item.doc_url}}">
+            <text class="doc-link-icon">📄</text>
+            <text class="doc-link-text">打开协作文档</text>
+          </view>
         </view>
       </view>
+
     </view>
   </view>
 
