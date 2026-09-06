@@ -39,7 +39,7 @@
       </view>
       <view class="admin-contact-row" wx:if="{{item.phone}}">
         <text class="admin-phone-label">电话</text>
-        <text class="admin-phone" data-phone="{{item.phone}}">......</text>
+        <text class="admin-phone" data-phone="{{item.phone}}">{{item.phone}}</text>
       </view>
     </view>
   </view>
