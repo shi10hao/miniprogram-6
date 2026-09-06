@@ -1103,3 +1103,31 @@
   height: 150rpx;          /* 或根据需要设置固定高度 */
   border-radius: 8rpx;
 }
+
+.more-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24rpx;
+  padding: 20rpx 0;
+}
+
+.more-card {
+  background: white;
+  border-radius: 20rpx;
+  padding: 40rpx 20rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+}
+
+.more-card-icon {
+  font-size: 48rpx;
+}
+
+.more-card-label {
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 500;
+}

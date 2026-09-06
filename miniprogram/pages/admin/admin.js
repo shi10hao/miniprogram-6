@@ -1370,5 +1370,10 @@ Page({
         imageUrls
       }
     })
+  },
+  goResetPwd() {
+    wx.navigateTo({
+      url: '/pages/resetPwd/resetPwd'
+    })
   }
 })

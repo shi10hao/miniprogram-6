@@ -1,66 +1,69 @@
-// pages/changePwd/changePwd.js
 Page({
-
-  /**
-   * 页面的初始数据
-   */
   data: {
-
+    newPwd: '',
+    confirmPwd: '',
+    errMsg: '',
+    loading: false
   },
 
-  /**
-   * 生命周期函数--监听页面加载
-   */
-  onLoad(options) {
-
+  onNewPwdInput(e) {
+    this.setData({ newPwd: e.detail.value, errMsg: '' })
   },
 
-  /**
-   * 生命周期函数--监听页面初次渲染完成
-   */
-  onReady() {
-
+  onConfirmPwdInput(e) {
+    this.setData({ confirmPwd: e.detail.value, errMsg: '' })
   },
 
-  /**
-   * 生命周期函数--监听页面显示
-   */
-  onShow() {
+  async doChange() {
+    const { newPwd, confirmPwd } = this.data
+    if (newPwd.length < 6) {
+      this.setData({ errMsg: '新密码至少6位' })
+      return
+    }
+    if (newPwd !== confirmPwd) {
+      this.setData({ errMsg: '两次密码输入不一致' })
+      return
+    }
 
-  },
+    this.setData({ loading: true })
+    try {
+      const userInfo = wx.getStorageSync('userInfo')
+      if (!userInfo || !userInfo.userId) {
+        wx.showToast({ title: '请先登录', icon: 'none' })
+        return
+      }
 
-  /**
-   * 生命周期函数--监听页面隐藏
-   */
-  onHide() {
+      const res = await wx.cloud.callFunction({
+        name: 'changePassword',
+        data: {
+          userId: userInfo.userId,
+          newPassword: newPwd
+        }
+      })
 
-  },
+      if (res.result.code !== 0) {
+        this.setData({ errMsg: res.result.msg })
+        return
+      }
 
-  /**
-   * 生命周期函数--监听页面卸载
-   */
-  onUnload() {
+      // 更新本地缓存，标记已改密
+      const updated = { ...userInfo, pwd_modified: true }
+      wx.setStorageSync('userInfo', updated)
 
-  },
+      wx.showToast({
+        title: '密码修改成功',
+        icon: 'success',
+        duration: 1500
+      })
 
-  /**
-   * 页面相关事件处理函数--监听用户下拉动作
-   */
-  onPullDownRefresh() {
-
-  },
-
-  /**
-   * 页面上拉触底事件的处理函数
-   */
-  onReachBottom() {
-
-  },
-
-  /**
-   * 用户点击右上角分享
-   */
-  onShareAppMessage() {
-
+      setTimeout(() => {
+        wx.switchTab({ url: '/pages/index/index' })
+      }, 1500)
+    } catch (err) {
+      console.error('改密失败', err)
+      this.setData({ errMsg: '网络异常，请稍后重试' })
+    } finally {
+      this.setData({ loading: false })
+    }
   }
 })

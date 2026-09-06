@@ -1,0 +1,60 @@
+<view class="container">
+  <view class="card">
+    <view class="title">重置用户密码</view>
+    <view class="desc">输入学号查询用户信息，确认后将其密码重置为手机号</view>
+
+    <!-- 步骤1：输入学号 -->
+    <view class="form-item">
+      <text class="label">学号</text>
+      <view class="input-row">
+        <input class="input" placeholder="请输入学号" value="{{userId}}" bindinput="onInput" />
+        <button class="query-btn" bindtap="doQuery" disabled="{{querying || !userId}}">
+          {{querying ? '查询中' : '查询'}}
+        </button>
+      </view>
+    </view>
+
+    <text class="error" wx:if="{{errMsg}}">{{errMsg}}</text>
+
+    <!-- 步骤2：展示用户信息 -->
+    <view wx:if="{{userInfo}}" class="user-info">
+      <view class="info-title">用户信息</view>
+
+      <view class="info-row">
+        <text class="info-label">姓名</text>
+        <text class="info-value">{{userInfo.name}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">学号</text>
+        <text class="info-value">{{userInfo.user_id}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">手机号</text>
+        <text class="info-value">{{userInfo.phone}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">专业</text>
+        <text class="info-value">{{userInfo.major || '-'}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">课题组</text>
+        <text class="info-value">{{userInfo.group_name || '-'}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">角色</text>
+        <text class="info-value">{{userInfo.role}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">已改密</text>
+        <text class="info-value {{userInfo.pwd_modified ? 'text-green' : 'text-red'}}">
+          {{userInfo.pwd_modified ? '是' : '否（使用初始密码）'}}
+        </text>
+      </view>
+
+      <!-- 步骤3：重置按钮 -->
+      <button class="submit-btn" bindtap="doReset" disabled="{{loading}}">
+        {{loading ? '处理中...' : '重置密码为手机号'}}
+      </button>
+    </view>
+  </view>
+</view>

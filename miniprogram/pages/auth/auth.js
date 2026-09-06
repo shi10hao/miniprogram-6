@@ -317,11 +317,4 @@ Page({
 showError(msg) {
   wx.showToast({ title: msg, icon: 'none' })
 },
-
-testABCDE(){
-  wx.cloud.callFunction({
-    name: 'migrateInitPwd',
-    data: {}
-  }).then(res => console.log('迁移结果', res))
-}
 })

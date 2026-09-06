@@ -1,1 +1,79 @@
-/* pages/changePwd/changePwd.wxss */
+.container {
+  min-height: 100vh;
+  background: linear-gradient(160deg, #62BCC4 0%, #4aa8b0 40%, #3a9ca4 100%);
+  padding: 60rpx 30rpx;
+  box-sizing: border-box;
+}
+
+.card {
+  background: white;
+  border-radius: 28rpx;
+  padding: 48rpx 36rpx;
+  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.12);
+}
+
+.title {
+  font-size: 36rpx;
+  font-weight: 700;
+  text-align: center;
+  color: #333;
+  margin-bottom: 12rpx;
+}
+
+.desc {
+  font-size: 24rpx;
+  color: #999;
+  text-align: center;
+  margin-bottom: 48rpx;
+}
+
+.form-item {
+  margin-bottom: 32rpx;
+}
+
+.label {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 14rpx;
+  padding-left: 4rpx;
+}
+
+.input {
+  width: 100%;
+  height: 80rpx;
+  border: 2rpx solid #e8eef0;
+  border-radius: 14rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  background: #f8fafb;
+  box-sizing: border-box;
+}
+
+.error {
+  display: block;
+  color: #ff6b6b;
+  font-size: 26rpx;
+  text-align: center;
+  margin-bottom: 24rpx;
+}
+
+.submit-btn {
+  width: 100%;
+  height: 84rpx;
+  line-height: 84rpx;
+  background: linear-gradient(135deg, #62BCC4, #4aa8b0);
+  color: white;
+  border-radius: 14rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  border: none;
+  margin-top: 16rpx;
+  box-shadow: 0 8rpx 24rpx rgba(98, 188, 196, 0.35);
+}
+
+.submit-btn[disabled] {
+  background: #c8d6d8;
+  box-shadow: none;
+}

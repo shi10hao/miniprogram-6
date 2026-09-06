@@ -41,6 +41,10 @@
       <text class="tab-icon">🧹</text>
       <text class="tab-label">卫生记录</text>
     </view>
+    <view class="tab-item {{activeTab === 4 ? 'active' : ''}}" bindtap="switchTab" data-tab="4">
+      <text class="tab-icon">🧰</text>
+      <text class="tab-label">更多</text>
+    </view>
   </view>
 
   <view wx:if="{{activeTab === 0}}" class="tab-content">
@@ -267,6 +271,15 @@
     <!-- 加载更多 -->
     <view wx:if="{{hasMoreDuty && !isLoadingDuty}}" class="load-more-wrap">
       <button class="load-more-btn" bindtap="loadMoreDuty">加载更多</button>
+    </view>
+  </view>
+
+  <view wx:if="{{activeTab === 4}}" class="tab-content">
+    <view class="more-grid">
+      <view class="more-card" bindtap="goResetPwd">
+        <text class="more-card-icon">🔑</text>
+        <text class="more-card-label">重置密码</text>
+      </view>
     </view>
   </view>
 
