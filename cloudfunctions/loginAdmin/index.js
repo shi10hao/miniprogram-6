@@ -1,14 +1,25 @@
 const cloud = require('wx-server-sdk')
 const bcrypt = require('bcryptjs')
 
-cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
+cloud.init({
+  env: cloud.DYNAMIC_CURRENT_ENV
+})
 const db = cloud.database()
 
 exports.main = async (event) => {
-  const { user_id, password } = event
+  const {
+    user_id,
+    password
+  } = event
+  const {
+    OPENID
+  } = cloud.getWXContext()
 
   if (!user_id || !password) {
-    return { code: 400, msg: '参数缺失' }
+    return {
+      code: 400,
+      msg: '参数缺失'
+    }
   }
 
   try {
@@ -22,19 +33,43 @@ exports.main = async (event) => {
       .get()
 
     if (res.data.length === 0) {
-      return { code: -1, msg: '账号不存在或无权限' }
+      return {
+        code: -1,
+        msg: '账号不存在或无权限'
+      }
     }
 
     const user = res.data[0]
 
     if (!user.password) {
-      return { code: -2, msg: '账号未设置密码' }
+      return {
+        code: -2,
+        msg: '账号未设置密码'
+      }
     }
 
     const passOk = await bcrypt.compare(password, user.password)
     if (!passOk) {
-      return { code: -3, msg: '密码错误' }
+      return {
+        code: -3,
+        msg: '密码错误'
+      }
     }
+
+    // ========== 新增：写入调用者真实 openid ==========
+    try {
+      await db.collection('users').doc(user._id).update({
+        data: {
+          wx_openid: OPENID,
+          updatedAt: db.serverDate()
+        }
+      })
+    } catch (err) {
+      console.error('写入 wx_openid 失败', err)
+      // 不阻断登录流程
+    }
+    // ========== 新增结束 ==========
+
 
     // 返回管理端需要的字段
     return {
@@ -50,6 +85,9 @@ exports.main = async (event) => {
 
   } catch (err) {
     console.error('loginAdmin err', err)
-    return { code: -99, msg: '服务器异常' }
+    return {
+      code: -99,
+      msg: '服务器异常'
+    }
   }
 }

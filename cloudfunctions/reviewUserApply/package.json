@@ -1,0 +1,10 @@
+{
+  "name": "reviewUserApply",
+  "version": "1.0.0",
+  "description": "审批用户注册申请（同意/拒绝），同意时写入 users 表并发送订阅消息",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3",
+    "bcryptjs": "^2.4.3"
+  }
+}

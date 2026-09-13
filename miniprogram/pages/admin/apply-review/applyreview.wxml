@@ -1,0 +1,80 @@
+<!-- 拒绝理由弹窗 -->
+<view wx:if="{{showRejectModal}}" class="modal-mask" bindtap="cancelReject">
+  <view class="reject-panel" catchtap="">
+    <text class="reject-title">拒绝理由</text>
+    <text class="reject-desc">请输入拒绝理由（最多20字），将发送给学生</text>
+    <textarea class="reject-textarea" placeholder="请输入拒绝理由" value="{{rejectReason}}" bindinput="onRejectReasonInput" maxlength="20" auto-height />
+    <text class="reject-counter">{{rejectReason.length}}/20</text>
+    <view class="reject-btns">
+      <button class="reject-cancel-btn" bindtap="cancelReject">取消</button>
+      <button class="reject-confirm-btn" bindtap="confirmReject" disabled="{{isSubmitting}}">确认拒绝</button>
+    </view>
+  </view>
+</view>
+
+<view class="container">
+  <!-- Tab 栏 -->
+  <view class="review-tab-bar">
+    <view class="review-tab-item {{activeTab === 0 ? 'active' : ''}}" bindtap="switchTab" data-tab="0">
+      待审批
+      <text wx:if="{{pendingCount > 0}}" class="tab-badge">{{pendingCount}}</text>
+    </view>
+    <view class="review-tab-item {{activeTab === 1 ? 'active' : ''}}" bindtap="switchTab" data-tab="1">已通过</view>
+    <view class="review-tab-item {{activeTab === 2 ? 'active' : ''}}" bindtap="switchTab" data-tab="2">已拒绝</view>
+  </view>
+
+  <!-- Loading -->
+  <view wx:if="{{isLoading}}" class="center-hint">
+    <view class="loading-spin"></view>
+    <text>加载中...</text>
+  </view>
+
+  <!-- 空 -->
+  <view wx:elif="{{list.length === 0}}" class="center-hint">
+    <text class="hint-icon">📭</text>
+    <text>{{emptyText}}</text>
+  </view>
+
+  <!-- 列表 -->
+  <view wx:else class="apply-list">
+    <view class="apply-card" wx:for="{{list}}" wx:key="_id">
+      <view class="apply-card-header">
+        <text class="apply-name">{{item.name}}</text>
+        <text class="apply-status {{item.status}}">{{item.statusText}}</text>
+      </view>
+
+      <view class="apply-info-row">
+        <text class="apply-label">学号</text>
+        <text class="apply-value">{{item.user_id}}</text>
+      </view>
+      <view class="apply-info-row">
+        <text class="apply-label">手机号</text>
+        <text class="apply-value">{{item.phone}}</text>
+      </view>
+      <view class="apply-info-row">
+        <text class="apply-label">专业</text>
+        <text class="apply-value">{{item.major}}</text>
+      </view>
+      <view wx:if="{{item.group_name}}" class="apply-info-row">
+        <text class="apply-label">课题组</text>
+        <text class="apply-value">{{item.group_name}}</text>
+      </view>
+      <view class="apply-info-row">
+        <text class="apply-label">申请时间</text>
+        <text class="apply-value">{{item.timeDisplay}}</text>
+      </view>
+
+      <!-- 已拒绝显示理由 -->
+      <view wx:if="{{item.status === 'rejected' && item.reject_reason}}" class="apply-reject-reason">
+        <text class="reason-label">拒绝理由：</text>
+        <text class="reason-text">{{item.reject_reason}}</text>
+      </view>
+
+      <!-- 待审批显示操作按钮 -->
+      <view wx:if="{{item.status === 'pending'}}" class="apply-actions">
+        <button class="action-reject-btn" bindtap="onReject" data-id="{{item._id}}" data-name="{{item.name}}" disabled="{{isSubmitting}}">拒绝</button>
+        <button class="action-approve-btn" bindtap="onApprove" data-id="{{item._id}}" data-name="{{item.name}}" disabled="{{isSubmitting}}">同意</button>
+      </view>
+    </view>
+  </view>
+</view>

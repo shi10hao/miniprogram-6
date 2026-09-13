@@ -32,7 +32,8 @@
     "pages/communicationDetail/communicationDetail",
     "pages/changePwd/changePwd",
     "pages/resetPwd/resetPwd",
-    "pages/admin/duty-list/duty-list"
+    "pages/admin/duty-list/duty-list",
+    "pages/admin/apply-review/applyreview"
   ],
   "subPackages": [
     {

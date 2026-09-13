@@ -21,6 +21,49 @@
   font-size: 26rpx;
   border-radius: 24rpx;
 }
+/* 订阅按钮 */
+.subscribe-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
+  padding: 24rpx 28rpx;
+  border-radius: 20rpx;
+  background: linear-gradient(135deg, #fff8e8 0%, #ffefc4 100%);
+  border: 1px solid #e8d5a3;
+}
+.subscribe-bar:active {
+  opacity: 0.85;
+}
+.subscribe-left {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.subscribe-icon {
+  font-size: 36rpx;
+}
+.subscribe-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #7a5c1c;
+}
+.subscribe-right {
+  display: flex;
+  align-items: center;
+}
+.subscribe-count {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #e8a020;
+  background: rgba(255,255,255,0.7);
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+}
+.subscribe-hint {
+  font-size: 22rpx;
+  color: #a08040;
+}
 /* 功能卡片 */
 .card-container {
   margin-bottom: 40rpx;

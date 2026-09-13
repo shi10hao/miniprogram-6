@@ -21,10 +21,8 @@ Page({
   //
   async adminLogin() {
     if (this.data.isLogging) return
-  
     const username = this.data.username.trim()
     const password = this.data.password.trim()
-  
     if (!username) {
       wx.showToast({ title: '请输入账号', icon: 'none' })
       return
@@ -47,19 +45,6 @@ Page({
       if (code !== 0) {
         wx.showToast({ title: msg, icon: 'none' })
         return
-      }
-  
-      // 获取 openid 并保存
-      try {
-        const openidRes = await wx.cloud.callFunction({ name: 'getOpenId' })
-        const openid = openidRes.result.openid
-        if (openid) {
-          await db.collection('users').where({ user_id: data.userId }).update({
-            data: { wx_openid: openid }
-          })
-        }
-      } catch (err) {
-        console.error('保存 openid 失败:', err)
       }
   
       // 存缓存

@@ -1272,3 +1272,25 @@
   color: #333;
   font-weight: 500;
 }
+
+/* ===== 更多卡片：红点角标 ===== */
+.more-card {
+  position: relative;
+}
+
+.more-card-badge {
+  position: absolute;
+  top: 12rpx;
+  right: 12rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  line-height: 32rpx;
+  padding: 0 8rpx;
+  background: #e74c3c;
+  color: white;
+  font-size: 20rpx;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 16rpx;
+  box-sizing: border-box;
+}

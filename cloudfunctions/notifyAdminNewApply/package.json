@@ -1,0 +1,9 @@
+{
+  "name": "notifyAdminNewApply",
+  "version": "1.0.0",
+  "description": "学生提交注册申请后，通知所有管理员",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

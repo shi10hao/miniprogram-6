@@ -275,6 +275,11 @@
         <text class="more-card-icon">🧹</text>
         <text class="more-card-label">卫生记录</text>
       </view>
+      <view class="more-card" bindtap="goToApplyReview">
+        <text class="more-card-icon">📝</text>
+        <text class="more-card-label">注册审批</text>
+        <view wx:if="{{pendingApplyCount > 0}}" class="more-card-badge">{{pendingApplyCount}}</view>
+      </view>
     </view>
   </view>
 

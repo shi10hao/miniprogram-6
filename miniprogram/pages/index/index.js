@@ -2,7 +2,7 @@ const db = wx.cloud.database()
 
 const PHOTO_REMINDER_TYPES = ['usage_photo_remind', 'usage_end_remind']
 const BANNER_REMINDER_TYPES = ['reservation_remind', 'usage_photo_remind', 'usage_end_remind']
-
+const NOTICE_TMPL_ID = '9Lr3yHaJzl8LyzC5qbNGFYgu5ILBFc3XSowjJRv1-eg'
 Page({
   data: {
     commonDevices: [],
@@ -10,7 +10,8 @@ Page({
     isLoading: true,
     isAuthenticated: false,
     currentGroupName: '',
-    unreadReminder: null
+    unreadReminder: null,
+    subMsgCount: 0, // ← 新增这行
   },
 
   onLoad() {
@@ -21,7 +22,9 @@ Page({
   onShow() {
     this.checkAuthStatus()
     getApp().refreshMessageBadge()
+    this.loadSubMsgCount() // ← 新增这行
   },
+
   //
   checkAuthStatus() {
     if (this._checkingAuth) return
@@ -72,6 +75,94 @@ Page({
       this._checkingAuth = false
     }
   },
+    // 加载用户剩余订阅消息次数
+    async loadSubMsgCount() {
+      if (!this.data.isAuthenticated) {
+        this.setData({
+          subMsgCount: 0
+        })
+        return
+      }
+  
+      try {
+        const res = await wx.cloud.callFunction({
+          name: 'getSubMsgCount'
+        })
+  
+        if (res.result && res.result.success) {
+          this.setData({
+            subMsgCount: res.result.count || 0
+          })
+        }
+      } catch (err) {
+        console.error('加载订阅消息次数失败', err)
+      }
+    },
+  
+    // 点击订阅按钮
+    onSubscribeTap() {
+      if (!this.data.isAuthenticated) {
+        wx.showToast({
+          title: '请先登录',
+          icon: 'none'
+        })
+        return
+      }
+  
+      wx.requestSubscribeMessage({
+        tmplIds: [NOTICE_TMPL_ID],
+        success: (res) => {
+          console.log('requestSubscribeMessage res', res)
+  
+          // 用户允许了这个模板才加计数
+          if (res[NOTICE_TMPL_ID] === 'accept' || res.errMsg === 'requestSubscribeMessage:ok') {
+            wx.cloud.callFunction({
+              name: 'addSubMsgCount',
+              data: {
+                tmplId: NOTICE_TMPL_ID,
+                count: 1
+              },
+              success: (r) => {
+                if (r.result && r.result.success) {
+                  this.setData({
+                    subMsgCount: r.result.count || 0
+                  })
+                  wx.showToast({
+                    title: `订阅成功，剩余${r.result.count || 0}次`,
+                    icon: 'success',
+                    duration: 2000
+                  })
+                } else {
+                  wx.showToast({
+                    title: '订阅记录失败',
+                    icon: 'none'
+                  })
+                }
+              },
+              fail: (err) => {
+                console.error('addSubMsgCount 失败', err)
+                wx.showToast({
+                  title: '订阅失败',
+                  icon: 'none'
+                })
+              }
+            })
+          } else {
+            wx.showToast({
+              title: '未授权订阅',
+              icon: 'none'
+            })
+          }
+        },
+        fail: (err) => {
+          console.error('requestSubscribeMessage 失败', err)
+          wx.showToast({
+            title: '订阅调用失败',
+            icon: 'none'
+          })
+        }
+      })
+    },
   //
   getCommonDevices() {
     const userInfo = wx.getStorageSync('userInfo') || {}
@@ -142,7 +233,7 @@ Page({
         publish_date: true,
         notice_id: true,
         _id: true,
-        doc_url: true 
+        doc_url: true
       })
       .orderBy('publish_date', 'desc')
       .limit(3)

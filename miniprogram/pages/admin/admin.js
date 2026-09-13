@@ -87,6 +87,9 @@ Page({
     dutyPage: 1,
     dutyPageSize: 20,
     hasMoreDuty: true,
+
+    // 注册审批
+    pendingApplyCount: 0,
   },
 
   // ==================== 工具方法 ====================
@@ -203,6 +206,13 @@ Page({
   /** 页面显示：按需刷新数据 */
   onShow: function () {
     if (!this._ready) return
+    // 自动订阅：每天最多触发一次，避免频繁弹窗
+    const today = new Date().toDateString()
+    const lastAutoSub = wx.getStorageSync('lastAutoSubDate')
+    if (lastAutoSub !== today) {
+      this.requestSubscribeMessage()
+      wx.setStorageSync('lastAutoSubDate', today)
+    }
     var tab = this.data.activeTab
     if (tab === 0 && (!this.data.displayedGroups || this.data.displayedGroups.length === 0)) {
       this.loadDeviceStatus()
@@ -210,8 +220,10 @@ Page({
       this.loadReserveSummary()
     } else if (tab === 2) {
       this.loadSentMessages()
+    } else if (tab === 3) {
+      // 从审批页返回时，刷新红点数量
+      this.loadPendingApplyCount()
     }
-    // Tab 3 是"更多"，里面只有入口卡片，不需要预加载
   },
 
   /** 页面隐藏：关闭退出确认弹窗 */
@@ -354,8 +366,10 @@ Page({
       this.loadReserveSummary()
     } else if (tab === 2) {
       this.loadSentMessages()
+    } else if (tab === 3) {
+      this.loadPendingApplyCount()
     }
-    // Tab 3 是"更多"，不需要预加载
+
   },
 
   // ==================== 仪器状态管理（Tab 0） ====================
@@ -795,21 +809,23 @@ Page({
     })
   },
 
-  /** 发布通知到 notice 集合 */
+  /** 发布通知到 notice 集合，并触发订阅消息全推 */
   sendMessage: function () {
     var self = this
     var title = String(self.data.msgTitle || '').trim()
     var content = String(self.data.msgContent || '').trim()
-    var docUrl = String(self.data.msgDocUrl || '').trim() // ←【新增 1】读取链接（可选）
+    var docUrl = String(self.data.msgDocUrl || '').trim()
+
     if (!title) return wx.showToast({
       title: '请填写标题',
       icon: 'none'
     })
+
     if (!content) return wx.showToast({
       title: '请填写内容',
       icon: 'none'
     })
-    // ↓ 新增：校验协作文档链接格式
+
     if (docUrl) {
       var urlPattern = /^https?:\/\/docs\.qq\.com(\/|$)/
       if (!urlPattern.test(docUrl)) {
@@ -822,32 +838,53 @@ Page({
         })
       }
     }
+
     self.setData({
       isSending: true
     })
+
     var now = new Date()
+    var noticeId = 'ADMIN_' + now.getTime()
+    var publishDate = now.toISOString()
 
     db.collection('notice').add({
       data: {
         title: title,
         content: content,
         doc_url: docUrl || '',
-        publish_date: now.toISOString(),
-        notice_id: 'ADMIN_' + now.getTime(),
+        publish_date: publishDate,
+        notice_id: noticeId,
         type: 'admin',
         created_by: self.data.adminName || '管理员'
       }
     }).then(function () {
+      // 发布成功后再触发订阅消息全推，不阻塞用户提示
+      wx.cloud.callFunction({
+        name: 'sendNoticeSubMsg',
+        data: {
+          title: title,
+          content: content,
+          publishDate: publishDate,
+          page: 'pages/notice/list' // 按你实际路径改
+        }
+      }).then(function (res) {
+        console.log('订阅消息推送结果:', res.result)
+      }).catch(function (err) {
+        console.error('订阅消息推送失败:', err)
+      })
+
       self.setData({
         isSending: false,
         msgTitle: '',
         msgContent: '',
         msgDocUrl: ''
       })
+
       wx.showToast({
         title: '发布成功',
         icon: 'success'
       })
+
       self.loadSentMessages()
     }).catch(function (err) {
       self.setData({
@@ -899,7 +936,10 @@ Page({
     var noticeId = dataset.id || dataset.noticeid
 
     if (!noticeId) {
-      wx.showToast({ title: '参数错误', icon: 'none' })
+      wx.showToast({
+        title: '参数错误',
+        icon: 'none'
+      })
       return
     }
 
@@ -910,28 +950,43 @@ Page({
       success: function (modal) {
         if (!modal.confirm) return
 
-        wx.showLoading({ title: '删除中...' })
+        wx.showLoading({
+          title: '删除中...'
+        })
 
         wx.cloud.callFunction({
           name: 'deleteNotice',
-          data: { noticeId: noticeId }
+          data: {
+            noticeId: noticeId
+          }
         }).then(function (res) {
           wx.hideLoading()
 
           if (res.result.code === 0) {
-            wx.showToast({ title: '删除成功', icon: 'success' })
+            wx.showToast({
+              title: '删除成功',
+              icon: 'success'
+            })
             // 前端列表立即移除，无需重新拉取
             var list = self.data.sentMessages.filter(function (item) {
               return item._id !== noticeId && item.notice_id !== noticeId
             })
-            self.setData({ sentMessages: list })
+            self.setData({
+              sentMessages: list
+            })
           } else {
-            wx.showToast({ title: res.result.message || '删除失败', icon: 'none' })
+            wx.showToast({
+              title: res.result.message || '删除失败',
+              icon: 'none'
+            })
           }
         }).catch(function (err) {
           wx.hideLoading()
           console.error('删除通知失败:', err)
-          wx.showToast({ title: '删除失败，请重试', icon: 'none' })
+          wx.showToast({
+            title: '删除失败，请重试',
+            icon: 'none'
+          })
         })
       }
     })
@@ -1116,6 +1171,38 @@ Page({
     })
   },
 
+  // ==================== 注册审批 ====================
+
+  /** 查询待审批申请数量，用于卡片红点 */
+  loadPendingApplyCount: function () {
+    var self = this
+    wx.cloud.callFunction({
+      name: 'getCollectionData',
+      data: {
+        collectionName: 'user_apply',
+        whereCondition: {
+          status: 'pending'
+        },
+        pageSize: 100
+      }
+    }).then(function (res) {
+      if (res.result.code !== 0) return
+      var list = res.result.data || []
+      self.setData({
+        pendingApplyCount: list.length
+      })
+    }).catch(function (err) {
+      console.error('查询待审批数量失败:', err)
+    })
+  },
+
+  /** 跳转到注册审批页面 */
+  goToApplyReview: function () {
+    wx.navigateTo({
+      url: '/pages/admin/apply-review/applyreview'
+    })
+  },
+
   // ==================== 退出登录 ====================
 
   confirmLogout: function () {
@@ -1155,14 +1242,20 @@ Page({
 
   /** 请求订阅消息授权 */
   requestSubscribeMessage: function () {
+    const TMPL_IDS = [
+      'rEryURnzJ73glhEiqTmrGi3sNio16MDmUcMrIc0LPiY', // 故障告警
+      '9Lr3yHaJzl8LyzC5qbNGFYgu5ILBFc3XSowjJRv1-eg' // 通用（含新注册申请）
+    ]
     wx.requestSubscribeMessage({
-      tmplIds: ['rEryURnzJ73glhEiqTmrGi3sNio16MDmUcMrIc0LPiY'],
+      tmplIds: TMPL_IDS,
       success: function (res) {
-        if (res['rEryURnzJ73glhEiqTmrGi3sNio16MDmUcMrIc0LPiY'] === 'accept') {
-          console.log('管理员已同意接收订阅消息')
-        } else {
-          console.log('管理员拒绝了订阅消息')
-        }
+        TMPL_IDS.forEach(function (id) {
+          if (res[id] === 'accept') {
+            console.log('已订阅:', id)
+          } else {
+            console.log('未订阅:', id, res[id])
+          }
+        })
       },
       fail: function (err) {
         console.error('订阅授权失败:', err)
