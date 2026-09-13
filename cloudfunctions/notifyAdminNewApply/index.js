@@ -3,7 +3,7 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
-// 通用模板 ID（与 sendNoticeSubMsg 用的一致）
+// 通用模板 ID
 const NOTICE_TMPL_ID = '9Lr3yHaJzl8LyzC5qbNGFYgu5ILBFc3XSowjJRv1-eg'
 
 // thing 类型微信限制 20 个字符
@@ -52,15 +52,15 @@ exports.main = async (event = {}) => {
     thing2: { value: cutStr(`${apply.name} ${apply.user_id}`, 20) }
   }
 
-  // 3. 查询所有管理员
+  // 3. 查询所有管理员（只取有真实 openid 的）
   let admins = []
   try {
     const adminRes = await db.collection('users')
       .where({ role: 'admin' })
-      .field({ _openid: true, _id: true })
+      .field({ wx_openid: true, _id: true })
       .limit(1000)
       .get()
-    admins = adminRes.data || []
+    admins = (adminRes.data || []).filter(u => u.wx_openid)
   } catch (err) {
     console.error('查询管理员失败', err)
     return { code: 500, msg: '查询管理员失败' }
@@ -74,17 +74,17 @@ exports.main = async (event = {}) => {
   const results = await Promise.all(admins.map(async (u) => {
     try {
       await cloud.openapi.subscribeMessage.send({
-        touser: u._openid,
+        touser: u.wx_openid,
         templateId: NOTICE_TMPL_ID,
-        page: 'pages/admin/login/adminlogin',
+        page: 'pages/admin/apply-review/applyreview', 
         data,
-        miniprogramState: 'developer', // 上线正式版请改 'formal'
+        miniprogramState: 'developer',
         lang: 'zh_CN'
       })
-      return { openid: u._openid, ok: true }
+      return { openid: u.wx_openid, ok: true }
     } catch (err) {
-      console.error('发送失败', u._openid, err)
-      return { openid: u._openid, ok: false, errCode: err && err.errCode }
+      console.error('发送失败', u.wx_openid, err)
+      return { openid: u.wx_openid, ok: false, errCode: err && err.errCode }
     }
   }))
 

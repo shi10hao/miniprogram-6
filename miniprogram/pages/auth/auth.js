@@ -248,51 +248,80 @@ Page({
   async onRegisterSubmit() {
     // 防重复点击
     if (this.data.submitting) return
-    this.setData({
-      submitting: true
-    })
-
-    const {
-      regStudentId,
-      regName,
-      regPhone,
-      regMajor
-    } = this.data.registerForm
-
-    // 前端校验
+    this.setData({ submitting: true })
+  
+    const { regStudentId, regName, regPhone, regMajor } = this.data.registerForm
+  
+    // ========== 前端校验（不变） ==========
     if (!regStudentId.trim()) {
-      this.setData({
-        submitting: false
-      })
+      this.setData({ submitting: false })
       return this.showError('请填写学号')
     }
     if (!regName.trim()) {
-      this.setData({
-        submitting: false
-      })
+      this.setData({ submitting: false })
       return this.showError('请填写姓名')
     }
     if (!regPhone.trim()) {
-      this.setData({
-        submitting: false
-      })
+      this.setData({ submitting: false })
       return this.showError('请填写手机号')
     }
     const phoneReg = /^1[3-9]\d{9}$/
     if (!phoneReg.test(regPhone)) {
-      this.setData({
-        submitting: false
-      })
+      this.setData({ submitting: false })
       return this.showError('手机号格式错误')
     }
     if (!regMajor.trim()) {
-      this.setData({
-        submitting: false
-      })
+      this.setData({ submitting: false })
       return this.showError('请填写专业')
     }
-
-    let subscribeStatus = 'reject' // 默认未授权
+  
+    const studentId = regStudentId.trim()
+  
+    // ========== 第一步：查重（先查重，再弹订阅框） ==========
+    try {
+      // 1.1 查 users 表：该学号是否已是正式用户
+      const usersRes = await wx.cloud.callFunction({
+        name: 'getCollectionData',
+        data: {
+          collectionName: 'users',
+          whereCondition: { user_id: studentId },
+          pageSize: 10
+        }
+      })
+      if (usersRes.result.code === 0 && (usersRes.result.data || []).length > 0) {
+        this.setData({ submitting: false })
+        return this.showError('该学号已通过审核，请直接登录')
+      }
+  
+      // 1.2 查 user_apply 表：该学号的申请记录
+      const applyRes = await wx.cloud.callFunction({
+        name: 'getCollectionData',
+        data: {
+          collectionName: 'user_apply',
+          whereCondition: { user_id: studentId },
+          pageSize: 50
+        }
+      })
+      if (applyRes.result.code === 0) {
+        const records = applyRes.result.data || []
+        if (records.some(function (r) { return r.status === 'pending' })) {
+          this.setData({ submitting: false })
+          return this.showError('该学号已有申请正在审核中，请耐心等待')
+        }
+        if (records.some(function (r) { return r.status === 'approved' })) {
+          this.setData({ submitting: false })
+          return this.showError('该学号已通过审核，请直接登录')
+        }
+        // 只有 rejected 或无记录 → 允许重新提交
+      }
+    } catch (err) {
+      console.error('查重失败', err)
+      this.setData({ submitting: false })
+      return this.showError('提交失败，请稍后重试')
+    }
+  
+    // ========== 第二步：弹订阅框（查重通过后才弹） ==========
+    let subscribeStatus = 'reject'
     try {
       const subRes = await wx.requestSubscribeMessage({
         tmplIds: [registerTempleID]
@@ -304,30 +333,11 @@ Page({
     } catch (err) {
       console.log('订阅消息弹窗结果', err)
     }
-    // ========== 改动结束 ==========
-
-    // 查重 + 提交
+  
+    // ========== 第三步：写入 user_apply ==========
     try {
       const db = wx.cloud.database()
-      const studentId = regStudentId.trim()
-
-      const {
-        total
-      } = await db.collection('user_apply')
-        .where({
-          user_id: studentId,
-          status: db.command.in(['pending', 'approved'])
-        })
-        .count()
-
-      if (total > 0) {
-        this.setData({
-          submitting: false
-        })
-        return this.showError('该学号已提交过申请，请勿重复提交')
-      }
-
-      // 拿到新增记录的 _id
+  
       const addRes = await db.collection('user_apply').add({
         data: {
           user_id: studentId,
@@ -341,21 +351,19 @@ Page({
           create_time: db.serverDate()
         }
       })
-
+  
       // 通知管理员（异步，失败不影响用户端注册结果）
       if (addRes && addRes._id) {
         wx.cloud.callFunction({
           name: 'notifyAdminNewApply',
-          data: {
-            applyId: addRes._id
-          }
+          data: { applyId: addRes._id }
         }).then(res => {
           console.log('通知管理员结果:', res.result)
         }).catch(err => {
           console.error('通知管理员失败:', err)
         })
       }
-
+  
       wx.showToast({
         title: '提交成功，请等待管理员审核',
         icon: 'success',
@@ -374,9 +382,7 @@ Page({
       })
     } catch (err) {
       console.error('注册申请失败', err)
-      this.setData({
-        submitting: false
-      })
+      this.setData({ submitting: false })
       this.showError('提交失败，请稍后重试')
     }
   },

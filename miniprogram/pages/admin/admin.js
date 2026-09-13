@@ -1243,8 +1243,8 @@ Page({
   /** 请求订阅消息授权 */
   requestSubscribeMessage: function () {
     const TMPL_IDS = [
-      'rEryURnzJ73glhEiqTmrGi3sNio16MDmUcMrIc0LPiY', // 故障告警
-      '9Lr3yHaJzl8LyzC5qbNGFYgu5ILBFc3XSowjJRv1-eg' // 通用（含新注册申请）
+      '9Lr3yHaJzl8LyzC5qbNGFYgu5ILBFc3XSowjJRv1-eg', // 通用（含新注册申请）
+      'rEryURnzJ73glhEiqTmrGi3sNio16MDmUcMrIc0LPiY' // 故障告警
     ]
     wx.requestSubscribeMessage({
       tmplIds: TMPL_IDS,

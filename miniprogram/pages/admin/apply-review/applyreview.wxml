@@ -1,6 +1,6 @@
 <!-- 拒绝理由弹窗 -->
-<view wx:if="{{showRejectModal}}" class="modal-mask" bindtap="cancelReject">
-  <view class="reject-panel" catchtap="">
+<view wx:if="{{showRejectModal}}" class="modal-mask">
+  <view class="reject-panel">
     <text class="reject-title">拒绝理由</text>
     <text class="reject-desc">请输入拒绝理由（最多20字），将发送给学生</text>
     <textarea class="reject-textarea" placeholder="请输入拒绝理由" value="{{rejectReason}}" bindinput="onRejectReasonInput" maxlength="20" auto-height />
