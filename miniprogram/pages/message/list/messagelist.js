@@ -1,12 +1,26 @@
 const db = wx.cloud.database()
 
+// 注意：admin_notice 是「只写给管理员的内部提醒」（messages 表，type=admin_notice），
+// 而 notice 表里的 type=admin 才是「全员广播的公告」。两者含义不同，不能都叫"管理员公告"。
 const TYPE_LABELS = {
   reservation_success: '预约成功',
   reservation_remind: '预约提醒',
   usage_photo_remind: '照片提醒',
   usage_end_remind: '结束提醒',
-  admin_notice: '管理员公告'
+  admin_notice: '系统通知'
 }
+
+// 每种消息类型对应的图标，让列表不用读文字就能分辨来源
+const TYPE_ICONS = {
+  reservation: '📅',
+  usage: '🧪',
+  system: '📢'
+}
+
+function getTypeIcon(styleType) {
+  return TYPE_ICONS[styleType] || '💬'
+}
+
 const PAGE_SIZE = 20
 
 Page({
@@ -179,15 +193,18 @@ Page({
   },
 
   normalizeMessageItem(item) {
+    const styleType = this.getstyleType(item.type)
+    const typeLabel = this.getTypeLabel(item.type)
     return {
       _id: item._id,
       source: 'message',
-      title: item.title || this.getTypeLabel(item.type),
+      title: item.title || typeLabel,
       content: item.content || '',
       preview: this.getPreview(item.type, item.content),
       type: item.type,
-      styleType: this.getstyleType(item.type),
-      typeLabel: this.getTypeLabel(item.type),
+      styleType: styleType,
+      typeLabel: typeLabel,
+      typeIcon: getTypeIcon(styleType),
       create_time: this.formatRelativeTime(item.create_time),
       create_time_raw: item.create_time || '',
       sortTime: this.getTimeValue(item.create_time),
@@ -206,7 +223,10 @@ Page({
       preview: this.getPreview('admin_notice', item.content),
       type: 'admin_notice',
       styleType: 'system',
-      typeLabel: this.getTypeLabel('admin_notice'),
+      // notice 表是全员广播的公告，标签固定为「管理员公告」，
+      // 不要复用 TYPE_LABELS.admin_notice（那是管理员内部提醒的标签）
+      typeLabel: '管理员公告',
+      typeIcon: getTypeIcon('system'),
       create_time: this.formatRelativeTime(rawTime),
       create_time_raw: rawTime,
       sortTime: this.getTimeValue(rawTime),
@@ -487,6 +507,13 @@ Page({
   },
 
   updateTabBarBadge(unreadCount) {
+    // 同步给 app 的节流缓存，避免切回其他 tab 时被旧的未读数覆盖
+    var app = getApp()
+    if (app) {
+      app._lastBadgeTotal = unreadCount
+      app._badgeRefreshedAt = Date.now()
+    }
+
     if (unreadCount > 0) {
       wx.setTabBarBadge({
         index: 2,

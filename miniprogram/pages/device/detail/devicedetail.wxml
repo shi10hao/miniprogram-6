@@ -20,7 +20,16 @@
       <!-- 基本信息卡（含仪器简介） -->
       <view class="basic-info-card">
         <view class="device-image-section">
-          <image class="device-image" src="{{device.picture}}" mode="aspectFill"></image>
+          <image
+            wx:if="{{!picFailed}}"
+            class="device-image"
+            src="{{device.picture}}"
+            mode="aspectFill"
+            binderror="onDeviceImageError"
+          ></image>
+          <view wx:else class="device-image device-image-fallback">
+            <text class="img-fallback-text">图片加载失败</text>
+          </view>
         </view>
         <view class="device-info-section">
           <view class="device-name-row">

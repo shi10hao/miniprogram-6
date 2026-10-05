@@ -1,0 +1,397 @@
+/* ==========================================================================
+   全局设计系统（app.wxss）
+   --------------------------------------------------------------------------
+   以前这里是空文件，导致每个页面各写一套颜色/圆角/阴影：
+     · #62BCC4 被硬编码了 124 处
+     · 7 个页面各自重复写同一段浅灰渐变背景
+     · 卡片阴影在同一项目里出现 6 种以上的不同数值
+   这里统一收敛为「设计变量 + 通用组件类」，页面只引用变量和类名。
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. 设计变量
+   同时定义在 :root 和 page 上：page 覆盖普通页面，
+   :root 保证自定义组件内部也能拿到变量。
+   -------------------------------------------------------------------------- */
+:root,
+page {
+  /* 品牌色：主色取自原有导航栏 #62BCC4，往下补全梯度 */
+  --ds-primary: #62bcc4;
+  --ds-primary-dark: #4aa8b0;
+  --ds-primary-deep: #2d6a6e;
+  --ds-primary-light: #e8f8f9;
+  --ds-primary-soft: #f2fbfc;
+  --ds-primary-shadow: rgba(98, 188, 196, 0.28);
+
+  /* 语义色 */
+  --ds-success: #10b981;
+  --ds-success-light: #e7f8f1;
+  --ds-warning: #f59e0b;
+  --ds-warning-light: #fff7e8;
+  --ds-danger: #ef4444;
+  --ds-danger-light: #fef2f2;
+
+  /* 中性色：统一文字层级 */
+  --ds-text: #1f2733;
+  --ds-text-secondary: #5f6b7a;
+  --ds-text-muted: #9aa4b2;
+  --ds-text-disabled: #c4ccd6;
+
+  /* 背景与分隔线 */
+  --ds-bg: #f4f6f8;
+  --ds-surface: #ffffff;
+  --ds-fill: #f7f9fa;
+  --ds-divider: #eef1f4;
+  --ds-border: #e4e9ee;
+
+  /* 圆角 */
+  --ds-radius-sm: 12rpx;
+  --ds-radius: 20rpx;
+  --ds-radius-lg: 28rpx;
+  --ds-radius-pill: 999rpx;
+
+  /* 间距 */
+  --ds-gap-xs: 8rpx;
+  --ds-gap-sm: 16rpx;
+  --ds-gap: 24rpx;
+  --ds-gap-lg: 32rpx;
+  --ds-gap-xl: 48rpx;
+
+  /* 阴影：只保留两档，卡片用 sm，浮层用 md */
+  --ds-shadow-sm: 0 2rpx 12rpx rgba(31, 39, 51, 0.05);
+  --ds-shadow: 0 6rpx 24rpx rgba(31, 39, 51, 0.07);
+  --ds-shadow-md: 0 12rpx 36rpx rgba(31, 39, 51, 0.1);
+}
+
+/* --------------------------------------------------------------------------
+   2. 页面基线
+   -------------------------------------------------------------------------- */
+page {
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-size: 28rpx;
+  line-height: 1.55;
+  /* 系统字体栈，中文优先用系统黑体，比默认更清爽 */
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 去掉 button 组件的默认边框与背景，便于自定义 */
+button::after {
+  border: none;
+}
+
+/* --------------------------------------------------------------------------
+   3. 布局容器
+   -------------------------------------------------------------------------- */
+.ds-page {
+  min-height: 100vh;
+  padding: var(--ds-gap);
+  box-sizing: border-box;
+  background: var(--ds-bg);
+}
+
+/* 带品牌色头部时，内容区向上叠压，形成层次 */
+.ds-page-overlap {
+  padding-top: 0;
+}
+
+/* --------------------------------------------------------------------------
+   4. 卡片
+   -------------------------------------------------------------------------- */
+.ds-card {
+  background: var(--ds-surface);
+  border-radius: var(--ds-radius);
+  padding: var(--ds-gap-lg);
+  margin-bottom: var(--ds-gap);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+/* 卡片内直接放列表行时用这个小内边距版本 */
+.ds-card-tight {
+  padding: var(--ds-gap-sm) 0;
+}
+
+.ds-card-flat {
+  box-shadow: none;
+  border: 1rpx solid var(--ds-border);
+}
+
+/* --------------------------------------------------------------------------
+   5. 区块标题
+   -------------------------------------------------------------------------- */
+.ds-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--ds-gap);
+}
+
+/* 带竖线色块的标题，比纯文字更像成熟产品 */
+.ds-section-title {
+  position: relative;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--ds-text);
+  padding-left: 20rpx;
+}
+
+.ds-section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6rpx;
+  height: 26rpx;
+  border-radius: 3rpx;
+  background: var(--ds-primary);
+}
+
+.ds-section-more {
+  font-size: 24rpx;
+  color: var(--ds-primary);
+}
+
+/* --------------------------------------------------------------------------
+   6. 按钮
+   -------------------------------------------------------------------------- */
+.ds-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88rpx;
+  padding: 0 40rpx;
+  border-radius: var(--ds-radius-pill);
+  font-size: 30rpx;
+  font-weight: 500;
+  background: var(--ds-primary);
+  color: #fff;
+  transition: opacity 0.2s ease;
+}
+
+.ds-btn:active {
+  opacity: 0.85;
+}
+
+.ds-btn-block {
+  width: 100%;
+}
+
+.ds-btn-ghost {
+  background: transparent;
+  color: var(--ds-primary);
+  border: 1rpx solid var(--ds-primary);
+}
+
+.ds-btn-danger {
+  background: transparent;
+  color: var(--ds-danger);
+  border: 1rpx solid var(--ds-danger);
+}
+
+/* --------------------------------------------------------------------------
+   7. 列表行（右侧箭头）
+   -------------------------------------------------------------------------- */
+.ds-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-gap-sm);
+  padding: 28rpx var(--ds-gap-lg);
+  position: relative;
+}
+
+.ds-cell:active {
+  background: var(--ds-fill);
+}
+
+/* 分隔线从左内边距开始，不顶到卡片边缘 */
+.ds-cell::after {
+  content: '';
+  position: absolute;
+  left: var(--ds-gap-lg);
+  right: 0;
+  bottom: 0;
+  height: 1rpx;
+  background: var(--ds-divider);
+  transform: scaleY(0.5);
+}
+
+.ds-cell:last-child::after {
+  display: none;
+}
+
+.ds-cell-icon {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: var(--ds-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  background: var(--ds-primary-light);
+  flex-shrink: 0;
+}
+
+.ds-cell-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ds-cell-title {
+  display: block;
+  font-size: 30rpx;
+  color: var(--ds-text);
+}
+
+.ds-cell-desc {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
+}
+
+.ds-cell-arrow {
+  font-size: 34rpx;
+  color: var(--ds-text-disabled);
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   8. 标签
+   -------------------------------------------------------------------------- */
+.ds-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4rpx 16rpx;
+  border-radius: var(--ds-radius-sm);
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+
+.ds-tag-primary {
+  background: var(--ds-primary-light);
+  color: var(--ds-primary-dark);
+}
+
+.ds-tag-success {
+  background: var(--ds-success-light);
+  color: var(--ds-success);
+}
+
+.ds-tag-warning {
+  background: var(--ds-warning-light);
+  color: var(--ds-warning);
+}
+
+.ds-tag-danger {
+  background: var(--ds-danger-light);
+  color: var(--ds-danger);
+}
+
+/* --------------------------------------------------------------------------
+   9. 状态：加载 / 空 / 底部提示
+   -------------------------------------------------------------------------- */
+.ds-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 100rpx 0;
+  color: var(--ds-text-muted);
+  font-size: 26rpx;
+}
+
+.ds-spinner {
+  width: 48rpx;
+  height: 48rpx;
+  margin-bottom: var(--ds-gap-sm);
+  border: 4rpx solid var(--ds-border);
+  border-top-color: var(--ds-primary);
+  border-radius: 50%;
+  animation: ds-spin 0.8s linear infinite;
+}
+
+@keyframes ds-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ds-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120rpx 40rpx;
+  text-align: center;
+}
+
+.ds-empty-icon {
+  font-size: 84rpx;
+  opacity: 0.35;
+  margin-bottom: var(--ds-gap);
+}
+
+.ds-empty-title {
+  font-size: 30rpx;
+  color: var(--ds-text-secondary);
+  margin-bottom: 8rpx;
+}
+
+.ds-empty-desc {
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   10. 骨架屏：列表加载时比"加载中..."更接近商业化观感
+   -------------------------------------------------------------------------- */
+.ds-skeleton {
+  background: linear-gradient(90deg, #eef1f4 25%, #f6f8fa 37%, #eef1f4 63%);
+  background-size: 400% 100%;
+  animation: ds-shimmer 1.4s ease infinite;
+  border-radius: var(--ds-radius-sm);
+}
+
+@keyframes ds-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+.ds-skeleton-card {
+  background: var(--ds-surface);
+  border-radius: var(--ds-radius);
+  padding: var(--ds-gap-lg);
+  margin-bottom: var(--ds-gap);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+/* --------------------------------------------------------------------------
+   11. 文本工具类
+   -------------------------------------------------------------------------- */
+.ds-ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ds-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ds-muted {
+  color: var(--ds-text-muted);
+}
+
+.ds-divider {
+  height: 1rpx;
+  background: var(--ds-divider);
+  transform: scaleY(0.5);
+}

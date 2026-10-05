@@ -98,7 +98,18 @@
         <view class="card-delete-btn" catch:tap="deleteDeviceGroup" data-device-name="{{item.device_name}}" data-lab-name="{{item.lab_name}}" data-device-room="{{item.device_room}}" data-device-type="{{item.device_type}}" data-model="{{item.model}}">
           删除
         </view>
-        <image class="device-img" src="{{item.picture}}" mode="aspectFill"></image>
+        <image
+          wx:if="{{!item.imgFailed}}"
+          class="device-img"
+          src="{{item.picture}}"
+          mode="aspectFill"
+          lazy-load
+          binderror="onGroupImageError"
+          data-index="{{index}}"
+        ></image>
+        <view wx:else class="device-img device-img-fallback">
+          <text class="img-fallback-text">图片加载失败</text>
+        </view>
 
         <view class="card-body">
           <view class="card-top">
@@ -344,7 +355,7 @@
       <view class="form-item">
         <text class="form-label">仪器图片</text>
         <view class="form-image-upload" bindtap="chooseDevicePic">
-          <image wx:if="{{deviceForm.picture}}" class="upload-preview" src="{{deviceForm.picture}}" mode="aspectFill"></image>
+          <image wx:if="{{deviceForm.pictureUrl}}" class="upload-preview" src="{{deviceForm.pictureUrl}}" mode="aspectFill"></image>
           <view wx:else class="upload-empty">
             <text class="upload-plus">+</text>
             <text class="upload-tip">点击上传图片</text>

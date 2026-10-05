@@ -1,4 +1,5 @@
 const db = wx.cloud.database()
+const cloudFile = require('../../../utils/cloudFile.js')
 
 Page({
   data: {
@@ -8,6 +9,7 @@ Page({
     usageStatus: 'idle',
     loadError: false,
     currentDeviceId: '',
+    picFailed: false,
     availableDevices: [],
     usingDevices: [],
     maintenanceDevices: []
@@ -101,12 +103,38 @@ Page({
     }
   },
 
+  // 解析仪器图片为临时链接（cloud:// 不能直接给 <image> 用）
+  resolveDevicePicture: function() {
+    var that = this
+    var device = this.data.device
+    if (!device || !cloudFile.isCloudFileId(device.picture)) return Promise.resolve()
+
+    return cloudFile.resolveTempUrls([device.picture])
+      .then(function(map) {
+        var url = cloudFile.resolveSingle(that.data.device.picture, map)
+        if (url) {
+          that.setData({
+            'device.picture': url,
+            picFailed: false
+          })
+        }
+      })
+      .catch(function(err) {
+        console.error('解析仪器图片失败:', err)
+      })
+  },
+
+  onDeviceImageError: function() {
+    this.setData({ picFailed: true })
+  },
+
   getDeviceDetail: function(deviceId) {
     var that = this
     this.setData({ 
       currentDeviceId: deviceId,
       isLoading: true,
-      loadError: false 
+      loadError: false,
+      picFailed: false
     })
     
     // 获取当前设备信息
@@ -120,7 +148,10 @@ Page({
             device: device,
             deviceModel: that.getDeviceModel(device)
           })
-          
+
+          // 把 cloud:// fileID 换成临时链接，否则 <image> 会报渲染层 500
+          that.resolveDevicePicture()
+
           // 获取同款所有设备并检查使用状态
           that.getAllDevicesStatus(device)
         } else {

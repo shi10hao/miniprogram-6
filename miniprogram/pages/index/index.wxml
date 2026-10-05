@@ -1,88 +1,121 @@
-<view class="container">
-  <!-- 未登录时不显示提醒，其他全部正常显示 -->
+<view class="ds-page">
+  <!-- 标题区：左对齐，比居中的大标题更接近成熟产品 -->
+  <view class="hero">
+    <text class="hero-title">实验室仪器平台</text>
+    <text class="hero-subtitle">资源与环境工程学院</text>
+  </view>
+
+  <!-- 未登录引导 -->
   <view wx:if="{{!isAuthenticated}}" class="login-tip">
-    <text>如需预约或使用仪器，请先登录</text>
-    <view class="login-btn" bindtap="gotoAuth">
-      去登录
+    <view class="login-tip-text">
+      <text class="login-tip-title">尚未登录</text>
+      <text class="login-tip-desc">登录后即可预约和使用仪器</text>
     </view>
+    <view class="ds-btn login-tip-btn" bindtap="gotoAuth">去登录</view>
   </view>
 
-  <view wx:if="{{isAuthenticated && unreadReminder}}" style="margin-bottom: 24rpx; padding: 24rpx; border-radius: 20rpx; background: linear-gradient(135deg, #eefbf3 0%, #ddf7e8 100%); border: 1px solid #9ed8b4;">
-    <view style="display: flex; justify-content: space-between; align-items: center; gap: 16rpx;">
-      <text style="font-size: 30rpx; font-weight: 600; color: #1d6b44;">最新未读提醒</text>
-      <text style="font-size: 22rpx; color: #1d6b44;">{{unreadReminder.create_time}}</text>
+  <!-- 未读提醒：从内联样式改为类名，层级提到最前 -->
+  <view wx:if="{{isAuthenticated && unreadReminder}}" class="reminder-card" bindtap="goToUnreadReminder">
+    <view class="reminder-head">
+      <text class="reminder-label">最新未读提醒</text>
+      <text class="reminder-time">{{unreadReminder.create_time}}</text>
     </view>
-    <view style="margin-top: 12rpx;">
-      <text style="display: block; font-size: 28rpx; font-weight: 600; color: #333;">{{unreadReminder.title}}</text>
-      <text style="display: block; margin-top: 8rpx; font-size: 24rpx; line-height: 1.6; color: #5b6472;">{{unreadReminder.content}}</text>
-    </view>
+    <text class="reminder-title">{{unreadReminder.title}}</text>
+    <text class="reminder-content">{{unreadReminder.content}}</text>
   </view>
 
-  <!-- 订阅公告通知按钮 -->
+  <!-- 订阅公告通知 -->
   <view wx:if="{{isAuthenticated}}" class="subscribe-bar" bindtap="onSubscribeTap">
     <view class="subscribe-left">
       <text class="subscribe-icon">🔔</text>
       <text class="subscribe-text">订阅公告通知</text>
     </view>
-    <view class="subscribe-right">
-      <text class="subscribe-count" wx:if="{{subMsgCount > 0}}">剩余 {{subMsgCount}} 次</text>
-      <text class="subscribe-hint" wx:else>点一次 · 收一次</text>
+    <text class="subscribe-count" wx:if="{{subMsgCount > 0}}">剩余 {{subMsgCount}} 次</text>
+    <text class="subscribe-hint" wx:else>点一次 · 收一次</text>
+  </view>
+
+  <!-- 快捷入口：四个高频功能并排，替代原来"仪器/公告"两张大卡 + 应用页的重复入口 -->
+  <view class="quick-entries">
+    <view
+      class="quick-entry"
+      wx:for="{{quickEntries}}"
+      wx:key="key"
+      data-url="{{item.url}}"
+      data-needauth="{{item.needAuth}}"
+      bindtap="gotoQuickEntry"
+    >
+      <view class="quick-icon">{{item.icon}}</view>
+      <text class="quick-label">{{item.label}}</text>
     </view>
   </view>
 
-  <view class="card-container">
-    <view class="function-cards">
-      <view class="function-card large" bindtap="gotoDeviceList">
-        <view class="card-icon">🔬</view>
-        <text class="card-title">仪器设备</text>
-        <text class="card-desc">查看所有可用仪器设备</text>
-      </view>
-      <view class="function-card large" bindtap="gotoNoticeList">
-        <view class="card-icon">📢</view>
-        <text class="card-title">公告通知</text>
-        <text class="card-desc">查看最新实验室公告</text>
-      </view>
-    </view>
-  </view>
-
-  <view class="common-devices">
-    <view class="section-header">
-      <text class="section-title">⭐ 常用仪器</text>
-      <text class="section-more" bindtap="gotoDeviceList">查看全部</text>
+  <!-- 常用仪器 -->
+  <view class="ds-card">
+    <view class="ds-section-head">
+      <text class="ds-section-title">常用仪器</text>
+      <text class="ds-section-more" bindtap="gotoDeviceList">查看全部</text>
     </view>
 
-    <view wx:if="{{isLoading}}" class="loading">加载中...</view>
+    <view wx:if="{{isLoading}}" class="ds-loading">
+      <view class="ds-spinner"></view>
+      <text>加载中</text>
+    </view>
 
-    <view wx:else class="device-grid">
-      <view class="device-item" wx:for="{{commonDevices}}" wx:key="device_id" bindtap="gotoDeviceDetail" data-deviceid="{{item.device_id}}">
-        <image class="device-img" src="{{item.picture}}" mode="aspectFill"></image>
+    <view wx:elif="{{commonDevices.length > 0}}" class="device-grid">
+      <view
+        class="device-item"
+        wx:for="{{commonDevices}}"
+        wx:key="device_id"
+        bindtap="gotoDeviceDetail"
+        data-deviceid="{{item.device_id}}"
+      >
+        <image
+          wx:if="{{!item.imgFailed}}"
+          class="device-img"
+          src="{{item.picture}}"
+          mode="aspectFill"
+          lazy-load
+          binderror="onCommonDeviceImageError"
+          data-index="{{index}}"
+        ></image>
+        <view wx:else class="device-img device-img-fallback">
+          <text class="device-img-fallback-text">暂无图</text>
+        </view>
         <text class="device-name">{{item.device_name}}</text>
       </view>
+    </view>
 
-      <view class="device-item empty-item" wx:for="{{3 - commonDevices.length}}" wx:key="*this" wx:if="{{commonDevices.length < 3}}">
-        <view class="empty-device-icon">➕</view>
-        <text class="empty-device-text">更多仪器</text>
-      </view>
+    <view wx:else class="ds-empty device-empty">
+      <text class="ds-empty-title">暂无可预约仪器</text>
+      <text class="ds-empty-desc">请联系管理员添加设备</text>
     </view>
   </view>
 
-  <view class="latest-notices">
-    <view class="section-header">
-      <text class="section-title">📢 最新公告</text>
-      <text class="section-more" bindtap="gotoNoticeList">查看全部</text>
+  <!-- 最新公告 -->
+  <view class="ds-card">
+    <view class="ds-section-head">
+      <text class="ds-section-title">最新公告</text>
+      <text class="ds-section-more" bindtap="gotoNoticeList">查看全部</text>
     </view>
 
-    <view class="notice-list">
-      <view class="notice-item" wx:for="{{latestNotices}}" wx:key="_id" bindtap="gotoNoticeDetail" data-noticeid="{{item.notice_id || item._id}}">
+    <view wx:if="{{latestNotices.length > 0}}">
+      <view
+        class="notice-item"
+        wx:for="{{latestNotices}}"
+        wx:key="_id"
+        bindtap="gotoNoticeDetail"
+        data-noticeid="{{item.notice_id || item._id}}"
+      >
         <view class="notice-item-body">
-          <text class="notice-title">{{item.title}}</text>
-          <text class="notice-doc-tag" wx:if="{{item.doc_url}}">含文档</text>
+          <text class="notice-title ds-clamp-2">{{item.title}}</text>
+          <text class="ds-tag ds-tag-primary" wx:if="{{item.doc_url}}">含文档</text>
         </view>
         <text class="notice-date">{{item.publish_date}}</text>
       </view>
-      <view wx:if="{{latestNotices.length === 0}}" class="no-notice">
-        <text>暂无公告</text>
-      </view>
+    </view>
+
+    <view wx:else class="ds-empty notice-empty">
+      <text class="ds-empty-title">暂无公告</text>
     </view>
   </view>
 </view>

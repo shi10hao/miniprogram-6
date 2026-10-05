@@ -1,5 +1,6 @@
 const db = wx.cloud.database()
 const _ = db.command
+const cloudFile = require('../../utils/cloudFile.js')
 const RESERVE_REMIND_TPL_ID = 'rgRmn33I28JIm4REBjzpin2dV474fmrLRxYFTpSJbuk'
 
 Page({
@@ -12,8 +13,9 @@ Page({
       phone: ''
     },
     reservedDevices: [],
-    // 默认选中第一个
-    selectedIndex: 0,
+    // 当前选中的仪器编号。空字符串表示还没选编号
+    // （选中态由 availableDevices[].deviceStatusList[].active 驱动，不再用下标）
+    selectedDeviceId: '',
     device_id: null,
     // 仪器筛选
     // 筛选条件
@@ -55,9 +57,21 @@ Page({
       return
     }
 
+    // 请求序号：只让最后一次请求的结果落地，丢弃过期的慢响应
+    this._loadSeq = 0
+    // 搜索/筛选防抖定时器
+    this._searchTimer = null
+
     this.initData()
     this.getUserInfo()
     this.getAvailableDevices()
+  },
+
+  onUnload() {
+    if (this._searchTimer) {
+      clearTimeout(this._searchTimer)
+      this._searchTimer = null
+    }
   },
 
   // 初始化数据
@@ -155,13 +169,49 @@ Page({
       // console.error('读取用户信息失败:', err)
     }
   },
+  // 搜索输入：防抖，避免每敲一个字就打一轮云函数
   onSearchInput(e) {
+    const keyword = e.detail.value.trim()
     this.setData({
-      'filters.searchKeyword': e.detail.value.trim(),
+      'filters.searchKeyword': keyword,
+      selectedDevice: null
+    })
+
+    this.scheduleReload()
+  },
+
+  // 清除搜索关键词（原来 wxml 绑定了 clearSearch 但 js 里没有实现，点了没反应）
+  clearSearch() {
+    if (this._searchTimer) {
+      clearTimeout(this._searchTimer)
+      this._searchTimer = null
+    }
+    this.setData({
+      'filters.searchKeyword': '',
       selectedDevice: null
     }, () => {
       this.getAvailableDevices()
     })
+  },
+
+  // 合并短时间内的多次「重新加载仪器列表」请求
+  scheduleReload(delay = 350) {
+    if (this._searchTimer) {
+      clearTimeout(this._searchTimer)
+    }
+    this._searchTimer = setTimeout(() => {
+      this._searchTimer = null
+      this.getAvailableDevices()
+    }, delay)
+  },
+
+  // 立即重载（用于点击筛选按钮这类明确的一次性操作）
+  reloadNow() {
+    if (this._searchTimer) {
+      clearTimeout(this._searchTimer)
+      this._searchTimer = null
+    }
+    this.getAvailableDevices()
   },
 
   // 注意！这是将       Object类型        的型号转为        String类型
@@ -178,6 +228,9 @@ Page({
       isLoading: true
     })
 
+    // 请求序号：并发/连续触发时，只有最新一次的结果允许写入 data
+    const seq = ++this._loadSeq
+
     try {
       const {
         filters,
@@ -187,14 +240,19 @@ Page({
         name: 'getAvailableDevices',
         data: {
           filters: this.data.filters,
-          userInfo: this.data.userInfo
+          userInfo: this.data.userInfo,
+          reserveDate: this.data.reserveDate,
+          startTime: this.data.startTime,
+          endTime: this.data.endTime
         }
       })
 
-      const devices = res.result || []
-
-      // console.log("res:", res)
-      // console.log("devices:", devices)
+      // 兼容新老两种返回结构：新的是对象，老的是数组
+      const result = res.result || {}
+      const devices = Array.isArray(result) ? result : (result.list || [])
+      const conflictMap = (Array.isArray(result) ? {} : (result.conflictMap || {}))
+      const reservedDevices = (Array.isArray(result) ? [] : (result.reservedDevices || []))
+      const usingDeviceIds = (Array.isArray(result) ? null : (result.usingDeviceIds || null))
 
       // 如果有搜索关键词，先过滤原始设备，再分组
       const searchKeyword = filters.searchKeyword?.toLowerCase().trim()
@@ -244,8 +302,7 @@ Page({
           }
         }
       })
-      // console.log("groupedMap:", groupedMap)
-      // console.log("Object.values(groupedMap):", Object.values(groupedMap))
+
       const valueOfGroupedMap = Object.values(groupedMap).map(item => {
         var labType = item.labTypes.length === 1 ? item.labTypes[0] : 'mixed'
         var deviceType = item.deviceTypes.length === 1 ? item.deviceTypes[0] : 'mixed'
@@ -255,63 +312,27 @@ Page({
           device_type: deviceType
         }
       })
+
       const deviceIds = valueOfGroupedMap.flatMap(d => d.device_ids)
-      // console.log("deviceIds:", deviceIds)
-      let conflictMap = {}
-      try {
-        const res = await wx.cloud.callFunction({
-          name: 'checkDeviceConflictsBatch',
-          data: {
-            valueOfGroupedMap,
-            deviceIds,
-            reserveDate: this.data.reserveDate,
-            startTime: this.data.startTime,
-            endTime: this.data.endTime
-          }
-        })
-        // console.log("res2:", res)
-        conflictMap = res.result.map || {}
-        let reservedDevices = res.result.reservedDevices
-        this.setData({
-          reservedDevices
-        })
-        // 
-        // console.log("conflictMap,reservedDevices:", conflictMap, this.data.reservedDevices)
-      } catch (err) {
-        // console.error('批量检查冲突失败:', err)
-      }
-      // 查询每个设备自身的 status 字段
-      const deviceSelfStatusMap = {}
-      const deviceIdChunks = []
-      for (let i = 0; i < deviceIds.length; i += 20) {
-        deviceIdChunks.push(deviceIds.slice(i, i + 20))
-      }
-      // console.log("deviceIdChunks:",deviceIdChunks)
-      for (const chunk of deviceIdChunks) {
-        let selfRes
-        try {
-          selfRes = await db.collection('devices')
-            .where({
-              device_id: _.in(chunk)
-            })
-            .field({
-              device_id: true,
-              status: true
-            })
-            .get()
-        } catch (err) {
-          console.error("查询设备状态出错:", err)
-        }
-        (selfRes.data || []).forEach(item => {
-          if (item.device_id) {
-            deviceSelfStatusMap[item.device_id] = item.status || 'available'
-          }
-        })
+
+      // 「设备自身 status」与「使用中状态」原本是逐批串行 await，
+      // 现在只保留 devices 自身 status 这一步，chunk 之间并发执行；
+      // 使用中状态已由云函数一并返回，不再单独往返。
+      const deviceSelfStatusMap = await this.fetchDeviceSelfStatusMap(deviceIds)
+      const usingStatusMap = usingDeviceIds === null
+        ? await this.fetchUsingStatusMap(deviceIds)
+        : this.buildUsingStatusMap(usingDeviceIds)
+
+      if (seq !== this._loadSeq) {
+        // 已经有更新的请求在跑了，丢弃这次结果
+        return
       }
 
-      // console.log("deviceSelfStatusMap:",deviceSelfStatusMap)
-      // 获取每个设备编号的综合状态
-      const deviceStatusMap = await this.getDeviceStatusMap(deviceIds, conflictMap, deviceSelfStatusMap)
+      // 合成每个设备编号的综合状态
+      const deviceStatusMap = this.getDeviceStatusMap(deviceIds, conflictMap, deviceSelfStatusMap, usingStatusMap)
+
+      // 保留当前已选仪器：列表重新加载后选中态不应该丢失
+      const keepDeviceId = this.data.selectedDeviceId || ''
 
       let devicesWithStatus = valueOfGroupedMap.map(group => {
         let total = 0
@@ -320,7 +341,8 @@ Page({
           total += conflictMap[id] || 0
           deviceStatusList.push({
             device_id: id,
-            status: deviceStatusMap[id] || 'available'
+            status: deviceStatusMap[id] || 'available',
+            active: id === keepDeviceId
           })
         })
 
@@ -328,15 +350,36 @@ Page({
           ...group,
           conflictCount: total,
           remainingCount: Math.max(group.totalCount - total, 0),
-          deviceStatusList // 新增：每个设备编号的状态列表
+          deviceStatusList // 每个设备编号的状态列表，与 device_ids 一一对应
         }
       })
 
+      // 列表刷新后重新绑定选中项，避免 selectedDevice 指向已失效的数据
+      let nextSelectedDevice = this.data.selectedDevice
+      if (keepDeviceId) {
+        const group = devicesWithStatus.find(g => g.device_ids.indexOf(keepDeviceId) !== -1)
+        if (group) {
+          nextSelectedDevice = group
+        } else {
+          // 选中的仪器被筛掉或不可用了，清空选中
+          nextSelectedDevice = null
+        }
+      }
+
       this.setData({
         availableDevices: devicesWithStatus,
+        reservedDevices,
+        selectedDevice: nextSelectedDevice,
+        selectedDeviceId: nextSelectedDevice ? keepDeviceId : '',
         isLoading: false
       })
+
+      // 图片是 cloud:// fileID，异步换成临时链接，避免渲染层 500
+      this.resolveDevicePictures()
     } catch (err) {
+      if (seq !== this._loadSeq) {
+        return
+      }
       // console.error('获取仪器列表失败:', err)
       this.setData({
         isLoading: false
@@ -348,8 +391,114 @@ Page({
     }
   },
 
-  // 获取每个设备编号在当前时间段的状态
-  async getDeviceStatusMap(deviceIds, conflictMap, deviceSelfStatusMap) {
+  // 把仪器卡片的 cloud:// 图片换成临时链接（有缓存，重复加载几乎零开销）
+  resolveDevicePictures() {
+    const seq = this._loadSeq
+    const devices = this.data.availableDevices || []
+    const cloudIds = devices
+      .map(d => d.picture)
+      .filter(id => cloudFile.isCloudFileId(id))
+
+    if (!cloudIds.length) return Promise.resolve()
+
+    return cloudFile.resolveTempUrls(cloudIds)
+      .then(map => {
+        if (seq !== this._loadSeq) return
+        const patch = {}
+        devices.forEach((d, i) => {
+          if (!cloudFile.isCloudFileId(d.picture)) return
+          const url = cloudFile.resolveSingle(d.picture, map)
+          if (url) patch[`availableDevices[${i}].picture`] = url
+        })
+        if (Object.keys(patch).length) this.setData(patch)
+      })
+      .catch(err => {
+        console.error('解析仪器图片失败:', err)
+      })
+  },
+
+  // 单张仪器图片加载失败 → 收起图片，避免反复重试刷屏
+  onDeviceImgError(e) {
+    const index = e.currentTarget.dataset.index
+    if (index === undefined || index === null) return
+    this.setData({
+      [`availableDevices[${index}].imgFailed`]: true
+    })
+  },
+
+  // 分批并发查询设备自身的 status 字段
+  fetchDeviceSelfStatusMap(deviceIds) {
+    const selfStatusMap = {}
+    if (!deviceIds || deviceIds.length === 0) return Promise.resolve(selfStatusMap)
+
+    const chunks = []
+    for (let i = 0; i < deviceIds.length; i += 20) {
+      chunks.push(deviceIds.slice(i, i + 20))
+    }
+
+    return Promise.all(chunks.map(chunk =>
+      db.collection('devices')
+        .where({ device_id: _.in(chunk) })
+        .field({ device_id: true, status: true })
+        .get()
+        .catch(err => {
+          console.error('查询设备状态出错:', err)
+          return { data: [] }
+        })
+    )).then(results => {
+      results.forEach(selfRes => {
+        (selfRes.data || []).forEach(item => {
+          if (item.device_id) {
+            selfStatusMap[item.device_id] = item.status || 'available'
+          }
+        })
+      })
+      return selfStatusMap
+    })
+  },
+
+  // 分批并发查询「使用中」的设备（云函数未返回时的兜底路径）
+  fetchUsingStatusMap(deviceIds) {
+    const statusMap = {}
+    if (!deviceIds || deviceIds.length === 0) return Promise.resolve(statusMap)
+
+    const chunks = []
+    for (let i = 0; i < deviceIds.length; i += 20) {
+      chunks.push(deviceIds.slice(i, i + 20))
+    }
+
+    return Promise.all(chunks.map(chunk =>
+      db.collection('device_usage')
+        .where({ device_id: _.in(chunk), status: 'using' })
+        .field({ device_id: true })
+        .get()
+        .catch(err => {
+          console.error('查询使用中设备出错:', err)
+          return { data: [] }
+        })
+    )).then(results => {
+      results.forEach(usingRes => {
+        (usingRes.data || []).forEach(item => {
+          if (item.device_id) {
+            statusMap[item.device_id] = 'using'
+          }
+        })
+      })
+      return statusMap
+    })
+  },
+
+  buildUsingStatusMap(usingDeviceIds) {
+    const statusMap = {}
+    ;(usingDeviceIds || []).forEach(id => {
+      statusMap[id] = 'using'
+    })
+    return statusMap
+  },
+
+  // 合成每个设备编号在当前时间段的状态（纯内存计算，不再访问网络）
+  // 优先级：维修中 > 使用中 > 已预约 > 可用
+  getDeviceStatusMap(deviceIds, conflictMap, deviceSelfStatusMap, usingStatusMap) {
     if (!deviceIds || deviceIds.length === 0) return {}
 
     const statusMap = {}
@@ -358,50 +507,31 @@ Page({
       statusMap[id] = 'available'
     })
 
-    try {
-      // 1. 根据设备自身 status 标记维修中的设备（优先级最高）
-      if (deviceSelfStatusMap) {
-        Object.keys(deviceSelfStatusMap).forEach(id => {
-          if (deviceSelfStatusMap[id] === 'maintenance' && statusMap[id] !== undefined) {
-            statusMap[id] = 'maintenance'
-          }
-        })
-      }
+    // 1. 根据设备自身 status 标记维修中的设备（优先级最高）
+    if (deviceSelfStatusMap) {
+      Object.keys(deviceSelfStatusMap).forEach(id => {
+        if (deviceSelfStatusMap[id] === 'maintenance' && statusMap[id] !== undefined) {
+          statusMap[id] = 'maintenance'
+        }
+      })
+    }
 
-      // 2. 根据 conflictMap 标记已被预约的设备
-      if (conflictMap) {
-        Object.keys(conflictMap).forEach(id => {
-          if (conflictMap[id] > 0 && statusMap[id] === 'available') {
-            statusMap[id] = 'reserved'
-          }
-        })
-      }
+    // 2. 根据 conflictMap 标记已被预约的设备
+    if (conflictMap) {
+      Object.keys(conflictMap).forEach(id => {
+        if (conflictMap[id] > 0 && statusMap[id] === 'available') {
+          statusMap[id] = 'reserved'
+        }
+      })
+    }
 
-      // 3. 分批查询当前正在使用的设备
-      const chunkSize = 20
-      const chunks = []
-      for (let i = 0; i < deviceIds.length; i += chunkSize) {
-        chunks.push(deviceIds.slice(i, i + chunkSize))
-      }
-
-      for (const chunk of chunks) {
-        const usingRes = await db.collection('device_usage')
-          .where({
-            device_id: _.in(chunk),
-            status: 'using'
-          })
-          .get()
-
-        ;
-        (usingRes.data || []).forEach(item => {
-          if (item.device_id && statusMap[item.device_id] === 'available') {
-            statusMap[item.device_id] = 'using'
-          }
-        })
-      }
-
-    } catch (err) {
-      console.error('获取设备状态失败:', err)
+    // 3. 标记当前正在使用的设备
+    if (usingStatusMap) {
+      Object.keys(usingStatusMap).forEach(id => {
+        if (statusMap[id] === 'available') {
+          statusMap[id] = 'using'
+        }
+      })
     }
 
     return statusMap
@@ -464,7 +594,7 @@ Page({
       'filters.deviceType': type,
       selectedDevice: null // 清空已选仪器
     }, () => {
-      this.getAvailableDevices()
+      this.reloadNow()
     })
     // console.log("filters", this.data.filters)
   },
@@ -476,21 +606,60 @@ Page({
       'filters.labType': type,
       selectedDevice: null
     }, () => {
-      this.getAvailableDevices()
+      this.reloadNow()
     })
     // console.log("filters", this.data.filters)
   },
 
-  // 选择仪器
+  // 选择仪器组：只负责展开该组，具体编号由 onSelectDevice 选择
   selectDevice(e) {
     const device = e.currentTarget.dataset.device
+    if (!device) return
+    // 这里不查冲突：此刻还没有具体编号，用组内首台去查没有意义
     this.setData({
       selectedDevice: device,
-      selectedIndex: 0
-    }, () => {
-      this.checkTimeConflict()
-      this.checkPastTime()
-      // console.log("selectedDevice:", this.data.selectedDevice)
+      selectedDeviceId: ''
+    })
+  },
+
+  /**
+   * 选择具体的仪器编号
+   * 注意：必须用内层循环的下标 deviceIndex，不能用外层仪器组的 index。
+   * 原来两者混用，导致在多组仪器时判断的是「另一个组第 N 个编号」的状态，
+   * 会出现"可用"编号被拦下、"维修中"编号反而能选中。
+   */
+  onSelectDevice(e) {
+    const { index: groupIndex, deviceIndex, id: deviceId, status } = e.currentTarget.dataset
+
+    if (status === 'maintenance') {
+      wx.showToast({ title: '该设备维修中，不可预约', icon: 'none' })
+      return
+    }
+    if (status === 'using') {
+      wx.showToast({ title: '该设备正在使用中，不可预约', icon: 'none' })
+      return
+    }
+    if (status === 'reserved') {
+      wx.showToast({ title: '该设备在该时段已被预约', icon: 'none' })
+      return
+    }
+
+    const groups = this.data.availableDevices || []
+    const group = groups[groupIndex]
+    if (!group || !group.deviceStatusList) return
+    if (!group.deviceStatusList[deviceIndex]) return
+
+    // 用路径 setData 只更新变化的那几个字段，避免整表重刷
+    const patch = {
+      selectedDevice: group,
+      selectedDeviceId: deviceId
+    }
+    group.deviceStatusList.forEach((item, i) => {
+      patch[`availableDevices[${groupIndex}].deviceStatusList[${i}].active`] = (item.device_id === deviceId)
+    })
+
+    this.setData(patch, () => {
+      this.checkTimeConflict(false)
     })
   },
 
@@ -513,7 +682,7 @@ Page({
       endDate: newEndDate,
       maxEndDate: this.formatDate(maxEndDateObj)
     }, () => {
-      this.getAvailableDevices()
+      this.scheduleReload(250)
       this.checkTimeConflict()
       this.checkPastTime()
     })
@@ -548,7 +717,7 @@ Page({
     this.setData({
       endDate: selectedDate
     }, () => {
-      this.getAvailableDevices()
+      this.scheduleReload(250)
       this.checkTimeConflict()
       this.checkPastTime()
     })
@@ -560,7 +729,7 @@ Page({
     this.setData({
       startTime: startTime
     }, () => {
-      this.getAvailableDevices()
+      this.scheduleReload(250)
       this.checkTimeConflict()
       this.checkPastTime()
     })
@@ -572,7 +741,7 @@ Page({
     this.setData({
       endTime: endTime
     }, () => {
-      this.getAvailableDevices()
+      this.scheduleReload(250)
       this.checkTimeConflict()
       this.checkPastTime()
     })
@@ -588,7 +757,13 @@ Page({
       endTime
     } = this.data
 
-    if (!selectedDevice || !startDate || !startTime || !endDate || !endTime) return
+    if (!selectedDevice || !startDate || !startTime || !endDate || !endTime) {
+      // 条件不全时清掉旧的冲突状态，避免残留提示挂在新选择上
+      if (this.data.timeConflict) {
+        this.setData({ timeConflict: false })
+      }
+      return
+    }
 
     try {
       const _ = db.command
@@ -597,7 +772,7 @@ Page({
 
       // 跨天冲突检测：查找任何与该时间段重叠的已批准预约
       const whereConditions = [{
-          device_id: selectedDevice.device_id
+          device_id: this.data.selectedDeviceId || selectedDevice.device_id
         },
         {
           status: 'approved'
@@ -793,7 +968,9 @@ Page({
     // 构建预约数据
     const storedUserInfo = wx.getStorageSync('userInfo') || {}
     const reserveData = {
-      device_id: this.data.selectedDevice.device_id,
+      // 必须用用户实际选中的编号，不能用仪器组的第一个编号
+      // （原来取 selectedDevice.device_id 是组内首台，选 B 号会存成 A 号）
+      device_id: this.data.selectedDeviceId || this.data.selectedDevice.device_id,
       device_name: this.data.selectedDevice.device_name,
       device_type: this.data.selectedDevice.device_type,
       lab_type: this.data.selectedDevice.lab_type,
@@ -1162,40 +1339,6 @@ Page({
         // console.log('订阅消息授权失败:', err)
       }
     })
-  },
-
-  onSelectDevice(e) {
-    const index = e.currentTarget.dataset.index;
-    const device_id = e.currentTarget.dataset.id;
-    const status = e.currentTarget.dataset.status;
-
-    // 维修中或使用中的设备不可预约
-    if (status === 'maintenance') {
-      wx.showToast({
-        title: '该设备维修中，不可预约',
-        icon: 'none'
-      })
-      return
-    }
-    if (status === 'using') {
-      wx.showToast({
-        title: '该设备正在使用中，不可预约',
-        icon: 'none'
-      })
-      return
-    }
-
-    const selectedDevice = this.data.selectedDevice;
-    this.setData({
-      selectedIndex: index,
-      selectedDevice: {
-        ...selectedDevice,
-        device_id: device_id
-      }
-    }, () => {
-      this.checkTimeConflict();
-      this.checkPastTime();
-    });
   },
 
   pickReservePage() {

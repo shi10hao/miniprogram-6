@@ -1,187 +1,56 @@
-<view class="reservation-container">
-  <!-- 用户信息卡片 -->
-  <view class="info-card">
-    <view class="info-header">
-      <text class="info-title">用户信息</text>
+<view class="ds-page has-sticky-bar">
+  <!-- ==================== 预约人 ==================== -->
+  <view class="ds-card person-card">
+    <view class="person-avatar">
+      <text>{{userInfo.name[0] || '👤'}}</text>
     </view>
-    <view class="info-content">
-      <view class="info-row">
-        <text class="info-label">姓名：</text>
-        <text class="info-value">{{userInfo.name}}</text>
+    <view class="person-body">
+      <view class="person-line">
+        <text class="person-name">{{userInfo.name}}</text>
+        <text class="person-id">{{userInfo.userId}}</text>
       </view>
-      <view class="info-row">
-        <text class="info-label">学号：</text>
-        <text class="info-value">{{userInfo.userId}}</text>
-      </view>
-      <view class="info-row">
-        <text class="info-label">课题组：</text>
-        <text class="info-value">{{userInfo.researchGroup}}</text>
-      </view>
+      <text class="person-group">{{userInfo.researchGroup}}</text>
     </view>
+    <text class="person-tag">预约人</text>
   </view>
 
-  <!-- 搜索区域 -->
-  <view class="search-section">
-    <view class="search-box">
-      <input class="search-input" placeholder="搜索仪器名称、实验室..." bindinput="onSearchInput" value="{{filters.searchKeyword}}" />
-      <text class="search-icon">🔍</text>
-      <text class="clear-search" wx:if="{{filters.searchKeyword}}" bindtap="clearSearch">✕</text>
+  <!-- ==================== 预约时间 ==================== -->
+  <view class="ds-card">
+    <view class="ds-section-head">
+      <text class="ds-section-title">预约时间</text>
+      <text class="time-hint">8:00 - 22:00</text>
     </view>
-  </view>
 
-  <!-- 筛选区域 -->
-  <view class="filter-section">
-    <!-- 实验室类型筛选 -->
-    <view class="filter-group">
-      <text class="filter-label">实验室类型</text>
-      <view class="filter-buttons">
-        <text class="filter-btn {{filters.labType === 'all' ? 'active' : ''}}" data-type="all" bindtap="onLabTypeChange">全部</text>
-        <text class="filter-btn {{filters.labType === 'public' ? 'active' : ''}}" data-type="public" bindtap="onLabTypeChange">公共实验室</text>
-        <text class="filter-btn {{filters.labType === 'group' ? 'active' : ''}}" data-type="group" bindtap="onLabTypeChange">课题组</text>
+    <view class="time-grid">
+      <view class="time-field">
+        <text class="field-label">开始日期</text>
+        <picker mode="date" value="{{startDate}}" start="{{minDate}}" end="{{maxDate}}" bindchange="onStartDateChange" class="time-picker">
+          <view class="picker-view">{{startDate || '请选择'}}</view>
+        </picker>
+      </view>
+      <view class="time-field">
+        <text class="field-label">开始时间</text>
+        <picker mode="time" value="{{startTime}}" start="08:00" end="22:00" bindchange="onStartTimeChange" class="time-picker">
+          <view class="picker-view">{{startTime || '08:00'}}</view>
+        </picker>
+      </view>
+      <view class="time-field">
+        <text class="field-label">结束日期</text>
+        <picker mode="date" value="{{endDate}}" start="{{startDate}}" end="{{maxEndDate}}" bindchange="onEndDateChange" class="time-picker">
+          <view class="picker-view">{{endDate || '请选择'}}</view>
+        </picker>
+      </view>
+      <view class="time-field">
+        <text class="field-label">结束时间</text>
+        <picker mode="time" value="{{endTime}}" start="08:00" end="22:00" bindchange="onEndTimeChange" class="time-picker">
+          <view class="picker-view">{{endTime || '09:00'}}</view>
+        </picker>
       </view>
     </view>
 
-    <!-- 仪器类型筛选 -->
-    <view class="filter-group">
-      <text class="filter-label">仪器类型</text>
-      <view class="filter-buttons">
-        <text class="filter-btn {{filters.deviceType === 'all' ? 'active' : ''}}" data-type="all" bindtap="onDeviceTypeChange">全部</text>
-        <text class="filter-btn {{filters.deviceType === 'large' ? 'active' : ''}}" data-type="large" bindtap="onDeviceTypeChange">大型仪器</text>
-        <text class="filter-btn {{filters.deviceType === 'small' ? 'active' : ''}}" data-type="small" bindtap="onDeviceTypeChange">小型仪器</text>
-      </view>
-    </view>
-  </view>
-  <!-- 仪器筛选 -->
-  <!-- <view class="filter-card">
-    <view class="filter-header">
-      <text class="filter-title">选择仪器类型</text>
-    </view>
-    <view class="filter-buttons">
-      <button 
-        class="filter-btn {{deviceType === 'all' ? 'active' : ''}}"
-        data-type="all"
-        bindtap="onDeviceTypeChange"
-      >
-        全部仪器
-      </button>
-      <button 
-        class="filter-btn {{deviceType === 'public' ? 'active' : ''}}"
-        data-type="public"
-        bindtap="onDeviceTypeChange"
-      >
-        公共实验室
-      </button>
-      <button 
-        class="filter-btn {{deviceType === 'group' ? 'active' : ''}}"
-        data-type="group"
-        bindtap="onDeviceTypeChange"
-      >
-        课题组仪器
-      </button>
-    </view>
-  </view> -->
-
-  <!-- 仪器列表 -->
-  <view class="device-card">
-    <view class="device-header">
-      <text class="device-title">可用仪器列表</text>
-      <text class="device-count">共 {{availableDevices.length}} 种</text>
-    </view>
-
-    <!-- 加载状态 -->
-    <view wx:if="{{isLoading}}" class="loading">
-      <text>加载中...</text>
-    </view>
-
-    <!-- 空状态 -->
-    <view wx:elif="{{availableDevices.length === 0}}" class="empty">
-      <text class="empty-icon">🔍</text>
-      <text class="empty-text">暂无可用仪器</text>
-    </view>
-
-    <!-- 仪器列表 -->
-    <scroll-view wx:else scroll-y class="device-list">
-      <view class="device-item {{selectedDevice && selectedDevice.device_ids[0] === item.device_ids[0] ? 'selected' : ''}}" wx:for="{{availableDevices}}" wx:key="device_id" data-device="{{item}}" bindtap="selectDevice">
-
-        <!-- 要在下面添加 -->
-        <view class="device-info">
-          <view class="device-name-row">
-            <text class="device-name">{{item.device_name}}</text>
-            <text wx:if="{{item.deviceModel}}" class="device-model-inline">{{item.deviceModel}}</text>
-            <text wx:if="{{item.remainingCount !== undefined && !(selectedDevice && selectedDevice.device_id === item.device_id)}}" class="device-remaining">剩余{{item.remainingCount}}台</text>
-            <view wx:if="{{selectedDevice && selectedDevice.device_id === item.device_id}}" class="selected-indicator">
-              <text class="selected-icon">✓</text>
-            </view>
-          </view>
-          <view class="device-tags">
-            <view class="device-tag lab {{item.lab_type}}">
-              {{item.lab_type === 'public' ? '公共实验室' : (item.lab_type === 'group' ? '课题组' : '公共/课题组')}}
-            </view>
-            <view class="device-tag type {{item.device_type}}">
-              {{item.device_type === 'large' ? '大型仪器' : '小型仪器'}}
-            </view>
-          </view>
-          <view class="device-location-row">
-            <text class="device-lab-name">{{item.lab_name || ''}}</text>
-            <text class="device-room-text" wx:if="{{item.device_room}}">· {{item.device_room}}</text>
-          </view>
-
-          <!-- 点击设备才显示的内容，默认隐藏 -->
-          <view wx:if="{{selectedDevice && selectedDevice.device_ids[0] === item.device_ids[0]}}" class="your-content">
-            <view class="all_devices_btns">
-              <view class="each_devices_btn {{index === selectedIndex ? 'active' : ''}} status-{{item.deviceStatusList[index].status}}" wx:for="{{item.device_ids}}" wx:for-item="device_id" wx:key="*this" data-id="{{device_id}}" data-status="{{item.deviceStatusList[index].status}}" bindtap="onSelectDevice" catchtap data-index="{{index}}">
-                {{device_id}}
-                <text class="status-tag {{item.deviceStatusList[index].status}}">
-                  {{item.deviceStatusList[index].status === 'available' ? '可用' : item.deviceStatusList[index].status === 'reserved' ? '已预约' : item.deviceStatusList[index].status === 'using' ? '使用中' : '维修中'}}
-                </text>
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <!-- 冲突提示 -->
-        <view wx:if="{{item.conflictCount > 0}}" class="conflict-warning">
-          <text class="warning-icon">⚠️</text>
-          <text class="warning-text">这段时间已有 {{item.conflictCount}} 个预约</text>
-        </view>
-      </view>
-    </scroll-view>
-  </view>
-
-  <!-- 预约时间 -->
-  <view class="time-card">
-    <view class="time-header">
-      <text class="time-title">预约时间</text>
-    </view>
-    <view class="time-section">
-      <text class="time-label">开始日期</text>
-      <picker mode="date" value="{{startDate}}" start="{{minDate}}" end="{{maxDate}}" bindchange="onStartDateChange" class="time-picker">
-        <view class="picker-view">{{startDate || '请选择开始日期'}}</view>
-      </picker>
-    </view>
-    <!-- 开始时间 -->
-    <view class="time-section">
-      <text class="time-label">开始时间 (8:00-22:00)</text>
-      <picker mode="time" value="{{startTime}}" start="08:00" end="22:00" bindchange="onStartTimeChange" class="time-picker">
-        <view class="picker-view">{{startTime || '08:00'}}</view>
-      </picker>
-    </view>
-    <view class="time-section">
-      <text class="time-label">结束日期</text>
-      <picker mode="date" value="{{endDate}}" start="{{startDate}}" end="{{maxEndDate}}" bindchange="onEndDateChange" class="time-picker">
-        <view class="picker-view">{{endDate || '请选择结束日期'}}</view>
-      </picker>
-    </view>
-    <!-- 结束时间 -->
-    <view class="time-section">
-      <text class="time-label">结束时间 (8:00-22:00)</text>
-      <picker mode="time" value="{{endTime}}" start="08:00" end="22:00" bindchange="onEndTimeChange" class="time-picker">
-        <view class="picker-view">{{endTime || '09:00'}}</view>
-      </picker>
-    </view>
-
+    <!-- 系统预约单 -->
     <view class="reserve-page-section">
-      <text class="reserve-page-label">系统预约单</text>
+      <text class="field-label">系统预约单</text>
       <view class="slot-upload" bind:tap="pickReservePage">
         <view wx:if="{{reservePage}}" class="slot-preview">
           <image class="slot-img" src="{{reservePage}}" mode="aspectFill" />
@@ -193,43 +62,217 @@
       </view>
     </view>
 
-    <!-- 时间冲突提示 -->
-    <view wx:if="{{timeConflict}}" class="conflict-alert">
+    <view wx:if="{{timeConflict}}" class="alert alert-danger">
       <text class="alert-icon">🚫</text>
-      <text class="alert-text">该时段已被预约，请选择其他时间/仪器实例</text>
+      <text class="alert-text">该时段已被预约，请选择其他时间或仪器实例</text>
     </view>
-
-    <!-- 过去时间提示 -->
-    <view wx:if="{{isPastTime}}" class="past-time-alert">
+    <view wx:if="{{isPastTime}}" class="alert alert-warning">
       <text class="alert-icon">⏰</text>
       <text class="alert-text">不能预约过去的时间</text>
     </view>
   </view>
 
-  <!-- 提交按钮 -->
-  <button class="submit-btn {{!selectedDevice ? 'disabled' : ''}}" bindtap="submitReservation" disabled="{{isLoading || !selectedDevice}}">
+  <!-- ==================== 选择仪器 ==================== -->
+  <view class="ds-card">
+    <view class="ds-section-head">
+      <text class="ds-section-title">选择仪器</text>
+      <text class="device-count">共 {{availableDevices.length}} 种</text>
+    </view>
+
+    <!-- 搜索 -->
+    <view class="search-box">
+      <text class="search-icon">🔍</text>
+      <input
+        class="search-input"
+        placeholder="搜索仪器名称、实验室..."
+        bindinput="onSearchInput"
+        value="{{filters.searchKeyword}}"
+        confirm-type="search"
+      />
+      <text class="clear-search" wx:if="{{filters.searchKeyword}}" bindtap="clearSearch">✕</text>
+    </view>
+
+    <!-- 筛选：每个条件独占一行，标签在左、按钮在右，保证点击区域够大 -->
+    <view class="filter-block">
+      <view class="filter-line">
+        <text class="filter-label">实验室</text>
+        <view class="filter-buttons">
+          <text class="filter-btn {{filters.labType === 'all' ? 'active' : ''}}" data-type="all" bindtap="onLabTypeChange">全部</text>
+          <text class="filter-btn {{filters.labType === 'public' ? 'active' : ''}}" data-type="public" bindtap="onLabTypeChange">公共实验室</text>
+          <text class="filter-btn {{filters.labType === 'group' ? 'active' : ''}}" data-type="group" bindtap="onLabTypeChange">课题组</text>
+        </view>
+      </view>
+      <view class="filter-line">
+        <text class="filter-label">仪器</text>
+        <view class="filter-buttons">
+          <text class="filter-btn {{filters.deviceType === 'all' ? 'active' : ''}}" data-type="all" bindtap="onDeviceTypeChange">全部</text>
+          <text class="filter-btn {{filters.deviceType === 'large' ? 'active' : ''}}" data-type="large" bindtap="onDeviceTypeChange">大型仪器</text>
+          <text class="filter-btn {{filters.deviceType === 'small' ? 'active' : ''}}" data-type="small" bindtap="onDeviceTypeChange">小型仪器</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载中 -->
+    <view wx:if="{{isLoading}}" class="ds-loading">
+      <view class="ds-spinner"></view>
+      <text>加载中</text>
+    </view>
+
+    <!-- 空状态 -->
+    <view wx:elif="{{availableDevices.length === 0}}" class="ds-empty">
+      <text class="ds-empty-icon">🔍</text>
+      <text class="ds-empty-title">暂无可用仪器</text>
+      <text class="ds-empty-desc">请调整筛选条件或联系管理员</text>
+    </view>
+
+    <view wx:else class="device-list">
+      <!-- 仪器数量多，用内层滚动把后续卡片保持在首屏可见范围内 -->
+      <scroll-view scroll-y class="device-scroll">
+        <view
+          class="device-card {{selectedDevice && selectedDevice.device_ids[0] === group.device_ids[0] ? 'selected' : ''}}"
+          wx:for="{{availableDevices}}"
+          wx:for-item="group"
+          wx:for-index="groupIndex"
+          wx:key="device_id"
+          data-device="{{group}}"
+          bindtap="selectDevice"
+        >
+          <!-- 主行：缩略图 + 名称/型号 + 右侧状态 -->
+          <view class="device-card-main">
+            <view class="device-thumb">
+              <image
+                wx:if="{{group.picture && !group.imgFailed}}"
+                class="device-thumb-img"
+                src="{{group.picture}}"
+                mode="aspectFill"
+                lazy-load
+                binderror="onDeviceImgError"
+                data-index="{{groupIndex}}"
+              ></image>
+              <view wx:else class="device-thumb-fallback">
+                <text class="device-thumb-icon">{{group.device_type === 'large' ? '🧪' : '🔬'}}</text>
+              </view>
+            </view>
+
+            <view class="device-info">
+              <view class="device-name-row">
+                <text class="device-name">{{group.device_name}}</text>
+                <text wx:if="{{group.deviceModel}}" class="device-model">{{group.deviceModel}}</text>
+              </view>
+
+              <view class="device-tags">
+                <text class="ds-tag {{group.lab_type === 'public' ? 'ds-tag-primary' : (group.lab_type === 'group' ? 'ds-tag-warning' : 'ds-tag-success')}}">
+                  {{group.lab_type === 'public' ? '公共实验室' : (group.lab_type === 'group' ? '课题组' : '公共/课题组')}}
+                </text>
+                <text class="ds-tag {{group.device_type === 'large' ? 'ds-tag-danger' : 'ds-tag-success'}}">
+                  {{group.device_type === 'large' ? '大型仪器' : '小型仪器'}}
+                </text>
+              </view>
+
+              <view class="device-location-row">
+                <text class="device-location-icon">📍</text>
+                <text class="device-lab-name">{{group.lab_name || '未设置实验室'}}</text>
+                <text class="device-room-text" wx:if="{{group.device_room}}">· {{group.device_room}}</text>
+              </view>
+            </view>
+
+            <view class="device-side">
+              <text
+                wx:if="{{group.remainingCount > 0 && !(selectedDevice && selectedDevice.device_ids[0] === group.device_ids[0])}}"
+                class="device-remaining"
+              >剩余 {{group.remainingCount}} 台</text>
+              <text
+                wx:elif="{{group.remainingCount === 0 && !(selectedDevice && selectedDevice.device_ids[0] === group.device_ids[0])}}"
+                class="device-full"
+              >已约满</text>
+              <view
+                wx:if="{{selectedDevice && selectedDevice.device_ids[0] === group.device_ids[0]}}"
+                class="selected-indicator"
+              >
+                <text class="selected-icon">✓</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 冲突提示 -->
+          <view wx:if="{{group.conflictCount > 0}}" class="conflict-warning">
+            <text class="warning-icon">⚠️</text>
+            <text class="warning-text">这段时间已有 {{group.conflictCount}} 个预约</text>
+          </view>
+
+          <!-- 选中该组后才展示编号。deviceStatusList 与 device_ids 一一对应，
+               所以这里直接用 deviceStatusList 的 index，不再跨循环取下标 -->
+          <view
+            wx:if="{{selectedDevice && selectedDevice.device_ids[0] === group.device_ids[0]}}"
+            class="your-content"
+          >
+            <text class="sub-label">选择仪器编号</text>
+            <view class="all_devices_btns">
+              <view
+                class="each_devices_btn status-{{deviceItem.status}} {{deviceItem.active ? 'active' : ''}}"
+                wx:for="{{group.deviceStatusList}}"
+                wx:for-item="deviceItem"
+                wx:for-index="deviceIndex"
+                wx:key="device_id"
+                data-index="{{groupIndex}}"
+                data-device-index="{{deviceIndex}}"
+                data-id="{{deviceItem.device_id}}"
+                data-status="{{deviceItem.status}}"
+                bindtap="onSelectDevice"
+                catchtap
+              >
+                <text class="device-no">{{deviceItem.device_id}}</text>
+                <text class="status-tag">
+                  {{deviceItem.status === 'available' ? '可用' : deviceItem.status === 'reserved' ? '已预约' : deviceItem.status === 'using' ? '使用中' : '维修中'}}
+                </text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+  </view>
+
+  <!-- ==================== 预约说明 ==================== -->
+  <view class="ds-card">
+    <view class="ds-section-head">
+      <text class="ds-section-title">预约说明</text>
+    </view>
+    <view class="instructions">
+      <view class="instruction-item">
+        <text class="bullet"></text>
+        <text class="instruction-text">只能预约公共实验室和自己课题组的仪器</text>
+      </view>
+      <view class="instruction-item">
+        <text class="bullet"></text>
+        <text class="instruction-text">预约时间为每日 8:00-22:00，最多可跨 2 天</text>
+      </view>
+      <view class="instruction-item">
+        <text class="bullet"></text>
+        <text class="instruction-text">选择仪器后再选择具体的仪器编号</text>
+      </view>
+      <view class="instruction-item">
+        <text class="bullet"></text>
+        <text class="instruction-text">同一时间段内不可重复预约同一台仪器</text>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- ==================== 吸底提交栏 ==================== -->
+<view class="submit-bar">
+  <view class="submit-bar-info">
+    <text wx:if="{{selectedDevice}}" class="submit-device">{{selectedDevice.device_name}}</text>
+    <text wx:if="{{selectedDevice && selectedDeviceId}}" class="submit-slot">{{selectedDeviceId}}</text>
+    <text wx:if="{{!selectedDevice}}" class="submit-tip">请先选择仪器</text>
+    <text wx:elif="{{!selectedDeviceId}}" class="submit-tip">请选择仪器编号</text>
+  </view>
+  <button
+    class="ds-btn submit-btn {{(!selectedDevice || !selectedDeviceId) ? 'disabled' : ''}}"
+    bindtap="submitReservation"
+    disabled="{{isLoading || !selectedDevice || !selectedDeviceId}}"
+  >
     <text wx:if="{{!isLoading}}">提交预约</text>
     <text wx:else>提交中...</text>
   </button>
-
-  <!-- 底部说明 -->
-  <view class="instructions">
-    <text class="instructions-title">预约说明</text>
-    <view class="instruction-item">
-      <text class="bullet">•</text>
-      <text class="instruction-text">只能预约公共实验室和自己课题组的仪器</text>
-    </view>
-    <view class="instruction-item">
-      <text class="bullet">•</text>
-      <text class="instruction-text">预约时间为每日8:00-22:00</text>
-    </view>
-    <view class="instruction-item">
-      <text class="bullet">•</text>
-      <text class="instruction-text">选择仪器后需选择具体的仪器编号</text>
-    </view>
-    <view class="instruction-item">
-      <text class="bullet">•</text>
-      <text class="instruction-text">同一时间段内不可重复预约同一台仪器</text>
-    </view>
-  </view>
 </view>

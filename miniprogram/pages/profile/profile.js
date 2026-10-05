@@ -1,3 +1,5 @@
+const db = wx.cloud.database()
+
 Page({
   data: {
     userInfo: {
@@ -9,7 +11,13 @@ Page({
     adminContacts: [],
     avatarText: '👤',
     latestFeedback: '',
-    isAuthenticated: false
+    isAuthenticated: false,
+    // 数据概览：与工作台同源，让"我的"页不只是一堆入口
+    overview: {
+      pending: 0,
+      using: 0,
+      history: 0
+    }
   },
 
   onLoad() {
@@ -40,15 +48,51 @@ Page({
           isAuthenticated: true
         })
         this.loadAdminContacts(userInfo.groupName)
+        this.loadOverview(userInfo.userId)
       } else {
         this.setData({
           isAuthenticated: false,
-          adminContacts: []
+          adminContacts: [],
+          overview: { pending: 0, using: 0, history: 0 }
         })
       }
     } catch (err) {
       // console.error('读取用户信息失败:', err)
     }
+  },
+
+  /**
+   * 三个概览数字：待开始预约 / 使用中 / 历史记录
+   * 只取 count，不把记录全拉回来。字段名与工作台保持一致。
+   */
+  loadOverview(userId) {
+    if (!userId) return Promise.resolve()
+
+    return Promise.all([
+      db.collection('reserves').where({ user_id: userId, status: 'approved' }).count(),
+      db.collection('device_usage').where({ user_id: userId, status: 'using' }).count(),
+      db.collection('device_usage').where({ user_id: userId, status: 'completed' }).count()
+    ]).then(results => {
+      this.setData({
+        overview: {
+          pending: (results[0] && results[0].total) || 0,
+          using: (results[1] && results[1].total) || 0,
+          history: (results[2] && results[2].total) || 0
+        }
+      })
+    }).catch(err => {
+      console.error('加载使用概览失败:', err)
+    })
+  },
+
+  // 概览数字点击：使用中的记录跳仪器使用页，其余跳预约记录
+  goOverview(e) {
+    const key = e.currentTarget.dataset.key
+    const url = key === 'using' ? '/pages/usage/usage' : '/pages/appointment/appointment'
+    wx.navigateTo({
+      url,
+      fail: function() {}
+    })
   },
 
   goToLogin() {
@@ -58,7 +102,7 @@ Page({
   },
 
   loadAdminContacts(userGroupName) {
-    const db = wx.cloud.database()
+    // db 已在文件顶部声明，这里不再重复获取，避免遮蔽外层变量
     const _ = db.command
 
     var whereCondition
@@ -125,11 +169,6 @@ Page({
         }
       }
     })
-  },
-
-  navigateToFeedback() {
-    if (!this.data.isAuthenticated) { this.showAuthPrompt(); return }
-    wx.navigateTo({ url: '/pages/feedback/feedback' })
   },
 
   navigateToDutyUpload() {

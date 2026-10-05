@@ -1,182 +1,127 @@
-.container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  padding: 30rpx;
+/* 工作台样式 —— 使用 app.wxss 的设计变量 */
+
+/* --------------------------------------------------------------------------
+   页面标题（与首页保持同一套 hero 样式）
+   -------------------------------------------------------------------------- */
+.hero {
+  padding: 16rpx 8rpx 40rpx;
 }
 
-.page-header {
-  text-align: center;
-  margin-bottom: 50rpx;
-  padding: 40rpx 0;
-}
-
-.page-title {
+.hero-title {
   display: block;
-  font-size: 42rpx;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 16rpx;
+  font-size: 46rpx;
+  font-weight: 700;
+  color: var(--ds-text);
+  letter-spacing: 1rpx;
 }
 
-.page-subtitle {
+.hero-subtitle {
   display: block;
-  font-size: 28rpx;
-  color: #666;
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  color: var(--ds-text-muted);
 }
 
-/* 功能网格 */
-.function-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 24rpx;
-  margin-bottom: 50rpx;
+/* --------------------------------------------------------------------------
+   使用概览
+   -------------------------------------------------------------------------- */
+.overview-card {
+  padding: var(--ds-gap-lg) var(--ds-gap) var(--ds-gap);
 }
 
-.function-card {
-  background: white;
-  border-radius: 20rpx;
-  padding: 40rpx 30rpx;
+.overview-head {
   display: flex;
   align-items: center;
-  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
+  justify-content: space-between;
+  padding: 0 var(--ds-gap-sm) var(--ds-gap);
 }
 
-.function-card:active {
-  transform: translateY(4rpx);
-  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.12);
-}
-
-.function-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4rpx;
-  background: inherit;
-  border-top-left-radius: 20rpx;
-  border-top-right-radius: 20rpx;
-}
-
-.function-icon {
-  font-size: 60rpx;
-  margin-right: 30rpx;
-  width: 80rpx;
-  text-align: center;
-}
-
-.function-info {
-  flex: 1;
-}
-
-.function-name {
-  display: block;
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 8rpx;
-}
-
-.function-desc {
-  display: block;
-  font-size: 24rpx;
-  color: #666;
-}
-
-.function-arrow {
-  font-size: 32rpx;
-  color: #999;
-  font-weight: bold;
-  margin-left: 20rpx;
-}
-
-/* 快速入口 */
-.quick-access {
-  background: white;
-  border-radius: 20rpx;
-  padding: 40rpx;
-  margin-bottom: 30rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
-}
-
-.section-title {
+.overview-title {
   font-size: 30rpx;
   font-weight: 600;
-  color: #333;
-  margin-bottom: 30rpx;
-  text-align: center;
+  color: var(--ds-text);
 }
 
-.quick-buttons {
-  display: flex;
-  justify-content: center;
+.overview-hint {
+  font-size: 24rpx;
+  color: var(--ds-primary);
 }
 
-.quick-btn {
-  background: linear-gradient(135deg, #62BCC4, #4aa8b0);
-  color: white;
-  border: none;
-  border-radius: 50rpx;
-  padding: 24rpx 48rpx;
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.overview-item {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16rpx;
-  font-size: 28rpx;
-  font-weight: 500;
-  box-shadow: 0 6rpx 20rpx rgba(98, 188, 196, 0.3);
+  gap: 8rpx;
+  padding: 12rpx 0;
+  position: relative;
 }
 
-.quick-btn:active {
-  transform: translateY(2rpx);
-  box-shadow: 0 4rpx 12rpx rgba(98, 188, 196, 0.4);
+.overview-item:active {
+  opacity: 0.7;
 }
 
-.quick-icon {
-  font-size: 32rpx;
+/* 用分隔线代替边框，视觉更轻 */
+.overview-item + .overview-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rpx;
+  height: 56rpx;
+  background: var(--ds-divider);
 }
 
-.quick-text {
-  font-size: 28rpx;
+.overview-num {
+  font-size: 48rpx;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ds-text);
+  font-variant-numeric: tabular-nums;
 }
 
-/* 使用提示 */
-.usage-tips {
-  background: white;
-  border-radius: 20rpx;
-  padding: 40rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
+.overview-num.accent {
+  color: var(--ds-primary);
 }
 
-.tips-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 30rpx;
-  padding-bottom: 20rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+.overview-label {
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
 }
 
-.tips-icon {
-  font-size: 32rpx;
-  margin-right: 16rpx;
-}
-
-.tips-title {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #333;
-}
-
+/* --------------------------------------------------------------------------
+   使用提示
+   -------------------------------------------------------------------------- */
 .tips-content {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 20rpx;
 }
 
 .tip-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+}
+
+.tip-dot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: var(--ds-primary);
+  margin-top: 16rpx;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.tip-text {
+  flex: 1;
   font-size: 26rpx;
-  color: #666;
-  line-height: 1.5;
+  line-height: 1.6;
+  color: var(--ds-text-secondary);
 }

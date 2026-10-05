@@ -13,6 +13,7 @@
 
 const db = wx.cloud.database()
 const _ = db.command
+const cloudFile = require('../../utils/cloudFile.js')
 
 // ========== 常量定义 ==========
 
@@ -76,6 +77,7 @@ Page({
         device_id: ''
       }],
       picture: '',
+      pictureUrl: '', // 图片预览用的临时链接（picture 里存的是 cloud:// fileID）
       operation_procedure: '',
       precautions: '',
       specificationsText: ''
@@ -521,6 +523,7 @@ Page({
         hasMore: hasMore,
         isLoadingDevices: false
       })
+      self.resolveGroupPictures('displayedGroups')
     }).catch(function (err) {
       wx.hideLoading()
       console.error('加载仪器状态失败:', err)
@@ -566,6 +569,7 @@ Page({
         currentPage: currentPage + 1,
         hasMore: hasMore
       })
+      self.resolveGroupPictures('displayedGroups')
     }).catch(function (err) {
       self._loadingMore = false
       console.error('加载更多失败:', err)
@@ -574,6 +578,33 @@ Page({
         icon: 'none'
       })
     })
+  },
+
+  /** 解析仪器组列表的图片（cloud:// → 临时链接），避免 <image> 渲染 500 */
+  resolveGroupPictures: function (field) {
+    var self = this
+    var list = this.data[field] || []
+    if (!list.length) return Promise.resolve()
+
+    return cloudFile.resolveListField(list, 'picture')
+      .then(function (resolved) {
+        if (resolved === list) return
+        var patch = {}
+        patch[field] = resolved
+        self.setData(patch)
+      })
+      .catch(function (err) {
+        console.error('解析仪器组图片失败:', err)
+      })
+  },
+
+  // 仪器组缩略图加载失败 → 隐藏图片，避免反复重试刷屏
+  onGroupImageError: function (e) {
+    var index = e.currentTarget.dataset.index
+    if (index === undefined || index === null) return
+    var patch = {}
+    patch['displayedGroups[' + index + '].imgFailed'] = true
+    this.setData(patch)
   },
 
   // ==================== 预约概览（Tab 1） ====================
@@ -1350,6 +1381,7 @@ Page({
           device_id: ''
         }],
         picture: '',
+        pictureUrl: '',
         operation_procedure: '',
         precautions: '',
         specificationsText: ''
@@ -1430,8 +1462,20 @@ Page({
           filePath: tempPath,
           success: function (uploadRes) {
             wx.hideLoading()
-            self.setData({
-              'deviceForm.picture': uploadRes.fileID
+            var fileID = uploadRes.fileID
+            // 预览需要临时链接；cloud:// 直接渲染会报渲染层 500
+            // deviceForm.picture 仍保存 fileID，保证入库的是云文件地址
+            cloudFile.resolveTempUrls([fileID]).then(function (map) {
+              var previewUrl = map[fileID] || ''
+              self.setData({
+                'deviceForm.picture': fileID,
+                'deviceForm.pictureUrl': previewUrl
+              })
+            }).catch(function () {
+              self.setData({
+                'deviceForm.picture': fileID,
+                'deviceForm.pictureUrl': ''
+              })
             })
           },
           fail: function (err) {

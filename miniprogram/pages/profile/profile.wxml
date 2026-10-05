@@ -1,80 +1,108 @@
-<view class="container">
-  <view class="user-card">
-    <view class="user-avatar">
-      <text>{{avatarText}}</text>
-    </view>
-    <view class="user-info">
-      <text class="user-name">{{userInfo.name}}</text>
-      <text class="user-id">学号：{{userInfo.userId}}</text>
-    </view>
-  </view>
-
-  <!-- 🔴 新增：未登录显示醒目登录按钮 -->
-  <view wx:if="{{!isAuthenticated}}" style="margin:30rpx 0;text-align:center">
-    <button class="login-btn" bindtap="goToLogin">立即登录</button>
-  </view>
-
-  <!-- 🔴 加了 wx:if="{{isAuthenticated}}" -->
-  <view class="info-card" wx:if="{{isAuthenticated}}">
-    <view class="info-row">
-      <text class="info-label">专业</text>
-      <text class="info-value">{{userInfo.major}}</text>
-    </view>
-    <view class="info-row">
-      <text class="info-label">课题组</text>
-      <text class="info-value">{{userInfo.groupName}}</text>
-    </view>
-  </view>
-
-  <!-- 🔴 加了 wx:if="{{isAuthenticated}}" -->
-  <view class="info-card" wx:if="{{isAuthenticated && adminContacts.length > 0}}">
-    <view class="card-title">联系管理员</view>
-    <view class="admin-item" wx:for="{{adminContacts}}" wx:key="_id">
-      <view class="admin-row">
-        <text class="admin-icon">👨‍🔬</text>
-        <view class="admin-detail">
-          <text class="admin-name">{{item.name}}</text>
-          <text class="admin-role">{{item.role === 'admin' ? '系统管理员' : '课题组长'}}</text>
+<view class="ds-page">
+  <!-- ==================== 已登录 ==================== -->
+  <block wx:if="{{isAuthenticated}}">
+    <!-- 用户卡：白底 + 品牌色描边 + 认证标识 -->
+    <view class="profile-card">
+      <view class="profile-main">
+        <view class="profile-avatar">
+          <text>{{avatarText}}</text>
+        </view>
+        <view class="profile-text">
+          <view class="profile-name-row">
+            <text class="profile-name">{{userInfo.name}}</text>
+            <text class="profile-verified">已认证</text>
+          </view>
+          <text class="profile-meta">{{userInfo.groupName}} · {{userInfo.major}}</text>
+          <text class="profile-id">学号 {{userInfo.userId}}</text>
         </view>
       </view>
-      <view class="admin-contact-row" wx:if="{{item.phone}}">
-        <text class="admin-phone-label">电话</text>
-        <text class="admin-phone" data-phone="{{item.phone}}">{{item.phone}}</text>
+
+      <!-- 数据概览：真实数字，点击可跳转 -->
+      <view class="stat-row">
+        <view class="stat-item" bindtap="goOverview" data-key="pending">
+          <text class="stat-num">{{overview.pending}}</text>
+          <text class="stat-label">待开始预约</text>
+        </view>
+        <view class="stat-item" bindtap="goOverview" data-key="using">
+          <text class="stat-num {{overview.using > 0 ? 'active' : ''}}">{{overview.using}}</text>
+          <text class="stat-label">使用中</text>
+        </view>
+        <view class="stat-item" bindtap="goOverview" data-key="history">
+          <text class="stat-num">{{overview.history}}</text>
+          <text class="stat-label">历史记录</text>
+        </view>
       </view>
     </view>
-  </view>
 
-  <!-- 🔴 加了 wx:if="{{isAuthenticated}}" -->
-  <view class="menu-card" wx:if="{{isAuthenticated}}">
-    <view class="menu-item" bindtap="navigateToAppointment">
-      <text class="menu-icon">📋</text>
-      <text class="menu-text">我的预约</text>
-      <text class="menu-arrow">›</text>
+    <!-- 常用服务：图标磁贴 -->
+    <view class="ds-card">
+      <view class="ds-section-head">
+        <text class="ds-section-title">常用服务</text>
+      </view>
+      <view class="service-grid">
+        <view class="service-item" bindtap="navigateToAppointment">
+          <view class="service-icon">📋</view>
+          <text class="service-label">我的预约</text>
+        </view>
+        <view class="service-item" bindtap="navigateToDutyUpload">
+          <view class="service-icon">📝</view>
+          <text class="service-label">安全员打卡</text>
+        </view>
+        <view class="service-item" bindtap="navigateToCommunication">
+          <view class="service-icon">👥</view>
+          <text class="service-label">经验交流</text>
+        </view>
+        <view class="service-item" bindtap="navigateToAbout">
+          <view class="service-icon">ℹ️</view>
+          <text class="service-label">关于我们</text>
+        </view>
+      </view>
     </view>
-    <view class="menu-item" bindtap="navigateToFeedback">
-      <text class="menu-icon">💬</text>
-      <text class="menu-text">管理员消息</text>
-      <text class="menu-arrow">›</text>
-    </view>
-    <view class="menu-item" bindtap="navigateToDutyUpload">
-      <text class="menu-icon">📝</text>
-      <text class="menu-text">安全员</text>
-      <text class="menu-arrow">›</text>
-    </view>
-    <view class="menu-item" bindtap="navigateToCommunication">
-      <text class="menu-icon">👥</text>
-      <text class="menu-text">与学长学姐交流</text>
-      <text class="menu-arrow">›</text>
-    </view>
-    <view class="menu-item" bindtap="navigateAbout">
-      <text class="menu-icon">ℹ️</text>
-      <text class="menu-text">关于我们</text>
-      <text class="menu-arrow">›</text>
-    </view>
-  </view>
 
-  <!-- 🔴 加了 wx:if="{{isAuthenticated}}" -->
-  <view class="logout-section" wx:if="{{isAuthenticated}}">
-    <button class="logout-button" bindtap="logout">退出登录</button>
-  </view>
+    <!-- 联系管理员 -->
+    <view class="ds-card" wx:if="{{adminContacts.length > 0}}">
+      <view class="ds-section-head">
+        <text class="ds-section-title">联系管理员</text>
+      </view>
+      <view class="admin-item" wx:for="{{adminContacts}}" wx:key="_id">
+        <view class="admin-row">
+          <view class="admin-avatar">{{item.name[0]}}</view>
+          <view class="admin-detail">
+            <text class="admin-name">{{item.name}}</text>
+            <text class="admin-role">{{item.role === 'admin' ? '系统管理员' : '课题组长'}}</text>
+          </view>
+          <text class="admin-phone" wx:if="{{item.phone}}" user-select>{{item.phone}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 退出登录 -->
+    <view class="logout-section">
+      <button class="ds-btn ds-btn-block ds-btn-danger logout-button" bindtap="logout">退出登录</button>
+    </view>
+  </block>
+
+  <!-- ==================== 未登录 ==================== -->
+  <block wx:else>
+    <view class="hero">
+      <text class="hero-title">我的</text>
+      <text class="hero-subtitle">登录后查看个人信息</text>
+    </view>
+
+    <view class="login-panel">
+      <text class="login-panel-text">完成身份认证后即可预约实验室仪器</text>
+      <button class="ds-btn ds-btn-block login-btn" bindtap="goToLogin">立即登录</button>
+    </view>
+
+    <view class="ds-card ds-card-tight menu-group">
+      <view class="ds-cell" bindtap="navigateToAbout">
+        <view class="ds-cell-icon">ℹ️</view>
+        <view class="ds-cell-body">
+          <text class="ds-cell-title">关于我们</text>
+          <text class="ds-cell-desc">平台介绍、使用协议与隐私政策</text>
+        </view>
+        <text class="ds-cell-arrow">›</text>
+      </view>
+    </view>
+  </block>
 </view>

@@ -98,9 +98,22 @@
       <text style="display: block; margin-bottom: 16rpx; color: #6b7280; font-size: 24rpx;">使用过程中拍摄的照片请在这里上传，提醒消息中的“上传照片板块”即此处。</text>
 
       <!-- 4.1.1 如果有正在使用的，就进行正在使用的仪器照片循环 -->
-      <view wx:if="{{currentUsage.usage_images && currentUsage.usage_images.length > 0}}" class="photos-grid">
-        <view class="photo-item" wx:for="{{currentUsage.usage_images}}" wx:key="*this">
-          <image class="photo-img" src="{{item}}" mode="aspectFill"></image>
+      <view wx:if="{{selfUsageImages.length > 0}}" class="photos-grid">
+        <view class="photo-item" wx:for="{{selfUsageImages}}" wx:key="fileId">
+          <image
+            wx:if="{{!item.failed}}"
+            class="photo-img"
+            src="{{item.url}}"
+            mode="aspectFill"
+            lazy-load
+            binderror="onUsagePhotoError"
+            data-index="{{index}}"
+            bindtap="previewUsagePhoto"
+            data-url="{{item.url}}"
+          ></image>
+          <view wx:else class="photo-fallback">
+            <text class="photo-fallback-text">图片加载失败</text>
+          </view>
         </view>
       </view>
 

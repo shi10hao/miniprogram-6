@@ -1,4 +1,5 @@
 const db = wx.cloud.database()
+const cloudFile = require('../../utils/cloudFile.js')
 const TEMPLATE_ID = 'rgRmn33I28JIm4REBjzpin2dV474fmrLRxYFTpSJbuk'
 const BANNER_REMINDER_TYPES = ['reservation_remind', 'usage_photo_remind', 'usage_end_remind']
 const PHOTO_REMINDER_TYPES = ['usage_photo_remind', 'usage_end_remind']
@@ -6,6 +7,8 @@ const PHOTO_REMINDER_TYPES = ['usage_photo_remind', 'usage_end_remind']
 Page({
   data: {
     currentUsage: null,
+    // 展示用的已上传照片（cloud:// 已换成临时 https 链接）
+    selfUsageImages: [],
     pendingReserves: [],
     usageHistory: [],
     isLoading: false,
@@ -86,19 +89,84 @@ Page({
         status: 'using'
       })
       .get()
-      .then(res => {
+      .then(async res => {
         const usage = res.data && res.data.length > 0 ? res.data[0] : null
         const formattedUsage = usage ? this.formatUsage(usage) : null
         this.setData({
           currentUsage: formattedUsage,
           currentReserveId: formattedUsage ? formattedUsage.reserve_id : '' // 同步赋值
         })
+        // 把 cloud:// fileID 换成可渲染的 https 临时链接
+        await this.resolveUsageImages()
         return usage || null
       })
       .catch(err => {
         console.error('获取当前使用记录失败:', err)
         return null
       })
+  },
+
+  /**
+   * 单张照片加载失败（例如临时链接过期）：标记后渲染占位块，
+   * 避免 <image> 反复重试造成刷屏的 500 报错。
+   */
+  onUsagePhotoError(e) {
+    const index = e.currentTarget.dataset.index
+    if (index === undefined || index === null) return
+    const list = this.data.selfUsageImages || []
+    if (!list[index]) return
+    this.setData({
+      [`selfUsageImages[${index}].failed`]: true
+    })
+  },
+
+  // 点击查看大图
+  previewUsagePhoto(e) {
+    const url = e.currentTarget.dataset.url
+    if (!url) return
+    const urls = (this.data.selfUsageImages || [])
+      .filter(item => item.url && !item.failed)
+      .map(item => item.url)
+    wx.previewImage({
+      current: url,
+      urls: urls.length ? urls : [url]
+    })
+  },
+
+  /**
+   * 解析当前使用记录里的云存储图片：
+   * usage_images 会被 <image> 直接渲染，必须换成临时链接，
+   * 否则渲染层会报 "Failed to load local image resource ... cloud://..." 500。
+   * selfUsageImages 为展示用数组，currentUsage.usage_images 保持原始 fileID 不变。
+   */
+  async resolveUsageImages() {
+    const usage = this.data.currentUsage
+    if (!usage) {
+      if (this.data.selfUsageImages && this.data.selfUsageImages.length) {
+        this.setData({ selfUsageImages: [] })
+      }
+      return
+    }
+
+    const rawList = Array.isArray(usage.usage_images) ? usage.usage_images : []
+    if (!rawList.length) {
+      if (this.data.selfUsageImages && this.data.selfUsageImages.length) {
+        this.setData({ selfUsageImages: [] })
+      }
+      return
+    }
+
+    try {
+      const map = await cloudFile.resolveTempUrls(rawList)
+      const resolved = rawList.map(item => ({
+        fileId: item,
+        url: cloudFile.resolveSingle(item, map)
+      })).filter(item => item.url)
+
+      this.setData({ selfUsageImages: resolved })
+    } catch (err) {
+      console.error('解析使用照片失败:', err)
+    }
   },
   //
   loadUsageHistory() {
@@ -1693,7 +1761,8 @@ Page({
       this.setData({
         isLoading: false,
         showEndForm: false,
-        currentUsage: null
+        currentUsage: null,
+        selfUsageImages: []
       })
 
       wx.showToast({

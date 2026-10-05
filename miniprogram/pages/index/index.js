@@ -1,8 +1,18 @@
 const db = wx.cloud.database()
+const cloudFile = require('../../utils/cloudFile.js')
 
 const PHOTO_REMINDER_TYPES = ['usage_photo_remind', 'usage_end_remind']
 const BANNER_REMINDER_TYPES = ['reservation_remind', 'usage_photo_remind', 'usage_end_remind']
 const NOTICE_TMPL_ID = '9Lr3yHaJzl8LyzC5qbNGFYgu5ILBFc3XSowjJRv1-eg'
+
+// 首页快捷入口：把原先散落在首页/应用页的重复入口收敛到一处
+const QUICK_ENTRIES = [
+  { key: 'device', icon: '🔬', label: '仪器设备', url: '/pages/device/list/devicelist' },
+  { key: 'notice', icon: '📢', label: '公告通知', url: '/pages/notice/list/noticelist' },
+  { key: 'reserve', icon: '📅', label: '我的预约', url: '/pages/appointment/appointment', needAuth: true },
+  { key: 'usage', icon: '🧪', label: '仪器使用', url: '/pages/usage/usage', needAuth: true }
+]
+
 Page({
   data: {
     commonDevices: [],
@@ -11,22 +21,29 @@ Page({
     isAuthenticated: false,
     currentGroupName: '',
     unreadReminder: null,
-    subMsgCount: 0, // ← 新增这行
+    subMsgCount: 0,
+    quickEntries: QUICK_ENTRIES
   },
 
   onLoad() {
     this._authPromptShown = false
-    this.checkAuthStatus()
+    // 首次 checkAuthStatus 已经会拉取数据，onShow 紧接着触发时不要再拉一遍
+    this._subMsgCountLoadedAt = 0
+    this.checkAuthStatus(true)
   },
 
   onShow() {
+    // 从其他页面返回：只有登录态/课题组真的变了才重新拉数据
     this.checkAuthStatus()
     getApp().refreshMessageBadge()
-    this.loadSubMsgCount() // ← 新增这行
+    this.loadSubMsgCount()
   },
 
-  //
-  checkAuthStatus() {
+  /**
+   * 检查登录状态
+   * @param {boolean} force 是否强制重新拉取仪器/公告数据
+   */
+  checkAuthStatus(force) {
     if (this._checkingAuth) return
     this._checkingAuth = true
     try {
@@ -44,24 +61,33 @@ Page({
         return
       }
       const userInfo = wx.getStorageSync('userInfo')
+      const isAuthenticated = !!userInfo
+      const groupName = String((userInfo && userInfo.groupName) || '').trim()
 
-      if (userInfo) {
-        this.setData({
-          isAuthenticated: true,
-          currentGroupName: String(userInfo.groupName || '').trim()
-        })
-        this.getCommonDevices()
-        this.getLatestNotices()
+      // setData 只在值真的变了时才调用，避免无意义渲染
+      if (this.data.isAuthenticated !== isAuthenticated) {
+        this.setData({ isAuthenticated: isAuthenticated })
+      }
+
+      const fingerprint = isAuthenticated + '|' + groupName
+      const stateChanged = this._authFingerprint !== fingerprint
+      this._authFingerprint = fingerprint
+
+      if (!force && !stateChanged) {
+        // 登录态没变，无需重复请求仪器与公告
+        return
+      }
+
+      this.setData({ currentGroupName: groupName })
+
+      // 加载公开数据（仪器、公告）
+      this.getCommonDevices()
+      this.getLatestNotices()
+
+      if (isAuthenticated) {
         this.loadUnreadReminder()
-      } else {
-        // 不跳登录！不跳登录！
-        this.setData({
-          isAuthenticated: false,
-          unreadReminder: null
-        })
-        // 加载公开数据（仪器、公告）
-        this.getCommonDevices()
-        this.getLatestNotices()
+      } else if (this.data.unreadReminder) {
+        this.setData({ unreadReminder: null })
       }
     } catch (err) {
       // console.error('检查认证状态失败:', err)
@@ -75,15 +101,39 @@ Page({
       this._checkingAuth = false
     }
   },
+
+  // 全局开启了 enablePullDownRefresh，这里必须实现，否则下拉后要等超时才收回
+  onPullDownRefresh() {
+    Promise.all([
+      this.getCommonDevices(),
+      this.getLatestNotices(),
+      this.loadUnreadReminder()
+    ]).then(() => {
+      wx.stopPullDownRefresh()
+    }).catch(() => {
+      wx.stopPullDownRefresh()
+    })
+  },
+
     // 加载用户剩余订阅消息次数
     async loadSubMsgCount() {
       if (!this.data.isAuthenticated) {
-        this.setData({
-          subMsgCount: 0
-        })
+        if (this.data.subMsgCount !== 0) {
+          this.setData({
+            subMsgCount: 0
+          })
+        }
+        this._subMsgCountLoadedAt = 0
         return
       }
-  
+
+      // 60 秒内不重复请求（onLoad 与首次 onShow 会连续触发）
+      const now = Date.now()
+      if (this._subMsgCountLoadedAt && (now - this._subMsgCountLoadedAt) < 60000) {
+        return
+      }
+      this._subMsgCountLoadedAt = now
+
       try {
         const res = await wx.cloud.callFunction({
           name: 'getSubMsgCount'
@@ -124,6 +174,8 @@ Page({
               },
               success: (r) => {
                 if (r.result && r.result.success) {
+                  // 订阅成功后刷新缓存时间戳，避免紧接着重新拉取
+                  this._subMsgCountLoadedAt = Date.now()
                   this.setData({
                     subMsgCount: r.result.count || 0
                   })
@@ -210,11 +262,26 @@ Page({
           }
         })
 
+        const topDevices = Object.values(groupedDevices).slice(0, 3)
+
         this.setData({
-          commonDevices: Object.values(groupedDevices).slice(0, 3),
+          commonDevices: topDevices,
           isLoading: false,
           currentGroupName: groupName
         })
+
+        // 图片是 cloud:// fileID，必须换成临时链接再交给 <image>，
+        // 否则渲染层会报 Failed to load local image resource ... 500
+        return cloudFile.resolveListField(topDevices, 'picture')
+          .then(resolved => {
+            if (resolved !== topDevices) {
+              this.setData({ commonDevices: resolved })
+            }
+          })
+          .catch(err => {
+            // 图片解析失败不影响列表本身
+            console.error('解析常用仪器图片失败:', err)
+          })
       })
       .catch(err => {
         // console.error('获取常用仪器失败:', err)
@@ -224,6 +291,15 @@ Page({
           currentGroupName: groupName
         })
       })
+  },
+
+  // 首页仪器缩略图加载失败 → 显示占位，避免反复重试刷屏
+  onCommonDeviceImageError(e) {
+    const index = e.currentTarget.dataset.index
+    if (index === undefined || index === null) return
+    this.setData({
+      [`commonDevices[${index}].imgFailed`]: true
+    })
   },
   //
   getLatestNotices() {
@@ -391,6 +467,25 @@ Page({
         }
       })
     }
+  },
+
+  // 快捷入口统一走这里，需要登录的入口自动拦截
+  gotoQuickEntry(e) {
+    const url = e.currentTarget.dataset.url
+    const needAuth = e.currentTarget.dataset.needauth === true || e.currentTarget.dataset.needauth === 'true'
+    if (!url) return
+
+    if (needAuth && !this.data.isAuthenticated) {
+      this.showAuthPrompt()
+      return
+    }
+
+    wx.navigateTo({
+      url,
+      fail() {
+        // 忽略重复跳转等失败
+      }
+    })
   },
 
   gotoAuth() {

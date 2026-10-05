@@ -276,6 +276,22 @@
   flex-shrink: 0;
 }
 
+/* 图片加载失败时的占位块 */
+.device-img-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f2f3f5;
+  box-sizing: border-box;
+}
+
+.img-fallback-text {
+  font-size: 18rpx;
+  color: #a8abb2;
+  text-align: center;
+  line-height: 1.2;
+}
+
 .card-body {
   flex: 1;
   min-width: 0;

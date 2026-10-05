@@ -5,7 +5,7 @@ const TYPE_LABELS = {
   reservation_remind: '预约提醒',
   usage_photo_remind: '照片提醒',
   usage_end_remind: '结束提醒',
-  admin_notice: '管理员公告'
+  admin_notice: '系统通知'
 }
 
 Page({
@@ -135,7 +135,8 @@ Page({
       title: item.title || '管理员公告',
       content: item.content || '',
       type: 'admin_notice',
-      typeLabel: this.getTypeLabel('admin_notice'),
+      // notice 表是全员广播的公告，固定「管理员公告」，别复用 admin_notice 的标签
+      typeLabel: '管理员公告',
       create_time: this.formatTime(item.publish_date || item.create_time),
       is_read: true
     }

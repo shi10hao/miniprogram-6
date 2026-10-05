@@ -246,6 +246,20 @@
   object-fit: cover;
 }
 
+/* 图片加载失败时的占位块 */
+.device-img-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f2f3f5;
+  box-sizing: border-box;
+}
+
+.img-fallback-text {
+  font-size: 24rpx;
+  color: #a8abb2;
+}
+
 .lab-info {
   position: absolute;
   bottom: 0;
@@ -282,6 +296,17 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* 分页加载提示 */
+.list-footer {
+  padding: 30rpx 0 40rpx;
+  text-align: center;
+}
+
+.list-footer-text {
+  font-size: 24rpx;
+  color: #999;
 }
 
 /* 修改：设备名称行样式 */

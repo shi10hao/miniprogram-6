@@ -106,6 +106,20 @@
   object-fit: cover;
 }
 
+/* 图片加载失败时的占位块 */
+.device-image-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f2f3f5;
+  box-sizing: border-box;
+}
+
+.img-fallback-text {
+  font-size: 22rpx;
+  color: #a8abb2;
+}
+
 .device-info-section {
   flex: 1;
 }

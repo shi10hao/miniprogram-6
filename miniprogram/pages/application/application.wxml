@@ -1,45 +1,94 @@
-<view class="container">
-  <!-- 功能网格 -->
-  <view class="function-grid">
-    <view 
-      class="function-card" 
-      wx:for="{{functionList}}" 
-      wx:key="id"
-      data-url="{{item.url}}"
-      bindtap="navigateToFunction"
-      style="border-left: 8rpx solid {{item.color}}"
-    >
-      <view class="function-icon">{{item.icon}}</view>
-      <view class="function-info">
-        <text class="function-name">{{item.name}}</text>
-        <text class="function-desc">{{item.desc}}</text>
+<view class="ds-page">
+  <!-- 页面标题：tab 叫"工作台"，页面内部要有对应的标题承接 -->
+  <view class="hero">
+    <text class="hero-title">工作台</text>
+    <text class="hero-subtitle">预约、使用与记录都在这里</text>
+  </view>
+
+  <!-- 使用概览：用实时数字替代原来"只是一个入口副本"的问题 -->
+  <view class="ds-card overview-card">
+    <view class="overview-head">
+      <text class="overview-title">{{isAuthenticated ? (userName || '我') + '的使用概览' : '使用概览'}}</text>
+      <text class="overview-hint" wx:if="{{!isAuthenticated}}" bindtap="showAuthPrompt">登录后查看 ›</text>
+    </view>
+
+    <view class="overview-grid">
+      <view class="overview-item" bindtap="navigateToFunction" data-url="/pages/appointment/appointment" data-needauth="true">
+        <text class="overview-num">{{isAuthenticated ? overview.pending : '--'}}</text>
+        <text class="overview-label">待开始预约</text>
       </view>
-      <view class="function-arrow">→</view>
+      <view class="overview-item" bindtap="navigateToFunction" data-url="/pages/usage/usage" data-needauth="true">
+        <text class="overview-num accent">{{isAuthenticated ? overview.using : '--'}}</text>
+        <text class="overview-label">使用中</text>
+      </view>
+      <view class="overview-item" bindtap="navigateToFunction" data-url="/pages/appointment/appointment" data-needauth="true">
+        <text class="overview-num">{{isAuthenticated ? overview.history : '--'}}</text>
+        <text class="overview-label">历史记录</text>
+      </view>
     </view>
   </view>
 
-  <!-- 快速入口 -->
-  <view class="quick-access">
-    <view class="section-title">📋 快速入口</view>
-    <view class="quick-buttons">
-      <button class="quick-btn" bindtap="navigateToDeviceList">
-        <text class="quick-icon">🔬</text>
-        <text class="quick-text">查看所有仪器</text>
-      </button>
+  <!-- 快捷操作 -->
+  <view class="ds-card ds-card-tight">
+    <view class="ds-cell" bindtap="navigateToFunction" data-url="/pages/reservation/reservation" data-needauth="true">
+      <view class="ds-cell-icon">📅</view>
+      <view class="ds-cell-body">
+        <text class="ds-cell-title">仪器预约</text>
+        <text class="ds-cell-desc">选择时间段预约实验室仪器</text>
+      </view>
+      <text class="ds-cell-arrow">›</text>
+    </view>
+
+    <view class="ds-cell" bindtap="navigateToFunction" data-url="/pages/usage/usage" data-needauth="true">
+      <view class="ds-cell-icon">🔧</view>
+      <view class="ds-cell-body">
+        <text class="ds-cell-title">仪器使用</text>
+        <text class="ds-cell-desc">开始使用、上传照片、结束使用</text>
+      </view>
+      <text class="ds-cell-arrow">›</text>
+    </view>
+
+    <view class="ds-cell" bindtap="navigateToFunction" data-url="/pages/appointment/appointment" data-needauth="true">
+      <view class="ds-cell-icon">📋</view>
+      <view class="ds-cell-body">
+        <text class="ds-cell-title">我的预约</text>
+        <text class="ds-cell-desc">查看全部预约与使用记录</text>
+      </view>
+      <text class="ds-cell-arrow">›</text>
+    </view>
+
+    <view class="ds-cell" bindtap="navigateToFunction" data-url="/pages/device/list/devicelist">
+      <view class="ds-cell-icon">🔬</view>
+      <view class="ds-cell-body">
+        <text class="ds-cell-title">仪器总览</text>
+        <text class="ds-cell-desc">浏览全部可预约仪器设备</text>
+      </view>
+      <text class="ds-cell-arrow">›</text>
     </view>
   </view>
 
   <!-- 使用提示 -->
-  <view class="usage-tips">
-    <view class="tips-header">
-      <text class="tips-icon">💡</text>
-      <text class="tips-title">使用提示</text>
+  <view class="ds-card">
+    <view class="ds-section-head">
+      <text class="ds-section-title">使用提示</text>
     </view>
     <view class="tips-content">
-      <text class="tip-item">• 大型仪器需要提前预约</text>
-      <text class="tip-item">• 小型仪器可直接扫码使用</text>
-      <text class="tip-item">• 使用过程中请按要求上传照片</text>
-      <text class="tip-item">• 遵守实验室安全规范</text>
+      <view class="tip-item">
+        <text class="tip-dot"></text>
+        <text class="tip-text">大型仪器需要提前预约，小型仪器可直接使用</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-dot"></text>
+        <text class="tip-text">使用过程中请按要求上传照片，否则会收到提醒</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-dot"></text>
+        <text class="tip-text">预约时间每日 8:00-22:00，同一时段不可重复预约</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-dot"></text>
+        <text class="tip-text">请遵守实验室安全规范，使用完毕关闭仪器与门窗</text>
+      </view>
     </view>
   </view>
 </view>

@@ -1,9 +1,19 @@
 const db = wx.cloud.database()
+const cloudFile = require('../../../utils/cloudFile.js')
+
+// 每屏渲染的仪器卡片数量（滚动到底部自动追加）
+const PAGE_SIZE = 20
 
 Page({
   data: {
     devices: [],
     filteredDevices: [],
+    // 分页渲染：一次性拿全量数据，但一屏只渲染 PAGE_SIZE 张卡片，
+    // 滚到底部再追加，避免几百张卡片同时进渲染层造成卡顿
+    displayedDevices: [],
+    pageNum: 1,
+    hasMore: false,
+    isLoadingMore: false,
     isLoading: true,
     entryDeviceId: '',
     // 筛选条件
@@ -24,10 +34,26 @@ Page({
   },
 
   onLoad: function(options) {
+    // 数据代次：每次重新拉取列表就 +1，用于丢弃过期的图片解析结果
+    this._dataSeq = 0
+    // 搜索防抖定时器
+    this._searchTimer = null
     this.setData({
       entryDeviceId: (options && options.deviceId) || ''
     })
     this.getDevices()
+  },
+
+  onUnload: function() {
+    if (this._searchTimer) {
+      clearTimeout(this._searchTimer)
+      this._searchTimer = null
+    }
+  },
+
+  // 触底追加下一页（替代一次性渲染全部卡片）
+  onReachBottom: function() {
+    this.loadMoreDevices()
   },
 
   getUserGroupName: function() {
@@ -161,15 +187,21 @@ Page({
       .then(function(res) {
         // console.log("res",res)
         var devices = res.result || []
+        that._dataSeq = (that._dataSeq || 0) + 1
         var groupedDevices = that.mergeDevices(devices)
         var stats = that.calculateStats(devices, groupedDevices)
-        // console.log('原始设备数据条数:', res.result.length)
+
+        // 先把首屏渲染出来（图片位置先空着），再异步换图片临时链接，
+        // 避免等图片解析完才看到内容。
         that.setData({
           devices: groupedDevices,
-          filteredDevices: groupedDevices,
           stats: stats,
           isLoading: false
+        }, function() {
+          that.applyFilters()
         })
+
+        return groupedDevices
       })
       .catch(function(err) {
         // console.error('加载仪器数据失败：', err)
@@ -180,6 +212,67 @@ Page({
         })
         throw err
       })
+  },
+
+  /**
+   * 把 devices.picture 里的 cloud:// fileID 换成临时 https 链接。
+   * 直接渲染 cloud:// 会触发渲染层 500 报错（Failed to load local image resource）。
+   */
+  resolveDevicePictures: function() {
+    var that = this
+    var devices = this.data.devices || []
+    // 记住这次解析对应的数据代次，避免下拉刷新后旧结果覆盖新数据
+    var seq = this._dataSeq || 0
+    var rawIds = devices.map(function(item) {
+      return item.picture
+    }).filter(function(id) {
+      return cloudFile.isCloudFileId(id)
+    })
+
+    if (!rawIds.length) return Promise.resolve()
+
+    return cloudFile.resolveTempUrls(rawIds)
+      .then(function(map) {
+        if (seq !== (that._dataSeq || 0)) return
+
+        // 更新 _allDevices 里的原始数据，只把「当前已渲染的那部分」写进 data。
+        // 用路径 setData 而不是整表替换，避免把上百条记录重新推给渲染层。
+        var updatedAll = devices.map(function(item) {
+          if (!cloudFile.isCloudFileId(item.picture)) return item
+          var url = cloudFile.resolveSingle(item.picture, map)
+          if (!url) return item
+          return Object.assign({}, item, { picture: url })
+        })
+
+        var patch = { devices: updatedAll }
+        var displayed = that.data.displayedDevices || []
+        if (displayed.length) {
+          // 用 groupKey → 已解析图片 的映射做 O(n) 查找
+          var pictureByKey = {}
+          updatedAll.forEach(function(item) {
+            pictureByKey[item.groupKey] = item.picture
+          })
+          displayed.forEach(function(item, index) {
+            var picture = pictureByKey[item.groupKey]
+            if (picture && picture !== item.picture) {
+              patch['displayedDevices[' + index + '].picture'] = picture
+            }
+          })
+        }
+        that.setData(patch)
+      })
+      .catch(function(err) {
+        console.error('解析仪器图片失败:', err)
+      })
+  },
+
+  // 单张仪器图片加载失败 → 收起图片，避免反复重试刷屏
+  onDeviceImageError: function(e) {
+    var index = e.currentTarget.dataset.index
+    if (index === undefined || index === null) return
+    var patch = {}
+    patch['displayedDevices[' + index + '].imgFailed'] = true
+    this.setData(patch)
   },
 
   calculateStats: function(devices, groupedDevices) {
@@ -209,20 +302,20 @@ Page({
     return stats
   },
 
-  // 筛选设备
-  filterDevices: function() {
+  // 重新应用筛选并回到第一页
+  applyFilters: function() {
     var filters = this.data.filters
     var filtered = this.data.devices.filter(function(device) {
       // 实验室类型筛选
       if (filters.labType !== 'all' && device.labTypes.indexOf(filters.labType) === -1) {
         return false
       }
-      
+
       // 仪器类型筛选
       if (filters.deviceType !== 'all' && device.deviceTypes.indexOf(filters.deviceType) === -1) {
         return false
       }
-      
+
       // 关键词搜索
       if (filters.searchKeyword) {
         var keyword = filters.searchKeyword.toLowerCase()
@@ -231,64 +324,97 @@ Page({
         var labName = (device.lab_name || '').toLowerCase()
         var room = (device.device_room || '').toLowerCase()
         var description = (device.description || '').toLowerCase()
-        
-        if (!deviceName.includes(keyword) && 
+
+        if (!deviceName.includes(keyword) &&
             !model.includes(keyword) &&
-            !labName.includes(keyword) && 
+            !labName.includes(keyword) &&
             !room.includes(keyword) &&
             !description.includes(keyword)) {
           return false
         }
       }
-      
+
       return true
     })
-    
+
     this.setData({
-      filteredDevices: filtered
+      filteredDevices: filtered,
+      pageNum: 1,
+      displayedDevices: filtered.slice(0, PAGE_SIZE),
+      hasMore: filtered.length > PAGE_SIZE,
+      isLoadingMore: false
+    }, () => {
+      this.resolveDevicePictures()
+    })
+  },
+
+  // 触底追加下一页
+  loadMoreDevices: function() {
+    if (!this.data.hasMore || this.data.isLoadingMore) return
+    var nextPage = this.data.pageNum + 1
+    var end = nextPage * PAGE_SIZE
+    var filtered = this.data.filteredDevices || []
+
+    this.setData({
+      isLoadingMore: true
+    })
+
+    this.setData({
+      displayedDevices: filtered.slice(0, end),
+      pageNum: nextPage,
+      hasMore: end < filtered.length,
+      isLoadingMore: false
+    }, () => {
+      this.resolveDevicePictures()
     })
   },
 
   // 切换实验室类型筛选
   onLabTypeChange: function(e) {
     var labType = e.currentTarget.dataset.type
-    var filters = this.data.filters
-    filters.labType = labType
     this.setData({
-      filters: filters
+      'filters.labType': labType
+    }, () => {
+      this.applyFilters()
     })
-    this.filterDevices()
   },
 
   // 切换仪器类型筛选
   onDeviceTypeChange: function(e) {
     var deviceType = e.currentTarget.dataset.type
-    var filters = this.data.filters
-    filters.deviceType = deviceType
     this.setData({
-      filters: filters
+      'filters.deviceType': deviceType
+    }, () => {
+      this.applyFilters()
     })
-    this.filterDevices()
   },
 
-  // 搜索输入
+  // 搜索输入：防抖，避免每敲一个字就重建整个列表
   onSearchInput: function(e) {
-    var filters = this.data.filters
-    filters.searchKeyword = e.detail.value
     this.setData({
-      filters: filters
+      'filters.searchKeyword': e.detail.value
     })
-    this.filterDevices()
+
+    if (this._searchTimer) {
+      clearTimeout(this._searchTimer)
+    }
+    this._searchTimer = setTimeout(() => {
+      this._searchTimer = null
+      this.applyFilters()
+    }, 300)
   },
 
   // 清除搜索
   clearSearch: function() {
-    var filters = this.data.filters
-    filters.searchKeyword = ''
+    if (this._searchTimer) {
+      clearTimeout(this._searchTimer)
+      this._searchTimer = null
+    }
     this.setData({
-      filters: filters
+      'filters.searchKeyword': ''
+    }, () => {
+      this.applyFilters()
     })
-    this.filterDevices()
   },
 
   // 查看仪器详情

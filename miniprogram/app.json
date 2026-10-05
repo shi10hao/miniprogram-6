@@ -45,33 +45,42 @@
   ],
   "lazyCodeLoading": "requiredComponents",
   "window": {
-    "backgroundColor": "#B9B9B9",
+    "backgroundColor": "#f4f6f8",
+    "backgroundTextStyle": "dark",
     "navigationBarBackgroundColor": "#62BCC4",
     "navigationBarTitleText": "资源与环境工程学院实验室管理系统",
     "navigationBarTextStyle": "white",
     "enablePullDownRefresh": true
   },
   "tabBar": {
-    "color": "#999999",
+    "color": "#9AA4B2",
     "selectedColor": "#62BCC4",
     "backgroundColor": "#ffffff",
-    "borderStyle": "black",
+    "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "首页"
+        "text": "首页",
+        "iconPath": "assets/icons/home.png",
+        "selectedIconPath": "assets/icons/home-active.png"
       },
       {
         "pagePath": "pages/application/application",
-        "text": "应用"
+        "text": "工作台",
+        "iconPath": "assets/icons/app.png",
+        "selectedIconPath": "assets/icons/app-active.png"
       },
       {
         "pagePath": "pages/message/list/messagelist",
-        "text": "消息"
+        "text": "消息",
+        "iconPath": "assets/icons/message.png",
+        "selectedIconPath": "assets/icons/message-active.png"
       },
       {
         "pagePath": "pages/profile/profile",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "assets/icons/profile.png",
+        "selectedIconPath": "assets/icons/profile-active.png"
       }
     ]
   },

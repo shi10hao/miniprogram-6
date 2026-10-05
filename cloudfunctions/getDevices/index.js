@@ -34,10 +34,23 @@ exports.main = async (event, context) => {
   const batchTimes = Math.ceil(total / MAX_LIMIT)
 
   const tasks = []
+  // 只返回列表页真正用到的字段，减小返回体积、加快 setData
+  const FIELD = {
+    device_id: true,
+    device_name: true,
+    picture: true,
+    description: true,
+    lab_type: true,
+    device_type: true,
+    lab_name: true,
+    device_room: true,
+    specifications: true
+  }
   for (let i = 0; i < batchTimes; i++) {
     tasks.push(
       db.collection('devices')
         .where(condition)
+        .field(FIELD)
         .orderBy('device_id', 'asc')
         .skip(i * MAX_LIMIT)
         .limit(MAX_LIMIT)

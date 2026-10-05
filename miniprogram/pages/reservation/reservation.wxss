@@ -1,330 +1,469 @@
-.reservation-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  padding: 20rpx 30rpx 40rpx;
-  box-sizing: border-box;
-}
+/* 预约页样式 —— 使用 app.wxss 的设计变量 */
 
-/* 搜索区域 */
-.search-section {
-  background: white;
-  padding: 20rpx;
-  margin-bottom: 10rpx;
-}
-.search-box {
-  position: relative;
+/* --------------------------------------------------------------------------
+   预约人：一行紧凑展示，不再占一整张卡
+   -------------------------------------------------------------------------- */
+.person-card {
   display: flex;
   align-items: center;
+  gap: var(--ds-gap-sm);
+  padding: 26rpx var(--ds-gap-lg);
+}
+
+.person-avatar {
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, var(--ds-primary-deep), var(--ds-primary));
+  flex-shrink: 0;
+}
+
+.person-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.person-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+}
+
+.person-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+
+.person-id {
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
+}
+
+.person-group {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 24rpx;
+  color: var(--ds-text-secondary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.person-tag {
+  flex-shrink: 0;
+  padding: 4rpx 16rpx;
+  border-radius: var(--ds-radius-sm);
+  font-size: 22rpx;
+  color: var(--ds-primary-dark);
+  background: var(--ds-primary-light);
+}
+
+/* --------------------------------------------------------------------------
+   搜索
+   -------------------------------------------------------------------------- */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  height: 76rpx;
+  padding: 0 24rpx;
+  background: var(--ds-fill);
+  border: 1rpx solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+}
+
+.search-icon {
+  font-size: 26rpx;
+  flex-shrink: 0;
+  opacity: 0.6;
 }
 
 .search-input {
   flex: 1;
-  height: 80rpx;
-  background: #f8f9fa;
-  border-radius: 40rpx;
-  padding: 0 80rpx 0 30rpx;
-  font-size: 28rpx;
-  border: 1rpx solid #e9ecef;
+  min-width: 0;
+  height: 100%;
+  font-size: 27rpx;
+  color: var(--ds-text);
 }
 
-.search-icon {
-  position: absolute;
-  right: 50rpx;
-  font-size: 28rpx;
-  color: #999;
-}
 .clear-search {
-  position: absolute;
-  right: 30rpx;
-  font-size: 24rpx;
-  color: #999;
-  padding: 10rpx;
+  flex-shrink: 0;
+  width: 40rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 22rpx;
+  color: var(--ds-text-muted);
+  background: var(--ds-border);
 }
 
-/* 筛选区域 */
-.filter-section {
-  background: white;
-  padding: 30rpx 20rpx;
-  margin-bottom: 20rpx;
+/* --------------------------------------------------------------------------
+   筛选：每个条件独占一行，标签固定宽度，按钮撑满剩余空间
+   -------------------------------------------------------------------------- */
+.filter-block {
+  margin-top: var(--ds-gap);
 }
 
-.filter-group {
-  margin-bottom: 30rpx;
+.filter-line {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
 }
 
-.filter-group:last-child {
-  margin-bottom: 0;
+.filter-line + .filter-line {
+  margin-top: 14rpx;
 }
 
 .filter-label {
-  display: block;
-  font-size: 26rpx;
-  color: #333;
-  font-weight: 500;
-  margin-bottom: 0rpx;
+  flex-shrink: 0;
+  width: 96rpx;
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
 }
 
 .filter-buttons {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  gap: 20rpx;
-}
-
-.filter-btn {
-  text-align: center;
-  padding: 0rpx 0rpx;
-  background: #f8f9fa;
-  border-radius: 40rpx;
-  font-size: 26rpx;
-  color: #666;
-  transition: all 0.3s ease;
-}
-
-.filter-btn.active {
-  background: #62BCC4;
-  color: white;
-}
-
-/* 卡片通用样式 */
-.info-card,
-.filter-card,
-.time-card {
-  background: white;
-  border-radius: 16rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
-  margin-bottom: 24rpx;
-  overflow: hidden;
-}
-
-.device-card {
-  height: 1000rpx;
-  overflow: hidden;
-  margin-bottom: 0rpx;
-  display: flex;       /* 启用 Flex 布局 */
-  flex-direction: column; /* 垂直排列 */
-  max-height: 1000rpx;
-}
-/* 卡片标题 */
-.info-header,
-.filter-header,
-.device-header,
-.time-header {
-  padding: 30rpx;
-  border-bottom: 1rpx solid #f0f0f0;
-}
-
-.info-title,
-.filter-title,
-.device-title,
-.time-title {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #333;
-}
-
-/* 用户信息 */
-.info-content {
-  padding: 30rpx;
-}
-
-.info-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20rpx;
-}
-
-.info-row:last-child {
-  margin-bottom: 0;
-}
-
-.info-label {
-  font-size: 28rpx;
-  color: #666;
-  min-width: 140rpx;
-}
-
-.info-value {
-  font-size: 28rpx;
-  color: #333;
-  font-weight: 500;
-}
-
-/* 筛选按钮 */
-.filter-buttons {
-  display: flex;
-  padding: 30rpx;
-  gap: 20rpx;
+  gap: 10rpx;
 }
 
 .filter-btn {
   flex: 1;
-  height: 80rpx;
-  line-height: 80rpx;
-  background: #f8f9fa;
-  color: #666;
-  border: none;
-  border-radius: 12rpx;
-  font-size: 26rpx;
-  transition: all 0.3s;
+  min-width: 0;
+  text-align: center;
+  padding: 14rpx 4rpx;
+  border-radius: var(--ds-radius-sm);
+  font-size: 24rpx;
+  color: var(--ds-text-secondary);
+  background: var(--ds-fill);
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .filter-btn.active {
-  background: #62BCC4;
-  color: white;
-  font-weight: 600;
+  background: var(--ds-primary);
+  color: #fff;
+  font-weight: 500;
 }
 
-/* 设备列表 */
-.device-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
+/* --------------------------------------------------------------------------
+   仪器列表
+   列表可能上百条，用固定高度的内层滚动区，
+   保证「预约说明」和后续卡片不会被挤出屏幕很远
+   -------------------------------------------------------------------------- */
 .device-count {
   font-size: 24rpx;
-  color: #999;
-}
-
-.loading, .empty {
-  text-align: center;
-  padding: 60rpx 0;
-  color: #666;
-  font-size: 28rpx;
-}
-
-.empty-icon {
-  font-size: 60rpx;
-  display: block;
-  margin-bottom: 20rpx;
-  opacity: 0.5;
+  color: var(--ds-text-muted);
 }
 
 .device-list {
-  max-height: 800rpx;
+  margin-top: var(--ds-gap);
 }
 
-.device-item {
-  padding: 30rpx;
-  border-bottom: 1rpx solid #f0f0f0;
-  position: relative;
-  transition: all 0.3s;
+.device-scroll {
+  max-height: 720rpx;
+  height: 720rpx;
 }
 
-.device-item:active {
-  background: #f8f9fa;
+/* --------------------------------------------------------------------------
+   仪器卡片（真正的卡片观感：白底 + 阴影 + 缩略图）
+   -------------------------------------------------------------------------- */
+.device-card {
+  background: var(--ds-surface);
+  border-radius: var(--ds-radius);
+  padding: var(--ds-gap);
+  margin-bottom: var(--ds-gap-sm);
+  border: 1rpx solid var(--ds-border);
+  box-shadow: var(--ds-shadow-sm);
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
-.device-item.selected {
-  background: #e8f4f5;
-  border-left: 4rpx solid #62BCC4;
+.device-card:active {
+  background: var(--ds-fill);
 }
 
-.device-name {
-  display: block;
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #333;
+.device-card.selected {
+  border-color: var(--ds-primary);
+  background: var(--ds-primary-soft);
+  box-shadow: 0 6rpx 20rpx var(--ds-primary-shadow);
+}
+
+.device-card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-gap-sm);
+}
+
+/* 缩略图 */
+.device-thumb {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: var(--ds-radius-sm);
+  overflow: hidden;
   flex-shrink: 0;
-  margin-right: 12rpx;
+  background: var(--ds-fill);
+}
+
+.device-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.device-thumb-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ds-primary-light);
+}
+
+.device-thumb-icon {
+  font-size: 52rpx;
+}
+
+.device-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .device-name-row {
   display: flex;
   align-items: baseline;
-  margin-bottom: 16rpx;
+  gap: 10rpx;
+  margin-bottom: 10rpx;
 }
 
-.device-model-inline {
-  font-size: 24rpx;
-  color: #999;
-  flex: 1;
+.device-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--ds-text);
+  max-width: 70%;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.device-model {
+  flex: 1;
   min-width: 0;
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 右侧状态区 */
+.device-side {
+  flex-shrink: 0;
+  align-self: center;
+  margin-left: 4rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8rpx;
 }
 
 .device-remaining {
   font-size: 22rpx;
-  color: #51cf66;
   font-weight: 500;
-  flex-shrink: 0;
-  margin-left: 8rpx;
+  color: var(--ds-success);
+  background: var(--ds-success-light);
+  padding: 4rpx 14rpx;
+  border-radius: var(--ds-radius-pill);
+  white-space: nowrap;
 }
 
-.device-remaining.hidden-when-selected {
-  display: none;
+.device-full {
+  font-size: 22rpx;
+  font-weight: 500;
+  color: var(--ds-text-muted);
+  background: var(--ds-fill);
+  padding: 4rpx 14rpx;
+  border-radius: var(--ds-radius-pill);
+  white-space: nowrap;
+}
+
+.selected-indicator {
+  width: 44rpx;
+  height: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ds-primary);
+  box-shadow: 0 4rpx 10rpx var(--ds-primary-shadow);
+}
+
+.selected-icon {
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.device-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-bottom: 10rpx;
 }
 
 .device-location-row {
   display: flex;
   align-items: center;
-  margin-top: 4rpx;
+  gap: 4rpx;
+  font-size: 24rpx;
+}
+
+.device-location-icon {
+  font-size: 22rpx;
+  margin-right: 2rpx;
+  opacity: 0.7;
 }
 
 .device-lab-name {
   font-size: 24rpx;
-  color: #666;
+  color: var(--ds-text-secondary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .device-room-text {
   font-size: 24rpx;
-  color: #999;
-  margin-left: 4rpx;
+  color: var(--ds-text-muted);
+  flex-shrink: 0;
 }
 
-.device-tags {
-  display: flex;
-  gap: 12rpx;
-  margin-bottom: 16rpx;
+/* --------------------------------------------------------------------------
+   仪器编号选择（选中后展开的面板）
+   -------------------------------------------------------------------------- */
+.your-content {
+  margin-top: var(--ds-gap);
+  padding-top: var(--ds-gap);
+  border-top: 1rpx solid var(--ds-divider);
 }
 
-.device-tag {
-  font-size: 22rpx;
-  padding: 8rpx 16rpx;
-  border-radius: 12rpx;
-  font-weight: 500;
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 40rpx;
-  line-height: 1;
-  box-sizing: border-box;
-  min-width: 120rpx;
-}
-
-.device-tag.lab.public {
-  background: #62BCC4;
-}
-
-.device-tag.lab.group {
-  background: #ffc107;
-  color: #333;
-}
-
-.device-tag.type.large {
-  background: #e74c3c;
-}
-
-.device-tag.type.small {
-  background: #2ecc71;
-}
-
-.conflict-warning {
-  background: #fff3cd;
-  border: 1rpx solid #ffc107;
-  border-radius: 8rpx;
-  padding: 16rpx;
-  margin-top: 16rpx;
+.sub-label {
   display: flex;
   align-items: center;
   gap: 10rpx;
+  margin-bottom: 14rpx;
+  font-size: 24rpx;
+  font-weight: 500;
+  color: var(--ds-text-secondary);
+}
+
+/* 标题前的小色块，与区块标题保持一致的视觉语言 */
+.sub-label::before {
+  content: '';
+  width: 6rpx;
+  height: 22rpx;
+  border-radius: 3rpx;
+  background: var(--ds-primary);
+}
+
+.all_devices_btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.each_devices_btn {
+  flex: 0 0 auto;
+  min-width: 168rpx;
+  padding: 12rpx 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+  border-radius: var(--ds-radius-sm);
+  font-size: 24rpx;
+  box-sizing: border-box;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.device-no {
+  font-size: 24rpx;
+  line-height: 1.3;
+}
+
+/* 按状态给底色，统一用设计变量，不再用高饱和实心块 */
+.each_devices_btn.status-available {
+  background: var(--ds-success-light);
+  border: 1rpx solid #b7e4cd;
+  color: #166534;
+}
+
+.each_devices_btn.status-reserved {
+  background: var(--ds-warning-light);
+  border: 1rpx solid #f3ddb0;
+  color: #92400e;
+}
+
+.each_devices_btn.status-using {
+  background: var(--ds-primary-light);
+  border: 1rpx solid #b3e0e4;
+  color: #1e5f66;
+}
+
+.each_devices_btn.status-maintenance {
+  background: var(--ds-fill);
+  border: 1rpx solid var(--ds-border);
+  color: var(--ds-text-muted);
+}
+
+/* 选中态统一用品牌色，替掉原来的 Element UI 蓝 */
+.each_devices_btn.active {
+  background: var(--ds-primary);
+  border-color: var(--ds-primary);
+  color: #fff;
+  box-shadow: 0 4rpx 12rpx var(--ds-primary-shadow);
+}
+
+.status-tag {
+  display: block;
+  font-size: 18rpx;
+  font-weight: normal;
+  opacity: 0.85;
+}
+
+/* 选中后各状态标签统一变白，不再逐个指定颜色 */
+.each_devices_btn.active .status-tag {
+  color: #fff;
+  opacity: 0.9;
+}
+
+/* --------------------------------------------------------------------------
+   冲突提示
+   -------------------------------------------------------------------------- */
+.conflict-warning {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  margin-top: 16rpx;
+  padding: 14rpx 18rpx;
+  background: var(--ds-warning-light);
+  border: 1rpx solid #f3ddb0;
+  border-radius: var(--ds-radius-sm);
 }
 
 .warning-icon {
   font-size: 24rpx;
-  color: #ffc107;
+  flex-shrink: 0;
 }
 
 .warning-text {
@@ -332,226 +471,74 @@
   color: #856404;
 }
 
-.selected-indicator {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36rpx;
-  height: 36rpx;
-  background: #62BCC4;
-  border-radius: 50%;
-  flex-shrink: 0;
-  margin-left: 8rpx;
+/* --------------------------------------------------------------------------
+   预约时间：四格并排
+   -------------------------------------------------------------------------- */
+.time-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--ds-gap-sm);
 }
 
-.selected-icon {
-  color: white;
-  font-size: 22rpx;
-  font-weight: bold;
-  line-height: 1;
+.time-field {
+  min-width: 0;
 }
 
-/* 时间选择 */
-.time-section {
-  padding: 30rpx;
-  border-bottom: 1rpx solid #f0f0f0;
-}
-
-.time-section:last-child {
-  border-bottom: none;
-}
-
-.time-label {
+.field-label {
   display: block;
-  font-size: 28rpx;
-  color: #333;
-  font-weight: 500;
-  margin-bottom: 20rpx;
-}
-
-.time-picker {
-  display: block;
+  margin-bottom: 10rpx;
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
 }
 
 .picker-view {
-  width: 100%;
-  height: 80rpx;
-  line-height: 80rpx;
-  border: 2rpx solid #e1e1e1;
-  border-radius: 12rpx;
-  padding: 0 24rpx;
+  height: 76rpx;
+  line-height: 76rpx;
+  padding: 0 20rpx;
   font-size: 28rpx;
-  color: #333;
-  background: white;
+  color: var(--ds-text);
+  background: var(--ds-fill);
+  border: 1rpx solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
   box-sizing: border-box;
-  transition: all 0.3s;
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .picker-view:active {
-  background: #f8f9fa;
+  background: var(--ds-primary-light);
+  border-color: var(--ds-primary);
 }
 
-/* 冲突提示 */
-.conflict-alert {
-  background: #f8d7da;
-  border: 1rpx solid #f5c6cb;
-  border-radius: 8rpx;
-  margin: 0 30rpx 30rpx;
-  padding: 20rpx;
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-
-.alert-icon {
-  font-size: 28rpx;
-  color: #721c24;
-}
-
-.alert-text {
-  font-size: 26rpx;
-  color: #721c24;
-  font-weight: 500;
-}
-
-/* 提交按钮 */
-.submit-btn {
-  width: 100%;
-  height: 96rpx;
-  line-height: 96rpx;
-  background: #62BCC4;
-  color: white;
-  border-radius: 48rpx;
-  font-size: 32rpx;
-  font-weight: 600;
-  border: none;
-  box-shadow: 0 8rpx 20rpx rgba(98, 188, 196, 0.3);
-  margin: 30rpx 0;
-  transition: all 0.3s;
-}
-
-.submit-btn:active {
-  background: #4aa8b0;
-  transform: translateY(2rpx);
-  box-shadow: 0 4rpx 12rpx rgba(98, 188, 196, 0.4);
-}
-
-.submit-btn.disabled {
-  background: #cccccc;
-  box-shadow: none;
-  transform: none;
-}
-
-/* 说明 */
-.instructions {
-  background: rgba(98, 188, 196, 0.1);
-  border-radius: 12rpx;
-  padding: 30rpx;
-  margin-top: 20rpx;
-}
-
-.instructions-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 20rpx;
-}
-
-.instruction-item {
-  display: flex;
-  align-items: flex-start;
-  margin-bottom: 12rpx;
-}
-
-.instruction-item:last-child {
-  margin-bottom: 0;
-}
-
-.bullet {
-  color: #62BCC4;
+/* 时间范围提示放在区块标题右侧 */
+.time-hint {
   font-size: 24rpx;
-  margin-right: 12rpx;
-  line-height: 1.4;
+  color: var(--ds-text-muted);
 }
 
-.instruction-text {
-  flex: 1;
-  font-size: 24rpx;
-  color: #666;
-  line-height: 1.4;
-}
-
-/* 后续自己添加的 */
-.all_devices_btns {
-  display: flex;
-  flex-wrap: wrap;
-  width: 100%;
-  gap: 15rpx;
-  padding:10rpx 0;
-}
-
-.each_devices_btn {
-  width: 180rpx;           /* 稍微缩小宽度 */
-  min-height: 76rpx;       /* 改为最小高度，适应两行文字 */
-  line-height: 1.4;        /* 改为正常行高 */
-  text-align: center;
-  font-size: 26rpx;        /* 稍微缩小字体 */
-  background-color: #f5f5f5;
-  color: #333;
-  border-radius: 16rpx;
-  border: #bbb 1rpx solid;
-  box-sizing: border-box;
-  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.08);
-  transition: all 0.2s ease;
-  padding: 10rpx 12rpx;    /* 增加上下内边距 */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.each_devices_btn.active {
-  background-color: #409eff;
-  color: #fff;
-  box-shadow: 0 3rpx 10rpx rgba(64, 158, 255, 0.25);
-}
-
-.device-tag.lab.public {
-  background: #62BCC4;
-}
-
-.device-tag.lab.group {
-  background: #ffc107;
-  color: #333;
-}
-
-/* ↓ 追加 */
-.device-tag.lab.mixed {
-  background: #9c27b0;
-  color: white;
-}
-
-.reserve-page-section{
-  padding: 30rpx;
-  border-bottom: 1rpx solid #f0f0f0;
-}
-
-.reserve-page-label {
-  display: block;
-  font-size: 28rpx;
-  color: #333;
-  font-weight: 500;
-  margin-bottom: 20rpx;
+/* --------------------------------------------------------------------------
+   系统预约单
+   -------------------------------------------------------------------------- */
+.reserve-page-section {
+  margin-top: var(--ds-gap-lg);
+  padding-top: var(--ds-gap);
+  border-top: 1rpx solid var(--ds-divider);
 }
 
 .slot-upload {
   width: 200rpx;
   height: 200rpx;
-  border-radius: 12rpx;
+  border-radius: var(--ds-radius-sm);
   overflow: hidden;
-  border: 2rpx dashed #ccc;
+  border: 2rpx dashed var(--ds-border);
+  background: var(--ds-fill);
   position: relative;
+}
+
+.slot-upload:active {
+  border-color: var(--ds-primary);
 }
 
 .slot-empty {
@@ -566,19 +553,18 @@
 
 .slot-plus {
   font-size: 48rpx;
-  color: #bbb;
+  color: var(--ds-text-disabled);
   line-height: 1;
 }
 
 .slot-tip {
   font-size: 22rpx;
-  color: #bbb;
+  color: var(--ds-text-muted);
 }
 
 .slot-preview {
   width: 100%;
   height: 100%;
-  position: relative;
 }
 
 .slot-img {
@@ -587,79 +573,143 @@
   object-fit: cover;
 }
 
-/* 设备编号按钮 - 根据状态显示不同颜色 */
-.each_devices_btn.status-available {
-  background-color: #f0fdf4;
-  border-color: #86efac;
-  color: #166534;
+/* --------------------------------------------------------------------------
+   提示条
+   -------------------------------------------------------------------------- */
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: var(--ds-gap);
+  padding: 20rpx;
+  border-radius: var(--ds-radius-sm);
 }
 
-.each_devices_btn.status-reserved {
-  background-color: #fffbeb;
-  border-color: #fcd34d;
+.alert-danger {
+  background: var(--ds-danger-light);
+  border: 1rpx solid #f8c9c9;
+}
+
+.alert-danger .alert-text {
+  color: #b91c1c;
+}
+
+.alert-warning {
+  background: var(--ds-warning-light);
+  border: 1rpx solid #f3ddb0;
+}
+
+.alert-warning .alert-text {
   color: #92400e;
 }
 
-.each_devices_btn.status-using {
-  background-color: #eff6ff;
-  border-color: #93c5fd;
-  color: #1e40af;
+.alert-icon {
+  font-size: 26rpx;
+  flex-shrink: 0;
 }
 
-.each_devices_btn.status-maintenance {
-  background-color: #f5f5f5;
-  border-color: #d4d4d4;
-  color: #a3a3a3;
+.alert-text {
+  font-size: 26rpx;
+  font-weight: 500;
 }
 
-.each_devices_btn.status-available.active {
-  background-color: #52C41A;
-  border-color: #52C41A;
-  color: #fff;
+/* --------------------------------------------------------------------------
+   吸底提交栏：页面再长也不用滚到底部才能提交
+   -------------------------------------------------------------------------- */
+.has-sticky-bar {
+  padding-bottom: 200rpx;
 }
 
-.each_devices_btn.status-reserved.active {
-  background-color: #FAAD14;
-  border-color: #FAAD14;
-  color: #fff;
+.submit-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-gap);
+  padding: 20rpx var(--ds-gap);
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  background: var(--ds-surface);
+  border-top: 1rpx solid var(--ds-divider);
+  box-shadow: 0 -6rpx 24rpx rgba(31, 39, 51, 0.06);
 }
 
-.each_devices_btn.status-using.active {
-  background-color: #1890FF;
-  border-color: #1890FF;
-  color: #fff;
+.submit-bar-info {
+  flex: 1;
+  min-width: 0;
 }
 
-.each_devices_btn.status-maintenance.active {
-  background-color: #BFBFBF;
-  border-color: #BFBFBF;
-  color: #fff;
-}
-
-/* 状态标签文字 */
-.status-tag {
+.submit-device {
   display: block;
-  font-size: 18rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--ds-text);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.submit-slot {
+  display: block;
   margin-top: 4rpx;
-  font-weight: normal;
+  font-size: 22rpx;
+  color: var(--ds-primary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.status-tag.available {
-  color: #166534;
+.submit-tip {
+  display: block;
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
 }
 
-.status-tag.reserved {
-  color: #92400e;
+.submit-btn {
+  flex-shrink: 0;
+  width: 280rpx;
+  height: 84rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  box-shadow: 0 6rpx 18rpx var(--ds-primary-shadow);
 }
 
-.status-tag.using {
-  color: #1e40af;
+.submit-btn.disabled {
+  background: var(--ds-text-disabled);
+  color: #fff;
+  box-shadow: none;
 }
 
-.status-tag.maintenance {
-  color: #a3a3a3;
+/* --------------------------------------------------------------------------
+   预约说明
+   -------------------------------------------------------------------------- */
+.instructions {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
 }
 
-.each_devices_btn.active .status-tag {
-  color: rgba(255, 255, 255, 0.9);
+.instruction-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
+}
+
+.bullet {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: var(--ds-primary);
+  opacity: 0.6;
+  margin-top: 14rpx;
+  flex-shrink: 0;
+}
+
+.instruction-text {
+  flex: 1;
+  font-size: 25rpx;
+  line-height: 1.6;
+  color: var(--ds-text-secondary);
 }
