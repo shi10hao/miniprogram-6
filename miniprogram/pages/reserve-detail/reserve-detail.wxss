@@ -53,6 +53,11 @@
   font-size: 26rpx;
 }
 
+.forbidden-icon {
+  font-size: 64rpx;
+  opacity: 0.6;
+}
+
 .loading-spin {
   width: 48rpx;
   height: 48rpx;

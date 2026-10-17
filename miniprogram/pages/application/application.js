@@ -53,7 +53,12 @@ Page({
     var usages = db.collection('device_usage')
 
     return Promise.all([
-      reserves.where({ user_id: userInfo.userId, status: 'approved' }).count(),
+      // 待开始预约 = 已通过 且 尚未开始使用（usage_status 为空或 not_started）
+      reserves.where({
+        user_id: userInfo.userId,
+        status: 'approved',
+        usage_status: db.command.in(['not_started', ''])
+      }).count(),
       usages.where({ user_id: userInfo.userId, status: 'using' }).count(),
       usages.where({ user_id: userInfo.userId, status: 'completed' }).count()
     ]).then(results => {

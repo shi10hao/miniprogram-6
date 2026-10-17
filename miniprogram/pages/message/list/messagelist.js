@@ -36,17 +36,21 @@ Page({
   },
 
   onLoad() {
+    // 标记首次进入，onShow 紧跟着 onLoad 触发时跳过重复拉取
+    this._firstShow = true
     this.getMessageList(true)
   },
 
   onShow() {
-    // 如果已经加载过数据，不再重新拉取（避免闪烁）
-    if (this.data.messageList.length === 0) {
-      this.getMessageList(true)
+    if (this._firstShow) {
+      this._firstShow = false
+      return
     }
+    // 从其它页（如首页）切回消息 tab 时，静默刷新最新消息
+    this.getMessageList(true, true)
   },
 
-  getMessageList(isFirstLoad = false) {
+  getMessageList(isFirstLoad = false, silent = false) {
     const userInfo = wx.getStorageSync('userInfo') || {}
     if (!userInfo.userId) {
       this.setData({
@@ -60,12 +64,17 @@ Page({
       return Promise.resolve([])
     }
     if (isFirstLoad) {
-      this.setData({
-        isLoading: true,
-        page: 0,
-        messageList: [],
-        allLoaded: false
-      })
+      if (silent) {
+        // 静默刷新：只重置页码，不清空已有列表、不闪全屏 loading
+        this.setData({ page: 0 })
+      } else {
+        this.setData({
+          isLoading: true,
+          page: 0,
+          messageList: [],
+          allLoaded: false
+        })
+      }
     } else {
       this.setData({
         isLoadingMore: true
@@ -138,15 +147,23 @@ Page({
       })
       .catch(err => {
         console.error('加载消息列表失败:', err)
-        this.setData({
-          isLoading: false,
-          isLoadingMore: false,
-          messageList: [],
-          unreadCount: 0,
-          totalCount: 0,
-          hasMore: false
-        })
-        this.updateTabBarBadge(0)
+        if (silent) {
+          // 静默刷新失败时保留已有列表，不清空
+          this.setData({
+            isLoading: false,
+            isLoadingMore: false
+          })
+        } else {
+          this.setData({
+            isLoading: false,
+            isLoadingMore: false,
+            messageList: [],
+            unreadCount: 0,
+            totalCount: 0,
+            hasMore: false
+          })
+          this.updateTabBarBadge(0)
+        }
         return []
       })
   },

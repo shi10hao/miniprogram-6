@@ -5,7 +5,8 @@ Page({
    * 页面的初始数据
    */
   data: {
-    isLoading: false,
+    isLoading: true,
+    forbidden: false,
     status: 'using', // upcoming | using | completed | abnormal
     detail: {
       student_name: '',
@@ -26,10 +27,8 @@ Page({
       submit_time: '',
       submit_time_display: ''
     },
-    isLoading: false,
-    isHandlingAbnormal: false, // 新增
-    status: 'using',
-    // ... 其余不变
+    isHandlingAbnormal: false,
+    reserveId: ''
   },
 
   onLoad(options) {
@@ -47,6 +46,26 @@ Page({
     this.loadReserveDetail(reserveId)
   },
 
+  /**
+   * 是否允许查看该预约：
+   * - 管理员（teacher/admin）可查看任意预约
+   * - 学生只能查看 user_id 等于自己的预约
+   * 注意：这是客户端侧校验，真正兜底还需在云数据库配置「仅本人/管理员可读」的安全规则。
+   */
+  canViewReserve(reserve) {
+    if (!reserve) return false
+
+    const adminInfo = wx.getStorageSync('adminInfo') || {}
+    if (adminInfo.userId && (adminInfo.role === 'admin' || adminInfo.role === 'teacher')) {
+      return true
+    }
+
+    const userInfo = wx.getStorageSync('userInfo') || {}
+    const myUserId = String(userInfo.userId || '').trim()
+    if (!myUserId) return false
+    return String(reserve.user_id || '').trim() === myUserId
+  },
+
   async loadReserveDetail(reserveId) {
     const db = wx.cloud.database()
 
@@ -61,6 +80,13 @@ Page({
     ])
     const reserve = reserveRes.data
     const usage = usageRes.data[0] || null
+
+    // 安全：预约不存在或不是本人的（管理员除外）→ 拒绝展示
+    if (!reserve || !this.canViewReserve(reserve)) {
+      this.setData({ forbidden: true, isLoading: false })
+      return
+    }
+
     console.log('预约完整数据：', reserve)
     console.log('usage:', usage)
     if (usage && usage.feedback) {

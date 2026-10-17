@@ -1,20 +1,35 @@
 <view class="container">
-  <!-- 标签页 -->
+  <!-- 主标签：预约记录 / 使用记录 -->
   <view class="tabs">
-    <view 
-      class="tab {{activeTab === 'reservation' ? 'tab-active' : ''}}" 
+    <view
+      class="tab {{activeTab === 'reservation' ? 'tab-active' : ''}}"
       data-tab="reservation"
       bindtap="switchTab"
     >
       预约记录
     </view>
-    <view 
-      class="tab {{activeTab === 'usage' ? 'tab-active' : ''}}" 
+    <view
+      class="tab {{activeTab === 'usage' ? 'tab-active' : ''}}"
       data-tab="usage"
       bindtap="switchTab"
     >
       使用记录
     </view>
+  </view>
+
+  <!-- 预约记录的状态筛选（与工作台「使用概览」对齐） -->
+  <view wx:if="{{activeTab === 'reservation'}}" class="filter-tabs">
+    <view class="filter-tab {{reservationFilter === 'all' ? 'filter-active' : ''}}" data-filter="all" bindtap="switchReservationFilter">全部</view>
+    <view class="filter-tab {{reservationFilter === 'upcoming' ? 'filter-active' : ''}}" data-filter="upcoming" bindtap="switchReservationFilter">待开始</view>
+    <view class="filter-tab {{reservationFilter === 'effective' ? 'filter-active' : ''}}" data-filter="effective" bindtap="switchReservationFilter">已生效</view>
+    <view class="filter-tab {{reservationFilter === 'cancelled' ? 'filter-active' : ''}}" data-filter="cancelled" bindtap="switchReservationFilter">已取消</view>
+  </view>
+
+  <!-- 使用记录的状态筛选 -->
+  <view wx:if="{{activeTab === 'usage'}}" class="filter-tabs">
+    <view class="filter-tab {{usageFilter === 'all' ? 'filter-active' : ''}}" data-filter="all" bindtap="switchUsageFilter">全部</view>
+    <view class="filter-tab {{usageFilter === 'completed' ? 'filter-active' : ''}}" data-filter="completed" bindtap="switchUsageFilter">已完成</view>
+    <view class="filter-tab {{usageFilter === 'abnormal' ? 'filter-active' : ''}}" data-filter="abnormal" bindtap="switchUsageFilter">异常</view>
   </view>
 
   <!-- 加载状态 -->
@@ -25,12 +40,12 @@
   <!-- 预约历史 -->
   <view wx:if="{{activeTab === 'reservation' && !isLoading}}" class="history-list">
     <view wx:if="{{reservationHistory.length === 0}}" class="empty">
-      <text>暂无预约记录</text>
+      <text>{{reservationFilter === 'upcoming' ? '暂无待开始的预约' : '暂无预约记录'}}</text>
     </view>
 
-    <view 
-      class="history-item" 
-      wx:for="{{reservationHistory}}" 
+    <view
+      class="history-item"
+      wx:for="{{reservationHistory}}"
       wx:key="_id"
       wx:for-index="index"
       data-index="{{index}}"
@@ -59,17 +74,21 @@
         </view>
       </view>
     </view>
+
+    <view wx:if="{{reservationHasMore}}" class="load-more" bindtap="loadMore">
+      <text>{{isLoadingMore ? '加载中...' : '加载更多'}}</text>
+    </view>
   </view>
 
   <!-- 使用历史 -->
   <view wx:if="{{activeTab === 'usage' && !isLoading}}" class="history-list">
     <view wx:if="{{usageHistory.length === 0}}" class="empty">
-      <text>暂无使用记录</text>
+      <text>{{usageFilter === 'abnormal' ? '暂无异常使用记录' : (usageFilter === 'completed' ? '暂无已完成记录' : '暂无使用记录')}}</text>
     </view>
 
-    <view 
-      class="history-item" 
-      wx:for="{{usageHistory}}" 
+    <view
+      class="history-item"
+      wx:for="{{usageHistory}}"
       wx:key="_id"
       wx:for-index="index"
       data-index="{{index}}"
@@ -77,7 +96,7 @@
     >
       <view class="item-header">
         <text class="device-name">{{item.device_name}}</text>
-        <text class="status {{item.status}}">已完成</text>
+        <text class="status {{item.status_class}}">{{item.status_display}}</text>
       </view>
       <view class="item-content">
         <view class="item-row">
@@ -97,6 +116,10 @@
           <text class="item-value">{{item.usage_images.length}}张</text>
         </view>
       </view>
+    </view>
+
+    <view wx:if="{{usageHasMore}}" class="load-more" bindtap="loadMore">
+      <text>{{isLoadingMore ? '加载中...' : '加载更多'}}</text>
     </view>
   </view>
 </view>

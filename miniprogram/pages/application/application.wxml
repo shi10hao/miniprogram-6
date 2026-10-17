@@ -13,7 +13,7 @@
     </view>
 
     <view class="overview-grid">
-      <view class="overview-item" bindtap="navigateToFunction" data-url="/pages/appointment/appointment" data-needauth="true">
+      <view class="overview-item" bindtap="navigateToFunction" data-url="/pages/appointment/appointment?view=upcoming" data-needauth="true">
         <text class="overview-num">{{isAuthenticated ? overview.pending : '--'}}</text>
         <text class="overview-label">待开始预约</text>
       </view>
@@ -21,7 +21,7 @@
         <text class="overview-num accent">{{isAuthenticated ? overview.using : '--'}}</text>
         <text class="overview-label">使用中</text>
       </view>
-      <view class="overview-item" bindtap="navigateToFunction" data-url="/pages/appointment/appointment" data-needauth="true">
+      <view class="overview-item" bindtap="navigateToFunction" data-url="/pages/appointment/appointment?view=history" data-needauth="true">
         <text class="overview-num">{{isAuthenticated ? overview.history : '--'}}</text>
         <text class="overview-label">历史记录</text>
       </view>

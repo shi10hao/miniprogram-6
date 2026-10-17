@@ -21,6 +21,12 @@
     <text>加载中...</text>
   </view>
 
+  <!-- 无权查看 -->
+  <view wx:elif="{{forbidden}}" class="center-hint">
+    <text class="forbidden-icon">🔒</text>
+    <text>无权查看该预约</text>
+  </view>
+
   <view wx:else class="content">
     <!-- 基本信息 -->
     <view class="info-card">

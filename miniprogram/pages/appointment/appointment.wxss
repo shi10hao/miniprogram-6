@@ -22,9 +22,35 @@
 }
 
 .tab-active {
-  color: #07c160;
+  color: var(--ds-primary);
   font-weight: bold;
-  border-bottom: 4rpx solid #07c160;
+  border-bottom: 4rpx solid var(--ds-primary);
+}
+
+/* 状态筛选子 tab */
+.filter-tabs {
+  display: flex;
+  gap: 16rpx;
+  padding: 20rpx;
+  background-color: white;
+  border-bottom: 1rpx solid var(--ds-divider);
+}
+
+.filter-tab {
+  flex: 1;
+  text-align: center;
+  padding: 14rpx 0;
+  font-size: 26rpx;
+  color: var(--ds-text-secondary);
+  background-color: var(--ds-fill);
+  border-radius: 12rpx;
+  transition: all 0.2s;
+}
+
+.filter-active {
+  color: #fff;
+  font-weight: 500;
+  background-color: var(--ds-primary);
 }
 
 .loading {
@@ -106,9 +132,38 @@
   color: #0c5460;
 }
 
+.status.upcoming {
+  background-color: var(--ds-primary-light);
+  color: var(--ds-primary-dark);
+}
+
+.status.cancelled {
+  background-color: var(--ds-fill);
+  color: var(--ds-text-muted);
+}
+
+.status.rejected {
+  background-color: var(--ds-danger-light);
+  color: var(--ds-danger);
+}
+
+.status.abnormal {
+  background-color: var(--ds-danger-light);
+  color: var(--ds-danger);
+}
+
 .status.using {
   background-color: #fff3cd;
   color: #856404;
+}
+
+/* 加载更多 */
+.load-more {
+  display: flex;
+  justify-content: center;
+  padding: 30rpx 0;
+  color: var(--ds-primary);
+  font-size: 26rpx;
 }
 
 .item-content {
