@@ -20,3 +20,9 @@ node_modules/
 
 # 个人 AI 指令（不共享）
 CLAUDE.local.md
+
+# 无头浏览器预览用的临时 profile
+preview/.chrome-profile-*/
+# 预览脚本生成的页面与截图（都是本地产物，不入库）
+preview/*.html
+preview/*.png

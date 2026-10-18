@@ -1,119 +1,113 @@
-// 云函数 getDeviceUsageList/index.js
+// getDeviceUsageList：查询「我最近用过的仪器」与「按名称搜索仪器」
+// mode = 'recent'：按 user_id 取已完成的使用记录，去重后返回最近 3 台仪器
+// mode = 'search'：按仪器名称模糊匹配，去重后最多返回 20 台仪器
 const cloud = require('wx-server-sdk')
+
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
+
 const db = cloud.database()
-const _ = db.command
+
+const RAW_PAGE_SIZE = 100 // 云数据库单次 get 最多 100 条
+const RECENT_LIMIT = 3 // 最近使用仪器数量
+const RECENT_MAX_SCAN = 500 // recent 模式最多扫描的原始流水条数
+const SEARCH_LIMIT = 20 // 搜索结果上限
+const SEARCH_MAX_SCAN = 300 // search 模式最多扫描的原始流水条数
+const MAX_KEYWORD_LENGTH = 30
 
 /**
- * 变更说明：
- * 去重维度改为 device_name(仪器名称)，不再使用device_id；
- * 同一仪器名称、不同device_id视为同一仪器；取时间最新的deviceId对外输出；
- * recent模式收集到3个不同仪器名称就提前退出查询，控制性能；
- * 不新增集合，不改数据库结构；前端出入参完全兼容无需改动。
+ * 转义正则元字符
+ * 用户输入的 ( ) * . 等字符不转义会让查询报错或匹配全表
  */
-
-/**
- * 获取用户最近已完成仪器，收集 targetCount 个不同仪器名称即提前退出
- * @param {string} userId
- * @param {number} targetCount 需要多少种不同仪器名称，业务为3
- * @returns {Array<{deviceId:string,deviceName:string}>}
- */
-async function getUserDistinctDevice(userId, targetCount = 3) {
-  const nameMap = new Map() // key:device_name value:{deviceId,deviceName}
-  let cursor = null
-  const MAX_LOOP = 10 // 安全保护，最多10轮，10*100=10000条硬上限，防止死循环
-
-  for (let i = 0; i < MAX_LOOP; i++) {
-    let query = db.collection('device_usage')
-      .where({
-        user_id: userId,
-        status: 'completed'
-      })
-      .orderBy('start_time', 'desc')
-      .limit(100)
-    if (cursor) {
-      query = query.skip(cursor)
-    }
-    const res = await query.get()
-    if (res.data.length === 0) break
-
-    for (const row of res.data) {
-      // 按仪器名称去重：只有该名称尚未存入map，才存入（因为按时间倒序，第一条就是最新实例）
-      if (!nameMap.has(row.device_name)) {
-        nameMap.set(row.device_name, {
-          deviceId: row.device_id,
-          deviceName: row.device_name
-        })
-        // 凑够目标数量不同仪器名称，直接返回，不再查询数据库
-        if (nameMap.size >= targetCount) {
-          return Array.from(nameMap.values())
-        }
-      }
-    }
-
-    if (res.data.length < 100) break
-    cursor = res.data[res.data.length - 1]._id
-  }
-  return Array.from(nameMap.values())
+function escapeRegExp(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 /**
- * 搜索仪器：按device_name去重；最多读取MAX_SEARCH_ROUND*100条最近流水
+ * 取一页原始使用流水（按开始时间倒序）
+ * offset 为已扫描条数，云数据库 skip 只接受数字，不能用 _id 当游标
  */
-async function searchDistinctDevice(keyword) {
-  const nameMap = new Map()
-  let cursor = null
-  const MAX_SEARCH_ROUND = 3 // 最多读取3*100=300条最近完成记录，控制性能
-  const reg = db.RegExp({ regexp: keyword, options: 'i' })
+async function fetchUsagePage(where, offset) {
+  let query = db.collection('device_usage')
+    .where(where)
+    .orderBy('start_time', 'desc')
+    .limit(RAW_PAGE_SIZE)
 
-  for (let i = 0; i < MAX_SEARCH_ROUND; i++) {
-    let query = db.collection('device_usage')
-      .where({
-        status: 'completed',
-        device_name: reg
+  if (offset > 0) {
+    query = query.skip(offset)
+  }
+
+  const res = await query.get()
+  return res.data || []
+}
+
+/**
+ * 按仪器名称去重收集仪器列表
+ * 直到凑满 limit 或扫完 maxScan 条原始流水
+ */
+async function collectDevices(where, { limit, maxScan }) {
+  const nameMap = new Map()
+  let scanned = 0
+
+  while (scanned < maxScan && nameMap.size < limit) {
+    const rows = await fetchUsagePage(where, scanned)
+    if (rows.length === 0) break
+
+    for (const row of rows) {
+      scanned += 1
+      const name = String(row.device_name || '').trim()
+      if (!name || nameMap.has(name)) continue
+
+      nameMap.set(name, {
+        deviceId: row.device_id || '',
+        deviceName: name
       })
-      .orderBy('start_time', 'desc')
-      .limit(100)
-    if (cursor) query = query.skip(cursor)
-    const res = await query.get()
-    console.log('res.data:', res.data)
-    console.log('1')
-    if (res.data.length === 0) break
-    console.log('2')
-    for (const row of res.data) {
-      if (!nameMap.has(row.device_name)) {
-        nameMap.set(row.device_name, {
-          deviceId: row.device_id,
-          deviceName: row.device_name
-        })
-      }
+
+      if (nameMap.size >= limit) break
     }
 
-    if (res.data.length < 100) break
-    cursor = res.data[res.data.length - 1]._id
+    if (rows.length < RAW_PAGE_SIZE) break
   }
+
   return Array.from(nameMap.values())
 }
 
 exports.main = async (event, context) => {
-  const { mode, userId, keyword } = event
-  console.log('mode, userId, keyword:', mode, userId, keyword)
+  const { mode } = event
+
   try {
     if (mode === 'recent') {
-      if (!userId) return { code: -1, msg: '缺少userId', data: [] }
-      const list = await getUserDistinctDevice(userId, 3)
-      return { code: 0, data: list }
-    } else if (mode === 'search') {
-      const kw = (keyword || '').trim()
-      if (!kw) return { code: 0, data: [] }
-      console.log('kw为不为空,kw:', kw)
-      const list = await searchDistinctDevice(kw)
-      return { code: 0, data: list }
-    } else {
-      return { code: -1, msg: '非法mode参数', data: [] }
+      const userId = String(event.userId || '').trim()
+      if (!userId) {
+        return { code: -1, msg: '缺少userId', data: [] }
+      }
+
+      const list = await collectDevices(
+        { user_id: userId, status: 'completed' },
+        { limit: RECENT_LIMIT, maxScan: RECENT_MAX_SCAN }
+      )
+
+      return { code: 0, msg: 'ok', data: list }
     }
+
+    if (mode === 'search') {
+      const keyword = String(event.keyword || '').trim().slice(0, MAX_KEYWORD_LENGTH)
+      if (!keyword) {
+        return { code: 0, msg: 'ok', data: [] }
+      }
+
+      const nameReg = db.RegExp({ regexp: escapeRegExp(keyword), options: 'i' })
+
+      const list = await collectDevices(
+        { status: 'completed', device_name: nameReg },
+        { limit: SEARCH_LIMIT, maxScan: SEARCH_MAX_SCAN }
+      )
+
+      return { code: 0, msg: 'ok', data: list }
+    }
+
+    return { code: -1, msg: '非法mode参数', data: [] }
   } catch (err) {
-    console.error('[getDeviceUsageList]异常', err)
+    console.error('[getDeviceUsageList] 查询失败', err)
     return { code: -99, msg: '服务器异常', data: [] }
   }
 }

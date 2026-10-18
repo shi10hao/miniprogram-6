@@ -1,196 +1,223 @@
-/* 顶部状态标签 */
-.status-badge {
-  align-self: flex-start;
-  font-size: 22rpx;
-  padding: 6rpx 18rpx;
-  border-radius: 24rpx;
-  font-weight: 500;
-  margin-top: 12rpx;
-}
+/* pages/reserve-detail/reserve-detail.wxss */
 
-.status-badge.upcoming {
-  background: #e3f2fd;
-  color: #1565c0;
-}
-
-.status-badge.using {
-  background: #fff8e1; color: #f57c00;
-}
-
-.status-badge.completed {
-  background: #e8f5e9; color: #2e7d32;
-}
-
-.status-badge.abnormal {
-  background: #e2e2e2; color: #ff0000;
-}
-
-.container {
+.page {
   min-height: 100vh;
-  background: #f0f4f8;
-  padding-bottom: 40rpx;
+  background: var(--ds-bg);
+  padding-bottom: 48rpx;
 }
 
-.header {
-  background: linear-gradient(135deg, #2d6a6e, #62BCC4);
-  padding: 48rpx 40rpx 36rpx;
+/* ==================== 顶部 ==================== */
+
+.hero {
+  padding: 36rpx 40rpx 120rpx;
+  background: linear-gradient(160deg, var(--ds-primary), var(--ds-primary-dark));
 }
 
-.device-name {
-  display: block;
-  font-size: 36rpx;
-  font-weight: 700;
-  color: white;
-}
-
-.center-hint {
+.hero-top {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 80rpx 0;
-  gap: 16rpx;
-  color: #aaa;
-  font-size: 26rpx;
+  justify-content: space-between;
 }
 
-.forbidden-icon {
-  font-size: 64rpx;
-  opacity: 0.6;
+.hero-eyebrow {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.78);
+  letter-spacing: 2rpx;
 }
 
-.loading-spin {
-  width: 48rpx;
-  height: 48rpx;
-  border: 4rpx solid #e0e0e0;
-  border-top: 4rpx solid #62BCC4;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+.hero-chip {
+  font-size: 22rpx;
+  color: #fff;
+  padding: 8rpx 20rpx;
+  border-radius: var(--ds-radius-pill);
+  background: rgba(255, 255, 255, 0.2);
+  border: 1rpx solid rgba(255, 255, 255, 0.3);
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.content {
-  padding: 24rpx;
-}
-
-.section {
-  background: white;
-  border-radius: 20rpx;
-  padding: 32rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
-}
-
-.section-title {
-  display: block;
-  font-size: 28rpx;
+.hero-chip-abnormal {
+  background: #fff;
+  color: var(--ds-danger);
+  border-color: #fff;
   font-weight: 600;
-  color: #333;
-  margin-bottom: 24rpx;
-  padding-bottom: 20rpx;
-  border-bottom: 1rpx solid #f0f0f0;
 }
 
-.empty-hint {
-  text-align: center;
-  color: #aaa;
-  font-size: 24rpx;
-  padding: 40rpx 0;
-}
-
-.photo-section {
+.hero-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   margin-top: 16rpx;
+  font-size: 42rpx;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.3;
 }
 
-.usage-photo {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 8rpx;
-  background: #eee;
+.hero-sub {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.88);
 }
 
-.photo-grid {
+.body {
+  margin-top: -72rpx;
+  padding: 0 var(--ds-gap);
+}
+
+/* ==================== 状态提示 ==================== */
+
+.tip {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
+  align-items: flex-start;
+  gap: 14rpx;
+  padding: 24rpx 28rpx;
+  margin-bottom: var(--ds-gap);
+  border-radius: var(--ds-radius);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
 }
 
-/* 仪器信息卡片 */
-.info-card {
-  background: white;
-  border-radius: 20rpx;
-  margin: 0;
-  padding: 32rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+.tip-dot {
+  width: 12rpx;
+  height: 12rpx;
+  margin-top: 12rpx;
+  border-radius: 50%;
+  background: var(--ds-primary);
+  flex-shrink: 0;
 }
 
-.info-card-header {
+.tip-text {
+  flex: 1;
+  font-size: 26rpx;
+  color: var(--ds-text-secondary);
+  line-height: 1.6;
+}
+
+.tip-using .tip-dot {
+  background: var(--ds-warning);
+}
+
+.tip-completed .tip-dot {
+  background: var(--ds-success);
+}
+
+.tip-abnormal {
+  background: var(--ds-danger-light);
+}
+
+.tip-abnormal .tip-dot {
+  background: var(--ds-danger);
+}
+
+.tip-abnormal .tip-text {
+  color: var(--ds-danger);
+}
+
+/* ==================== 卡片通用 ==================== */
+
+.card-head {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 28rpx;
-  padding-bottom: 20rpx;
-  border-bottom: 1rpx solid #f0f0f0;
-}
-
-.info-card-title {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #333;
-}
-
-/* 区域折叠 */
-.section-title-wrap {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding-bottom: 20rpx;
-  border-bottom: 1rpx solid #f0f0f0;
-  margin-bottom: 24rpx;
+  margin-bottom: var(--ds-gap);
 }
 
-.section-title-wrap .section-title {
-  margin-bottom: 0;
-  padding-bottom: 0;
+.card-hint {
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ds-gap);
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid var(--ds-divider);
+}
+
+.row:last-child {
   border-bottom: none;
 }
 
-.feedback-section {
-  background: white;
-  border-radius: 20rpx;
-  padding: 32rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+.row-label {
+  font-size: 26rpx;
+  color: var(--ds-text-muted);
+  flex-shrink: 0;
 }
 
-.feedback-section-title {
-  display: block;
+.row-value {
+  flex: 1;
   font-size: 28rpx;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 24rpx;
-  padding-bottom: 20rpx;
-  border-bottom: 1rpx solid #f0f0f0;
+  font-weight: 500;
+  color: var(--ds-text);
+  text-align: right;
+  word-break: break-all;
 }
 
-/* 异常处理按钮区域 */
-.abnormal-action {
-  margin-top: 24rpx;
-  display: flex;
-  justify-content: center;
+.is-yes {
+  color: var(--ds-success);
+}
+
+.is-no {
+  color: var(--ds-danger);
+}
+
+/* ==================== 异常反馈 ==================== */
+
+.abnormal-card {
+  border-left: 8rpx solid var(--ds-danger);
+}
+
+.abnormal-card.is-resolved {
+  border-left-color: var(--ds-border);
+}
+
+.abnormal-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--ds-text);
+  margin-bottom: 12rpx;
+}
+
+.abnormal-desc {
+  font-size: 28rpx;
+  color: var(--ds-text-secondary);
+  line-height: 1.7;
+  word-break: break-all;
+}
+
+.abnormal-meta {
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
+}
+
+.abnormal-photos {
+  margin-top: 20rpx;
+}
+
+.abnormal-handled {
+  margin-top: var(--ds-gap);
+  padding-top: 20rpx;
+  border-top: 1rpx solid var(--ds-divider);
+  font-size: 24rpx;
+  color: var(--ds-success);
+}
+
+.abnormal-wait {
+  margin-top: var(--ds-gap);
+  padding-top: 20rpx;
+  border-top: 1rpx solid var(--ds-divider);
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
 }
 
 .resolve-btn {
-  height: 72rpx;
-  line-height: 72rpx;
-  padding: 0 40rpx;
-  background: #e74c3c;
-  color: white;
-  font-size: 28rpx;
-  font-weight: 600;
-  border-radius: 36rpx;
+  margin-top: var(--ds-gap);
+  background: var(--ds-danger);
+  color: #fff;
   border: none;
 }
 
@@ -198,93 +225,116 @@
   border: none;
 }
 
-/* 处理中提示 */
-.handling-hint {
+/* ==================== 照片 ==================== */
+
+.photo-grid {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-wrap: wrap;
   gap: 16rpx;
-  padding: 40rpx 0;
-  color: #999;
-  font-size: 26rpx;
 }
 
-/* 结束信息展示 */
-.end-info-row {
+.photo {
+  width: 196rpx;
+  height: 196rpx;
+  border-radius: 12rpx;
+  background: var(--ds-fill);
+}
+
+.photo-sm {
+  width: 156rpx;
+  height: 156rpx;
+}
+
+.sub-photos {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16rpx 0;
-  border-bottom: 1rpx solid #f5f5f5;
+  flex-wrap: wrap;
+  gap: var(--ds-gap);
+  margin-top: var(--ds-gap);
+  padding-top: var(--ds-gap);
+  border-top: 1rpx solid var(--ds-divider);
 }
 
-.end-info-row:last-of-type {
-  border-bottom: none;
-}
-
-.end-info-label {
-  font-size: 26rpx;
-  color: #666;
-}
-
-.end-info-value {
-  font-size: 26rpx;
-  color: #333;
-  font-weight: 500;
-}
-
-.end-info-value.yes {
-  color: #2e7d32;
-}
-
-.end-info-value.no {
-  color: #c62828;
-}
-
-.end-info-photo-section {
-  margin-top: 20rpx;
-  padding-top: 20rpx;
-  border-top: 1rpx solid #f0f0f0;
-}
-
-.end-info-photo-label {
-  display: block;
-  font-size: 24rpx;
-  color: #888;
-  margin-bottom: 12rpx;
-}
-
-/* 基本信息列表 - 上下结构 */
-.info-list {
+.sub-photo {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 10rpx;
 }
 
-.info-item {
+.sub-photo-label {
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
+}
+
+.empty-photo {
+  text-align: center;
+  padding: 48rpx var(--ds-gap-lg);
+}
+
+.empty-photo-text {
+  font-size: 26rpx;
+  color: var(--ds-text-muted);
+}
+
+.foot-hint {
+  padding: 8rpx 0 var(--ds-gap-lg);
+  text-align: center;
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
+}
+
+/* ==================== 状态卡 / 骨架屏 ==================== */
+
+.state-card {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  padding: 16rpx 0;
-  border-bottom: 1rpx solid #f5f5f5;
+  padding: 72rpx 40rpx;
+  text-align: center;
 }
 
-.info-item:last-child {
-  border-bottom: none;
+.state-icon {
+  font-size: 72rpx;
+  line-height: 1.2;
 }
 
-.info-item-label {
+.state-title {
+  margin-top: 20rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+
+.state-desc {
+  margin-top: 12rpx;
   font-size: 26rpx;
-  color: #999;
-  flex-shrink: 0;
+  color: var(--ds-text-muted);
+  line-height: 1.6;
 }
 
-.info-item-value {
-  font-size: 26rpx;
-  color: #333;
-  font-weight: 500;
-  text-align: right;
-  flex: 1;
-  margin-left: 20rpx;
-  word-break: break-all;
+.state-btn {
+  margin-top: var(--ds-gap-lg);
+  box-sizing: border-box;
+}
+
+.state-btn::after {
+  border: none;
+}
+
+.sk-card {
+  border-radius: var(--ds-radius);
+}
+
+.sk-line {
+  height: 24rpx;
+  border-radius: 8rpx;
+  margin-bottom: 16rpx;
+}
+
+.sk-line-lg {
+  width: 60%;
+}
+
+.sk-line-sm {
+  width: 35%;
+  margin-bottom: 0;
 }

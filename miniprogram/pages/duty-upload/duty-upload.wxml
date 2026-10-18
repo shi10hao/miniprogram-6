@@ -1,31 +1,124 @@
-<view class="container">
-  <view class="form-card">
-    <view class="form-item lab-name-item">
-      <text class="form-label">实验室名称</text>
-      <input class="form-input" placeholder="请输入实验室名称" value="{{dutyInfo.labName}}" bindinput="bindInputLabName" />
+<view class="page">
+  <!-- 头部 -->
+  <view class="hero">
+    <text class="hero-eyebrow">安全员打卡</text>
+    <text class="hero-title">记录本次值日情况</text>
+    <text class="hero-desc">上传现场照片并补充说明，管理员可在后台查看</text>
+    <view class="hero-badge">
+      <text class="hero-badge-dot"></text>
+      <text>带 * 的为必填项</text>
     </view>
-    <view class="form-item">
-      <text class="form-label">值日人员名称</text>
-      <input class="form-input" placeholder="请输入姓名" value="{{dutyInfo.name}}" bindinput="bindInputName" />
-    </view>
-    <view class="form-item">
-      <text class="form-label">手机号</text>
-      <input class="form-input" placeholder="请输入手机号" value="{{dutyInfo.phone}}" bindinput="bindInputPhone" />
-    </view>
-    <view class="form-item upload-item">
-      <text class="form-label">值日情况说明</text>
-      <button class="upload-btn" bindtap="chooseImage">上传照片</button>
-    </view>
-    <view class="image-container">
-      <view class="image-item" wx:for="{{dutyInfo.images}}" wx:key="index">
-        <image class="preview-image" src="{{item}}" mode="aspectFill"></image>
-        <view class="delete-btn" bindtap="deleteImage" data-index="{{index}}">×</view>
+  </view>
+
+  <view class="body">
+    <!-- 基本信息 -->
+    <view class="ds-card">
+      <view class="ds-section-head">
+        <text class="ds-section-title">基本信息</text>
+      </view>
+
+      <view class="field">
+        <text class="field-label">实验室名称<text class="field-required">*</text></text>
+        <input
+          class="field-input {{errors.labName ? 'is-error' : ''}}"
+          placeholder="如：理工楼F301"
+          placeholder-class="field-placeholder"
+          value="{{dutyInfo.labName}}"
+          maxlength="30"
+          cursor-spacing="24"
+          data-field="labName"
+          bindinput="onInput"
+        />
+        <text wx:if="{{errors.labName}}" class="field-error">{{errors.labName}}</text>
+      </view>
+
+      <view class="field">
+        <text class="field-label">值日人员姓名<text class="field-required">*</text></text>
+        <input
+          class="field-input {{errors.name ? 'is-error' : ''}}"
+          placeholder="请输入姓名"
+          placeholder-class="field-placeholder"
+          value="{{dutyInfo.name}}"
+          maxlength="20"
+          cursor-spacing="24"
+          data-field="name"
+          bindinput="onInput"
+        />
+        <text wx:if="{{errors.name}}" class="field-error">{{errors.name}}</text>
+      </view>
+
+      <view class="field field-last">
+        <text class="field-label">手机号<text class="field-required">*</text></text>
+        <input
+          class="field-input {{errors.phone ? 'is-error' : ''}}"
+          type="number"
+          placeholder="用于管理员联系你"
+          placeholder-class="field-placeholder"
+          value="{{dutyInfo.phone}}"
+          maxlength="11"
+          cursor-spacing="24"
+          data-field="phone"
+          bindinput="onInput"
+        />
+        <text wx:if="{{errors.phone}}" class="field-error">{{errors.phone}}</text>
       </view>
     </view>
-    <button
-      class="submit-btn"
-      bindtap="handleSubmit"
-      disabled="{{isSubmitting}}"
-    >{{isSubmitting ? '提交中...' : '提交信息'}}</button>
+
+    <!-- 现场照片 -->
+    <view class="ds-card">
+      <view class="ds-section-head">
+        <text class="ds-section-title">现场照片<text class="field-required">*</text></text>
+        <text class="sec-hint">{{dutyInfo.images.length}}/{{maxImages}}</text>
+      </view>
+
+      <view class="photo-grid">
+        <view wx:for="{{dutyInfo.images}}" wx:key="*this" class="photo-item">
+          <image
+            class="photo-img"
+            src="{{item}}"
+            mode="aspectFill"
+            data-index="{{index}}"
+            bindtap="onPreviewImage"
+          />
+          <view class="photo-remove" data-index="{{index}}" catchtap="onRemoveImage">✕</view>
+        </view>
+
+        <view wx:if="{{canAddImage}}" class="photo-add" bindtap="onChooseImage">
+          <text class="photo-add-plus">＋</text>
+          <text class="photo-add-text">添加照片</text>
+        </view>
+      </view>
+
+      <text wx:if="{{errors.images}}" class="field-error">{{errors.images}}</text>
+      <text class="photo-tip">最多 {{maxImages}} 张，建议拍到台面、设备与废物存放区</text>
+    </view>
+
+    <!-- 情况说明 -->
+    <view class="ds-card">
+      <view class="ds-section-head">
+        <text class="ds-section-title">情况说明</text>
+        <text class="sec-hint">选填</text>
+      </view>
+
+      <view class="remark-box">
+        <textarea
+          class="remark-input"
+          placeholder="例如：台面已清洁，废液已按规定回收"
+          placeholder-class="field-placeholder"
+          value="{{dutyInfo.remark}}"
+          maxlength="{{maxRemarkLength}}"
+          cursor-spacing="32"
+          data-field="remark"
+          bindinput="onInput"
+        />
+        <text class="remark-count">{{dutyInfo.remark.length}}/{{maxRemarkLength}}</text>
+      </view>
+    </view>
+
+    <!-- 提交 -->
+    <view class="ds-btn ds-btn-block submit-btn {{isSubmitting ? 'is-disabled' : ''}}" bindtap="onSubmit">
+      {{isSubmitting ? '提交中...' : '提交打卡'}}
+    </view>
+    <text class="submit-tip">提交后管理员可在「卫生打卡记录」中查看</text>
   </view>
 </view>

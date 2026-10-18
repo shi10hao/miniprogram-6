@@ -1,78 +1,267 @@
-page {
-  background-color: #f0f4f8;
-}
-.container {
-  padding: 24rpx;
+/* 仪器历史使用者：品牌色头部 + 使用者卡片 */
+
+.page {
   min-height: 100vh;
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
 }
 
-.header-bar {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 32rpx;
-  margin-bottom: 24rpx;
+/* ---------- 头部 ---------- */
+.hero {
+  padding: 36rpx 40rpx 104rpx;
+  background: linear-gradient(160deg, var(--ds-primary) 0%, var(--ds-primary-dark) 100%);
+  color: #fff;
 }
-.device-title {
+
+.hero-eyebrow {
+  font-size: 22rpx;
+  letter-spacing: 4rpx;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.hero-title {
+  margin-top: 12rpx;
+  font-size: 44rpx;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.hero-desc {
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+/* ---------- 内容区 ---------- */
+.body {
+  margin-top: -48rpx;
+  padding: 0 var(--ds-gap);
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: var(--ds-gap-lg);
+  padding: 22rpx var(--ds-gap-lg);
+  border-radius: var(--ds-radius);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.notice-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: var(--ds-primary);
+  flex-shrink: 0;
+}
+
+.notice-text {
+  font-size: 24rpx;
+  color: var(--ds-text-secondary);
+}
+
+.sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.sec-hint {
+  font-size: 22rpx;
+  color: var(--ds-text-muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- 使用者卡片 ---------- */
+.user-card {
+  padding: 26rpx var(--ds-gap-lg);
+  margin-bottom: var(--ds-gap-sm);
+  border-radius: var(--ds-radius);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.user-head {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 50%;
+  background: var(--ds-primary-light);
+  color: var(--ds-primary-deep);
   font-size: 32rpx;
   font-weight: 600;
-  color: #222;
-  display:block;
-  margin-bottom:12rpx;
-}
-.sub-tip {
-  font-size:26rpx;
-  color:#666;
+  flex-shrink: 0;
 }
 
-.loading-wrap,.empty-wrap {
-  padding:120rpx 0;
-  text-align:center;
-  color:#999;
-  font-size:28rpx;
+.user-main {
+  flex: 1;
+  min-width: 0;
 }
 
-.user-card {
-  background:#fff;
-  border-radius:16rpx;
-  padding:32rpx;
-  margin-bottom:20rpx;
-}
-.row {
-  display:flex;
-  padding:12rpx 0;
-}
-.label {
-  width:160rpx;
-  font-size:28rpx;
-  color:#666;
-}
-.val {
-  flex:1;
-  font-size:28rpx;
-  color:#222;
+.user-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 0;
 }
 
-.more-area{
-  margin:60rpx 0 80rpx;
-  text-align:center;
+.user-name {
+  display: block;
+  max-width: 320rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--ds-text);
 }
-/* 替换原生button默认样式 */
-.load-more-btn{
-  width: auto;
-  display: inline-block;
-  background: transparent !important;
-  border: none !important;
-  color:#888888;
-  font-size:28rpx;
-  padding:0;
-  margin:0;
-  text-decoration: underline;
+
+.user-sub {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
 }
-/* 清除button小程序默认边框伪元素 */
-.load-more-btn::after{
-  border:none;
+
+/* 学号 / 手机号：与头像对齐的次级信息区 */
+.user-meta {
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid var(--ds-divider);
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
 }
-.no-more-tip{
-  font-size:26rpx;
-  color:#999;
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.meta-label {
+  width: 104rpx;
+  flex-shrink: 0;
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
+}
+
+.meta-val {
+  flex: 1;
+  min-width: 0;
+  font-size: 26rpx;
+  color: var(--ds-text-secondary);
+  word-break: break-all;
+}
+
+.call-btn {
+  flex-shrink: 0;
+  padding: 4rpx 22rpx;
+  border: 1rpx solid var(--ds-primary);
+  border-radius: var(--ds-radius-pill);
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: var(--ds-primary);
+}
+
+.call-btn:active {
+  background: var(--ds-primary-light);
+}
+
+/* ---------- 状态 ---------- */
+.state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 72rpx var(--ds-gap-lg);
+  border-radius: var(--ds-radius);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
+  text-align: center;
+}
+
+.state-icon {
+  font-size: 64rpx;
+  opacity: 0.5;
+  margin-bottom: var(--ds-gap-sm);
+}
+
+.state-title {
+  font-size: 28rpx;
+  color: var(--ds-text-secondary);
+}
+
+.retry-btn {
+  margin-top: var(--ds-gap-lg);
+  height: 72rpx;
+  padding: 0 48rpx;
+  font-size: 28rpx;
+}
+
+/* ---------- 加载更多 ---------- */
+.more-area {
+  padding: 16rpx 0 8rpx;
+  text-align: center;
+}
+
+.load-more {
+  height: 80rpx;
+  font-size: 28rpx;
+}
+
+.no-more {
+  display: block;
+  padding: 16rpx 0;
+  font-size: 22rpx;
+  color: var(--ds-text-muted);
+}
+
+/* ---------- 骨架屏 ---------- */
+.sk-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 20rpx;
+  padding: 26rpx var(--ds-gap-lg);
+  margin-bottom: var(--ds-gap-sm);
+}
+
+.sk-avatar {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sk-main {
+  flex: 1;
+  min-width: 0;
+  padding-top: 6rpx;
+}
+
+.sk-line-lg {
+  width: 46%;
+  height: 30rpx;
+  margin-bottom: 16rpx;
+}
+
+.sk-line-sm {
+  width: 78%;
+  height: 22rpx;
+  margin-bottom: 12rpx;
 }

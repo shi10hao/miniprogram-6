@@ -27,11 +27,11 @@
   border-bottom: 4rpx solid var(--ds-primary);
 }
 
-/* 状态筛选子 tab */
+/* 状态筛选子 tab（预约有 5 个，间距收紧一点） */
 .filter-tabs {
   display: flex;
-  gap: 16rpx;
-  padding: 20rpx;
+  gap: 12rpx;
+  padding: 20rpx 16rpx;
   background-color: white;
   border-bottom: 1rpx solid var(--ds-divider);
 }
@@ -135,6 +135,55 @@
 .status.upcoming {
   background-color: var(--ds-primary-light);
   color: var(--ds-primary-dark);
+}
+
+/* 已到预约时段、还没开始使用 */
+.status.ready {
+  background-color: var(--ds-primary);
+  color: #fff;
+}
+
+/* 时段已过且从未开始使用 */
+.status.expired {
+  background-color: var(--ds-border);
+  color: var(--ds-text);
+}
+
+/* 预约状态说明：已到时段 / 已过期时给一句解释 */
+.item-tip {
+  margin: -8rpx 0 16rpx;
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
+  line-height: 1.5;
+}
+
+/* 卡片底部操作区（目前只有「取消预约」） */
+.item-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid var(--ds-divider);
+}
+
+.cancel-btn {
+  height: 64rpx;
+  line-height: 62rpx;
+  padding: 0 32rpx;
+  border: 1rpx solid var(--ds-border);
+  border-radius: 32rpx;
+  font-size: 26rpx;
+  color: var(--ds-text-secondary);
+}
+
+.cancel-btn-hover {
+  background-color: var(--ds-danger-light);
+  border-color: var(--ds-danger);
+  color: var(--ds-danger);
+}
+
+.cancel-btn.is-busy {
+  opacity: 0.5;
 }
 
 .status.cancelled {

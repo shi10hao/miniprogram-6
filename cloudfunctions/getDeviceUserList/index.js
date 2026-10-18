@@ -1,85 +1,101 @@
+// getDeviceUserList：按仪器名称分页查询用过它的同学（按最近使用时间去重）
+// 游标 cursor 是「已扫描的原始流水条数」，不是 _id：云数据库 skip 只接受数字偏移
 const cloud = require('wx-server-sdk')
+
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
+
 const db = cloud.database()
 
+const RAW_PAGE_SIZE = 100 // 云数据库单次 get 最多 100 条
+const DEFAULT_PAGE_SIZE = 10
+const MAX_PAGE_SIZE = 20
+const MAX_SCAN_ROWS = 500 // 单次请求最多扫描的原始流水条数，控制云函数耗时
+const MAX_EXCLUDE_IDS = 500
+
 /**
- * 根据仪器名称分页获取不重复使用者
- * @param {string} deviceName
- * @param {string|null} cursor 上一轮返回的游标
- * @param {number} pageSize 每批取多少个不重复user，这里10
- * @returns {data,nextCursor,finished}
+ * 夹取每页条数，防止前端传入异常值
  */
-exports.main = async (event) => {
-  const { deviceName, cursor = null, pageSize = 10 } = event
+function clampPageSize(value) {
+  const size = Number(value)
+  if (!Number.isFinite(size) || size <= 0) return DEFAULT_PAGE_SIZE
+  return Math.min(Math.floor(size), MAX_PAGE_SIZE)
+}
+
+/**
+ * 把使用流水整理成前端要用的使用者卡片
+ */
+function buildUserCard(row) {
+  return {
+    userId: row.user_id,
+    student_id: row.user_id,
+    student_name: row.student_name || '',
+    group_name: row.group_name || '',
+    phone: row.phone || '',
+    start_time: row.start_time || ''
+  }
+}
+
+exports.main = async (event, context) => {
+  const deviceName = String(event.deviceName || '').trim()
+  const pageSize = clampPageSize(event.pageSize)
+  const startOffset = Math.max(0, Math.floor(Number(event.cursor)) || 0)
+  // 前端回传已拿到的人，服务端跳过，避免同一个人跨页重复出现
+  const excludeList = Array.isArray(event.excludeUserIds) ? event.excludeUserIds.slice(0, MAX_EXCLUDE_IDS) : []
+  const excludeMap = new Set(excludeList.map(String))
+
+  if (!deviceName) {
+    return { code: -1, msg: '缺少仪器名称', data: [], nextCursor: null, finished: true }
+  }
+
   try {
-    const MAX_RAW_ROUND = 5 // 底层原始流水最多扫描5*100=500条硬保护
-    const distinctUserMap = new Map()
-    let currentCursor = cursor
-    let rawRoundCount = 0
-    let finalNextCursor = null
-    let rawReachEnd = false
+    const userMap = new Map()
+    let scanned = 0
+    let reachedEnd = false
 
-    while (true) {
-      // 已经收集够一批不重复用户，退出循环返回
-      if (distinctUserMap.size >= pageSize) break
-      // 原始流水读取达到上限，终止
-      if (rawRoundCount >= MAX_RAW_ROUND) { rawReachEnd = true; break }
-
-      let q = db.collection('device_usage')
-        .where({
-          device_name: deviceName,
-          status: 'completed'
-        })
+    while (userMap.size < pageSize && scanned < MAX_SCAN_ROWS) {
+      let query = db.collection('device_usage')
+        .where({ device_name: deviceName, status: 'completed' })
         .orderBy('start_time', 'desc')
-        .limit(100)
-      if (currentCursor) {
-        q = q.skip(currentCursor)
-      }
-      const res = await q.get()
-      rawRoundCount += 1
+        .limit(RAW_PAGE_SIZE)
 
-      if (res.data.length === 0) {
-        rawReachEnd = true
+      if (startOffset + scanned > 0) {
+        query = query.skip(startOffset + scanned)
+      }
+
+      const res = await query.get()
+      const rows = res.data || []
+      if (rows.length === 0) {
+        reachedEnd = true
         break
       }
 
-      for (const row of res.data) {
-        const uid = row.user_id
-        if (!distinctUserMap.has(uid)) {
-          distinctUserMap.set(uid, {
-            userId: uid,
-            student_name: row.student_name,
-            student_id: row.user_id,
-            group_name: row.group_name,
-            phone: row.phone,
-            start_time: row.start_time
-          })
-          // 凑够本批数量，停止解析本页剩余数据
-          if (distinctUserMap.size >= pageSize) {
-            break
-          }
-        }
+      for (const row of rows) {
+        scanned += 1
+        const userId = String(row.user_id || '').trim()
+        if (!userId || excludeMap.has(userId) || userMap.has(userId)) continue
+
+        userMap.set(userId, buildUserCard(row))
+        if (userMap.size >= pageSize) break
       }
 
-      // 本页原始记录读完，设置下一轮游标
-      if (res.data.length < 100) {
-        rawReachEnd = true
+      // 本页没取满才可能还有下一页；取满时游标精确停在已扫描位置，尾部用户不会被跳过
+      if (rows.length < RAW_PAGE_SIZE) {
+        reachedEnd = true
         break
-      } else {
-        currentCursor = res.data[res.data.length - 1]._id
-        finalNextCursor = currentCursor
       }
     }
 
-    const batchList = Array.from(distinctUserMap.values()).slice(0, pageSize)
+    const data = Array.from(userMap.values())
+
     return {
       code: 0,
-      data: batchList,
-      nextCursor: rawReachEnd ? null : finalNextCursor,
-      finished: rawReachEnd
+      msg: 'ok',
+      data,
+      nextCursor: reachedEnd ? null : startOffset + scanned,
+      finished: reachedEnd
     }
   } catch (err) {
-    console.error('[getDeviceUserList]', err)
-    return { code: -99, data: [], nextCursor: null, finished: true }
+    console.error('[getDeviceUserList] 查询失败', err)
+    return { code: -99, msg: '服务器异常', data: [], nextCursor: null, finished: true }
   }
 }

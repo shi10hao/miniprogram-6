@@ -1,54 +1,133 @@
-<view class="container">
-  <!--功能引导提示-->
-  <view class="guide-tip">
-    <text>选择一台仪器，查看使用过它的学长学姐，请教实操经验</text>
+<view class="page">
+  <!-- 品牌色头部：与原生导航栏同色，向下渐深，和内容区形成层次 -->
+  <view class="hero">
+    <view class="hero-eyebrow">实验室经验共享</view>
+    <view class="hero-title">找到用过这台仪器的同学</view>
+    <view class="hero-desc">少走弯路，直接向他们请教实操细节</view>
+    <view class="hero-badge">仅统计已完成的使用记录</view>
   </view>
 
-  <!--搜索框-->
-  <view class="search-box">
-    <text class="search-icon">🔍</text>
-    <input 
-      class="search-input" 
-      placeholder="搜索仪器名称" 
-      value="{{keyword}}" 
-      bindinput="onInput" 
-      bindconfirm="onSearch" 
-      confirm-type="search"
-    />
-  </view>
+  <view class="body">
+    <!-- 搜索卡片：上叠头部下沿，形成浮层 -->
+    <view class="search-card">
+      <view class="search-field">
+        <text class="search-icon">🔍</text>
+        <input
+          class="search-input"
+          placeholder="输入仪器名称，如 紫外分光光度计"
+          placeholder-class="search-placeholder"
+          value="{{keyword}}"
+          maxlength="30"
+          confirm-type="search"
+          bindinput="onInput"
+          bindconfirm="onSearch"
+        />
+        <view wx:if="{{keyword}}" class="search-clear" hover-class="search-clear-hover" catchtap="onClearKeyword">✕</view>
+      </view>
+      <view class="ds-btn search-submit {{isSearching ? 'is-disabled' : ''}}" bindtap="onSearch">{{isSearching ? '搜索中' : '搜索'}}</view>
+    </view>
 
-  <!--最近使用仪器模块-->
-  <view class="recent-wrap">
-    <view class="block-title">最近使用仪器</view>
-    <view wx:if="{{recentList.length === 0}}" class="empty-small">暂无使用记录，可上方搜索仪器来找学长学姐</view>
-    <view class="device-list" wx:else>
-      <view 
-        class="device-card" 
-        wx:for="{{recentList}}" 
-        wx:key="deviceId" 
-        bindtap="onTapDevice" 
-        data-item="{{item}}"
-      >
-        <view class="dev-name">{{item.deviceName}}</view>
-        <view class="card-tag">找使用者</view>
+    <!-- 未登录：引导登录，同时保留上方搜索能力 -->
+    <view wx:if="{{!isLoggedIn}}" class="ds-card guide-card">
+      <view class="guide-icon">💬</view>
+      <view class="guide-title">登录后查看你的使用记录</view>
+      <view class="guide-desc">登录可一键回到最近用过的仪器；不登录也能用上方搜索直接找同学</view>
+      <view class="ds-btn ds-btn-block guide-btn" bindtap="openLogin">去登录</view>
+    </view>
+
+    <!-- 最近使用仪器 -->
+    <view wx:if="{{isLoggedIn}}" class="section">
+      <view class="sec-head">
+        <text class="ds-section-title">我最近用过的仪器</text>
+        <text wx:if="{{!isLoadingRecent && !hasRecentError && recentList.length}}" class="sec-hint">共 {{recentList.length}} 台</text>
+      </view>
+
+      <view wx:if="{{isLoadingRecent}}" class="list">
+        <view wx:for="{{skeletonRows}}" wx:key="*this" class="ds-skeleton-card sk-card">
+          <view class="ds-skeleton sk-icon"></view>
+          <view class="sk-main">
+            <view class="ds-skeleton sk-line-lg"></view>
+            <view class="ds-skeleton sk-line-sm"></view>
+          </view>
+        </view>
+      </view>
+
+      <view wx:elif="{{hasRecentError}}" class="ds-card state-card" hover-class="state-card-hover" bindtap="loadRecentUsage">
+        <text class="state-icon">⚠️</text>
+        <text class="state-title">最近仪器加载失败</text>
+        <text class="state-desc">点击此处重试</text>
+      </view>
+
+      <view wx:elif="{{!recentList.length}}" class="ds-card state-card">
+        <text class="state-icon">🧾</text>
+        <text class="state-title">还没有已完成的使用记录</text>
+        <text class="state-desc">用上方搜索找仪器，同样能看到用过它的同学</text>
+      </view>
+
+      <view wx:else class="list">
+        <view
+          wx:for="{{recentList}}"
+          wx:key="deviceName"
+          class="device-card"
+          hover-class="device-card-hover"
+          bindtap="onTapDevice"
+          data-device-name="{{item.deviceName}}"
+        >
+          <view class="device-icon">🔬</view>
+          <view class="device-main">
+            <text class="device-name">{{item.deviceName}}</text>
+            <text class="device-desc">查看用过它的同学</text>
+          </view>
+          <text class="device-arrow">›</text>
+        </view>
       </view>
     </view>
-  </view>
 
-  <!--搜索结果区域-->
-  <view wx:if="{{keyword.trim() !== ''}}" class="search-result-wrap">
-    <view class="block-title">搜索结果</view>
-    <view wx:if="{{searchList.length === 0}}" class="empty">未查询到对应仪器，请更换关键词重试</view>
-    <view class="device-list" wx:else>
-      <view 
-        class="device-card" 
-        wx:for="{{searchList}}" 
-        wx:key="deviceId" 
-        bindtap="onTapDevice" 
-        data-item="{{item}}"
-      >
-        <view class="dev-name">{{item.deviceName}}</view>
-        <view class="card-tag">找使用者</view>
+    <!-- 搜索结果 -->
+    <view wx:if="{{isSearchMode}}" class="section">
+      <view class="sec-head">
+        <text class="ds-section-title">搜索结果</text>
+        <text wx:if="{{!isSearching && !hasSearchError && searchList.length}}" class="sec-hint">共 {{searchList.length}} 台</text>
+      </view>
+
+      <view wx:if="{{isSearching}}" class="list">
+        <view wx:for="{{skeletonRows}}" wx:key="*this" class="ds-skeleton-card sk-card">
+          <view class="ds-skeleton sk-icon"></view>
+          <view class="sk-main">
+            <view class="ds-skeleton sk-line-lg"></view>
+            <view class="ds-skeleton sk-line-sm"></view>
+          </view>
+        </view>
+      </view>
+
+      <view wx:elif="{{hasSearchError}}" class="ds-card state-card" hover-class="state-card-hover" bindtap="onSearch">
+        <text class="state-icon">⚠️</text>
+        <text class="state-title">搜索失败</text>
+        <text class="state-desc">点击此处重试</text>
+      </view>
+
+      <view wx:elif="{{!searchList.length}}" class="ds-empty">
+        <text class="ds-empty-icon">🔍</text>
+        <text class="ds-empty-title">没有找到「{{searchedKeyword}}」</text>
+        <text class="ds-empty-desc">换个关键词，或只输入仪器名称的一部分试试</text>
+      </view>
+
+      <view wx:else class="list">
+        <view
+          wx:for="{{searchList}}"
+          wx:key="deviceName"
+          class="device-card"
+          hover-class="device-card-hover"
+          bindtap="onTapDevice"
+          data-device-name="{{item.deviceName}}"
+        >
+          <view class="device-icon">🔬</view>
+          <view class="device-main">
+            <text class="device-name">{{item.deviceName}}</text>
+            <text class="device-desc">查看用过它的同学</text>
+          </view>
+          <text class="device-arrow">›</text>
+        </view>
       </view>
     </view>
   </view>

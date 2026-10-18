@@ -1,93 +1,290 @@
-page {
-  background-color: #f0f4f8;
-}
-.container {
-  padding: 24rpx;
+/* 经验交流：品牌色头部 + 上叠搜索卡片 + 仪器列表 */
+
+.page {
   min-height: 100vh;
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
 }
 
-/*引导提示块*/
-.guide-tip {
-  background:#e8f4f5;
-  color:#2d6a6e;
-  font-size:26rpx;
-  padding:20rpx 24rpx;
-  border-radius:12rpx;
-  margin-bottom:24rpx;
-  line-height:1.6;
+/* ---------- 头部 ---------- */
+.hero {
+  padding: 36rpx 40rpx 120rpx;
+  background: linear-gradient(160deg, var(--ds-primary) 0%, var(--ds-primary-dark) 100%);
+  color: #fff;
 }
 
-/*搜索框*/
-.search-box {
-  position: relative;
-  background:#ffffff;
-  border-radius:48rpx;
-  padding:24rpx 32rpx 24rpx 88rpx;
-  margin-bottom:32rpx;
+.hero-eyebrow {
+  font-size: 22rpx;
+  letter-spacing: 4rpx;
+  color: rgba(255, 255, 255, 0.82);
 }
+
+.hero-title {
+  margin-top: 12rpx;
+  font-size: 44rpx;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.hero-desc {
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.hero-badge {
+  display: inline-block;
+  margin-top: 26rpx;
+  padding: 6rpx 20rpx;
+  border-radius: var(--ds-radius-pill);
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 22rpx;
+  color: #fff;
+}
+
+/* ---------- 内容区：上叠头部 ---------- */
+.body {
+  margin-top: -64rpx;
+  padding: 0 var(--ds-gap);
+}
+
+/* ---------- 搜索 ---------- */
+.search-card {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-gap-sm);
+  padding: 16rpx 16rpx 16rpx var(--ds-gap);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-md);
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex: 1;
+  min-width: 0;
+  height: 72rpx;
+}
+
 .search-icon {
-  position:absolute;
-  left:32rpx;
-  top:50%;
-  transform: translateY(-50%);
-  font-size:32rpx;
-  color:#999;
+  font-size: 28rpx;
+  opacity: 0.55;
+  flex-shrink: 0;
 }
+
 .search-input {
-  font-size:28rpx;
+  flex: 1;
+  min-width: 0;
+  height: 72rpx;
+  font-size: 28rpx;
+  color: var(--ds-text);
 }
 
-.block-title {
-  font-size:30rpx;
-  font-weight:600;
-  color:#333;
-  margin-bottom:20rpx;
+.search-placeholder {
+  color: var(--ds-text-muted);
+  font-size: 26rpx;
 }
 
-.recent-wrap,.search-result-wrap {
-  margin-bottom:30rpx;
+.search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: var(--ds-fill);
+  color: var(--ds-text-muted);
+  font-size: 22rpx;
+  flex-shrink: 0;
 }
 
-.device-list {
-  display:flex;
-  flex-direction:column;
-  gap:20rpx;
+.search-clear-hover {
+  background: var(--ds-border);
 }
 
+.search-submit {
+  height: 72rpx;
+  padding: 0 34rpx;
+  font-size: 28rpx;
+  flex-shrink: 0;
+}
+
+.is-disabled {
+  opacity: 0.6;
+}
+
+/* ---------- 区块 ---------- */
+.section {
+  margin-top: var(--ds-gap-lg);
+}
+
+.sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.sec-hint {
+  font-size: 22rpx;
+  color: var(--ds-text-muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- 仪器卡片 ---------- */
 .device-card {
-  position: relative;
-  background:#fff;
-  border-radius:16rpx;
-  padding:32rpx;
-  box-shadow:0 2rpx 12rpx rgba(0,0,0,0.06);
-}
-.dev-name {
-  font-size:30rpx;
-  font-weight:500;
-  color:#222;
-  margin-bottom:12rpx;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 26rpx var(--ds-gap-lg);
+  margin-bottom: var(--ds-gap-sm);
+  border-radius: var(--ds-radius);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
 }
 
-/*卡片右下角标签*/
-.card-tag {
-  position:absolute;
-  right:24rpx;
-  bottom:24rpx;
-  background:#62BCC4;
-  color:#fff;
-  font-size:22rpx;
-  padding:6rpx 16rpx;
-  border-radius:20rpx;
+.device-card-hover {
+  background: var(--ds-fill);
 }
 
-.empty {
-  text-align:center;
-  padding:80rpx 0;
-  font-size:26rpx;
-  color:#999;
+.device-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 22rpx;
+  background: var(--ds-primary-light);
+  font-size: 36rpx;
+  flex-shrink: 0;
 }
-.empty-small {
-  font-size:26rpx;
-  color:#999;
-  padding:20rpx 0;
+
+.device-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.device-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ds-text);
+}
+
+.device-desc {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
+}
+
+.device-arrow {
+  flex-shrink: 0;
+  font-size: 38rpx;
+  line-height: 1;
+  color: var(--ds-text-disabled);
+}
+
+/* ---------- 状态卡片 ---------- */
+.state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 56rpx var(--ds-gap-lg);
+  text-align: center;
+}
+
+.state-card-hover {
+  background: var(--ds-fill);
+}
+
+.state-icon {
+  font-size: 60rpx;
+  opacity: 0.5;
+  margin-bottom: var(--ds-gap-sm);
+}
+
+.state-title {
+  font-size: 28rpx;
+  color: var(--ds-text-secondary);
+}
+
+.state-desc {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
+}
+
+/* ---------- 未登录引导 ---------- */
+.guide-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: var(--ds-gap-lg);
+  text-align: center;
+}
+
+.guide-icon {
+  font-size: 64rpx;
+  margin-bottom: var(--ds-gap-sm);
+}
+
+.guide-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+
+.guide-desc {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: var(--ds-text-muted);
+}
+
+.guide-btn {
+  box-sizing: border-box;
+  margin-top: var(--ds-gap-lg);
+}
+
+/* ---------- 骨架屏 ---------- */
+.sk-card {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 26rpx var(--ds-gap-lg);
+  margin-bottom: var(--ds-gap-sm);
+}
+
+.sk-icon {
+  width: 76rpx;
+  height: 76rpx;
+  border-radius: 22rpx;
+  flex-shrink: 0;
+}
+
+.sk-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.sk-line-lg {
+  width: 70%;
+  height: 30rpx;
+  margin-bottom: 14rpx;
+}
+
+.sk-line-sm {
+  width: 40%;
+  height: 22rpx;
 }

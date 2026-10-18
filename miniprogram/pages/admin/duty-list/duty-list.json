@@ -1,3 +1,6 @@
 {
-  "usingComponents": {}
+  "usingComponents": {},
+  "navigationBarTitleText": "卫生打卡记录",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
 }

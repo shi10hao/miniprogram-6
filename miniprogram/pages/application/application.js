@@ -1,3 +1,5 @@
+const datetime = require('../../utils/datetime.js')
+
 const db = wx.cloud.database()
 
 Page({
@@ -51,13 +53,17 @@ Page({
 
     const reserves = db.collection('reserves')
     const usages = db.collection('device_usage')
+    // end_time 是 'YYYY-MM-DD HH:mm'，同格式字符串可直接比较先后
+    const now = new Date()
+    const nowText = `${datetime.formatDateKey(now)} ${datetime.pad2(now.getHours())}:${datetime.pad2(now.getMinutes())}`
 
     return Promise.all([
-      // 待开始预约 = 已通过 且 尚未开始使用（usage_status 为空或 not_started）
+      // 待开始预约 = 已通过、尚未开始使用、且预约时段还没过去（时段已过的不再算待开始）
       reserves.where({
         user_id: userInfo.userId,
         status: 'approved',
-        usage_status: db.command.in(['not_started', ''])
+        usage_status: db.command.in(['not_started', '']),
+        end_time: db.command.gte(nowText)
       }).count(),
       usages.where({ user_id: userInfo.userId, status: 'using' }).count(),
       usages.where({ user_id: userInfo.userId, status: 'completed' }).count()

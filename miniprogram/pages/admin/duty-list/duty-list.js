@@ -1,195 +1,301 @@
-// pages/admin/duty-list/dutylist.js
+// pages/admin/duty-list/duty-list.js
+const cloudFile = require('../../../utils/cloudFile.js')
+const datetime = require('../../../utils/datetime.js')
 
-const db = wx.cloud.database()
-const _ = db.command
+// 与管理端一致：教师和管理员才能看这份记录（里面有全站同学的姓名和手机号）
+const ALLOWED_ROLES = ['teacher', 'admin']
+const PAGE_SIZE = 10
+const MAX_RECORDS = 1000
+const FETCH_PAGE_SIZE = 200
+const PHONE_PATTERN = /^1[3-9]\d{9}$/
+const SEARCH_DELAY = 180
+
+const DATE_FILTERS = [
+  { key: 'all', label: '全部' },
+  { key: 'today', label: '今天' },
+  { key: 'week', label: '近 7 天' }
+]
 
 Page({
   data: {
-    dutyRecords: [], // 卫生记录列表
-    isLoadingDuty: false, // 加载状态
-    dutyPage: 1, // 当前页码
-    dutyPageSize: 20, // 每页条数
-    hasMoreDuty: true // 是否还有更多
+    isChecking: true,
+    forbidden: false,
+    isLoading: false,
+    hasError: false,
+    keyword: '',
+    dateFilter: 'all',
+    dateFilters: DATE_FILTERS,
+    totalCount: 0,
+    matchedCount: 0,
+    visibleRecords: [],
+    hasMore: false,
+    isFetchingMore: false,
+    skeletonRows: [0, 1, 2]
   },
 
   // ==================== 生命周期 ====================
 
   onLoad() {
-    this.loadDutyRecords()
+    // 原始记录、过滤结果、已渲染条数都放实例上，避免整表进 setData
+    this.records = []
+    this.filtered = []
+    this.renderedCount = 0
+    this.isRendering = false
+    this.searchTimer = null
+    this.bootstrap()
   },
 
-  // 下拉刷新
-  onPullDownRefresh() {
-    this.loadDutyRecords()
-    wx.stopPullDownRefresh()
+  onUnload() {
+    if (this.searchTimer) clearTimeout(this.searchTimer)
+  },
+
+  async onPullDownRefresh() {
+    try {
+      await this.bootstrap()
+    } finally {
+      wx.stopPullDownRefresh()
+    }
+  },
+
+  onReachBottom() {
+    this.loadMore()
+  },
+
+  // ==================== 身份校验 ====================
+
+  async bootstrap() {
+    this.setData({
+      isChecking: true,
+      forbidden: false,
+      hasError: false
+    })
+
+    const gate = await this.checkAdmin()
+    if (gate === 'forbidden') {
+      this.setData({ isChecking: false, forbidden: true })
+      return
+    }
+    if (gate === 'error') {
+      this.setData({ isChecking: false, hasError: true })
+      return
+    }
+
+    this.setData({ isChecking: false })
+    await this.loadRecords()
+  },
+
+  /** 返回 'ok' | 'forbidden' | 'error' */
+  async checkAdmin() {
+    const adminInfo = wx.getStorageSync('adminInfo') || {}
+    const userId = String(adminInfo.userId || '').trim()
+    if (!userId) return 'forbidden'
+
+    try {
+      const db = wx.cloud.database()
+      const res = await db.collection('users')
+        .where({ user_id: userId, role: db.command.in(ALLOWED_ROLES) })
+        .limit(1)
+        .get()
+      return (res.data || []).length ? 'ok' : 'forbidden'
+    } catch (err) {
+      console.error('[duty-list] 校验管理员身份失败', err)
+      return 'error'
+    }
   },
 
   // ==================== 数据加载 ====================
 
-  /** 加载第一页 */
-  loadDutyRecords() {
-    const self = this
-    self.setData({
-      isLoadingDuty: true,
-      dutyPage: 1
+  async loadRecords() {
+    this.setData({ isLoading: true, hasError: false })
+
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'getCollectionData',
+        data: {
+          collectionName: 'duty_records',
+          whereCondition: {},
+          pageSize: FETCH_PAGE_SIZE,
+          startSkip: 0,
+          sortField: 'submit_time'
+        }
+      })
+
+      const result = (res && res.result) || {}
+      if (result.code !== 0) {
+        throw new Error(result.message || result.msg || '加载失败')
+      }
+
+      this.records = (result.data || [])
+        .slice(0, MAX_RECORDS)
+        .map(item => this.normalizeRecord(item))
+      this.setData({ isLoading: false })
+      await this.refreshFilter()
+    } catch (err) {
+      console.error('[duty-list] 加载卫生打卡记录失败', err)
+      this.setData({ isLoading: false, hasError: true })
+    }
+  },
+
+  normalizeRecord(item) {
+    const images = Array.isArray(item.images) ? item.images : []
+    const name = item.name || '未知用户'
+    return {
+      id: item._id || '',
+      name,
+      avatarText: name.slice(0, 1),
+      phone: item.phone || '',
+      labName: item.lab_name || item.device_room || '未填写实验室',
+      room: item.lab_name && item.device_room ? item.device_room : '',
+      remark: item.remark || '',
+      images,
+      imageUrls: [],
+      timeText: datetime.formatMoment(item.submit_time),
+      dateKey: datetime.formatDateKey(item.submit_time),
+      submitTime: item.submit_time || ''
+    }
+  },
+
+  // ==================== 筛选与分页 ====================
+
+  async refreshFilter() {
+    this.applyFilter()
+    this.setData({ visibleRecords: [] })
+    this.renderedCount = 0
+    await this.renderNextPage()
+  },
+
+  applyFilter() {
+    const keyword = this.data.keyword.trim().toLowerCase()
+    const dateFilter = this.data.dateFilter
+    const todayKey = datetime.formatDateKey(new Date())
+
+    this.filtered = this.records.filter((item) => {
+      if (dateFilter === 'today' && item.dateKey !== todayKey) return false
+      if (dateFilter === 'week' && !datetime.isWithinDays(item.submitTime, 7)) return false
+      if (!keyword) return true
+      return [item.name, item.labName, item.phone, item.remark]
+        .some(text => String(text || '').toLowerCase().indexOf(keyword) !== -1)
     })
 
-    wx.cloud.callFunction({
-      name: 'getCollectionData',
-      data: {
-        collectionName: 'duty_records',
-        whereCondition: {},
-        pageSize: self.data.dutyPageSize,
-        startSkip: 0,
-        sortField: 'submit_time'
-      }
-    }).then(function (res) {
-      console.log('res1:', res)
-      if (res.result.code !== 0) throw new Error(res.result.message)
-      return self.resolveDutyImages(res.result.data).then(function (formatted) {
-        self.setData({
-          dutyRecords: formatted,
-          hasMoreDuty: res.result.data.length === self.data.dutyPageSize,
-          isLoadingDuty: false
-        })
-      })
-    }).catch(function (err) {
-      console.error('加载卫生记录失败:', err)
-      self.setData({ isLoadingDuty: false })
-      wx.showToast({ title: '加载失败', icon: 'none' })
+    this.setData({
+      totalCount: this.records.length,
+      matchedCount: this.filtered.length
     })
   },
 
-  /** 加载更多 */
-  loadMoreDuty() {
-    const self = this
-    if (self.data.isLoadingDuty || !self.data.hasMoreDuty) return
-    self.setData({ isLoadingDuty: true })
-    const nextPage = self.data.dutyPage + 1
-    const skip = (nextPage - 1) * self.data.dutyPageSize
+  /** 只渲染下一页：只为这一页的照片换临时链接，记录多了也不会卡 */
+  async renderNextPage() {
+    if (this.isRendering) return
+    this.isRendering = true
+    try {
+      const start = this.renderedCount
+      const nextCount = Math.min(start + PAGE_SIZE, this.filtered.length)
 
-    wx.cloud.callFunction({
-      name: 'getCollectionData',
-      data: {
-        collectionName: 'duty_records',
-        whereCondition: {},
-        pageSize: self.data.dutyPageSize,
-        startSkip: skip,
-        sortField: 'submit_time'
-      }
-    }).then(function (res) {
-      if (res.result.code !== 0) throw new Error(res.result.message)
-      return self.resolveDutyImages(res.result.data).then(function (newRecords) {
-        self.setData({
-          dutyRecords: self.data.dutyRecords.concat(newRecords),
-          dutyPage: nextPage,
-          hasMoreDuty: newRecords.length === self.data.dutyPageSize,
-          isLoadingDuty: false
-        })
-      })
-    }).catch(function (err) {
-      console.error('加载更多失败:', err)
-      self.setData({ isLoadingDuty: false })
-      wx.showToast({ title: '加载失败', icon: 'none' })
-    })
-  },
-
-  // ==================== 图片处理 ====================
-
-  /**
-   * 解析 fileID → 临时访问链接
-   * 收集所有 fileID → 调用 getBatchTempUrl → 映射回记录
-   */
-  resolveDutyImages(records) {
-    const self = this
-    return new Promise(function (resolve) {
-      if (!records || records.length === 0) {
-        resolve([])
+      if (nextCount <= start) {
+        this.setData({ hasMore: false })
         return
       }
 
-      // 收集所有 fileID
-      const allFileIds = []
-      for (let i = 0; i < records.length; i++) {
-        if (records[i].images && records[i].images.length) {
-          for (let j = 0; j < records[i].images.length; j++) {
-            allFileIds.push(records[i].images[j])
-          }
-        }
-      }
-
-      // 去重
-      const dedupIds = []
-      for (let k = 0; k < allFileIds.length; k++) {
-        if (allFileIds[k] && dedupIds.indexOf(allFileIds[k]) === -1) {
-          dedupIds.push(allFileIds[k])
-        }
-      }
-
-      if (dedupIds.length === 0) {
-        const result = []
-        for (let m = 0; m < records.length; m++) {
-          result.push({
-            ...records[m],
-            imageUrls: [],
-            submit_time_display: self.formatTime(records[m].submit_time)
-          })
-        }
-        resolve(result)
-        return
-      }
-
-      // 批量换取临时链接
-      wx.cloud.callFunction({
-        name: 'getBatchTempUrl',
-        data: { fileList: dedupIds }
-      }).then(function (res) {
-        const map = {}
-        for (let f = 0; f < res.result.length; f++) {
-          map[res.result[f].fileID] = res.result[f].tempFileURL || ''
-        }
-
-        const formatted = []
-        for (let r = 0; r < records.length; r++) {
-          const item = records[r]
-          const urls = []
-          if (item.images) {
-            for (let u = 0; u < item.images.length; u++) {
-              const url = map[item.images[u]] || ''
-              if (url) urls.push(url)
-            }
-          }
-          formatted.push({
-            ...item,
-            submit_time_display: self.formatTime(item.submit_time),
-            imageUrls: urls
-          })
-        }
-        resolve(formatted)
+      const page = await this.resolveImages(this.filtered.slice(start, nextCount))
+      this.renderedCount = nextCount
+      this.setData({
+        visibleRecords: this.data.visibleRecords.concat(page),
+        hasMore: nextCount < this.filtered.length
       })
-    })
+    } catch (err) {
+      console.error('[duty-list] 渲染记录失败', err)
+    } finally {
+      this.isRendering = false
+    }
   },
 
-  // ==================== 工具方法 ====================
+  async loadMore() {
+    if (this.data.isLoading || this.data.isChecking || this.data.isFetchingMore) return
+    if (!this.data.hasMore) return
+    this.setData({ isFetchingMore: true })
+    try {
+      await this.renderNextPage()
+    } finally {
+      this.setData({ isFetchingMore: false })
+    }
+  },
 
-  /** 格式化时间 "YYYY-MM-DD HH:mm" */
-  formatTime(isoStr) {
-    if (!isoStr) return ''
-    const d = new Date(isoStr)
-    if (isNaN(d.getTime())) return String(isoStr)
-    const pad = function (n) { return String(n).padStart(2, '0') }
-    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes())
+  async resolveImages(items) {
+    const fileIds = []
+    items.forEach(item => fileIds.push(...item.images))
+
+    let urlMap = {}
+    try {
+      urlMap = await cloudFile.resolveTempUrls(fileIds)
+    } catch (err) {
+      // 换链接失败不阻塞记录展示，照片留空
+      console.error('[duty-list] 换取图片临时链接失败', err)
+    }
+
+    return items.map((item) => {
+      const imageUrls = item.images
+        .map(id => cloudFile.resolveSingle(id, urlMap))
+        .filter(Boolean)
+      return { ...item, imageUrls }
+    })
   },
 
   // ==================== 交互 ====================
 
-  /** 预览图片 */
+  onKeywordInput(e) {
+    this.setData({ keyword: e.detail.value })
+    if (this.searchTimer) clearTimeout(this.searchTimer)
+    this.searchTimer = setTimeout(() => {
+      this.refreshFilter()
+    }, SEARCH_DELAY)
+  },
+
+  onClearKeyword() {
+    if (this.searchTimer) clearTimeout(this.searchTimer)
+    if (!this.data.keyword) return
+    this.setData({ keyword: '' })
+    this.refreshFilter()
+  },
+
+  onDateFilter(e) {
+    const key = e.currentTarget.dataset.key
+    if (!key || key === this.data.dateFilter) return
+    this.setData({ dateFilter: key })
+    this.refreshFilter()
+  },
+
+  onRetry() {
+    this.bootstrap()
+  },
+
+  onRefresh() {
+    this.bootstrap()
+  },
+
+  goBack() {
+    if (getCurrentPages().length > 1) {
+      wx.navigateBack({ delta: 1 })
+      return
+    }
+    wx.switchTab({ url: '/pages/index/index' })
+  },
+
   previewImage(e) {
-    const src = e.currentTarget.dataset.src
-    const list = e.currentTarget.dataset.list
-    wx.previewImage({
-      current: src,
-      urls: list
+    const current = e.currentTarget.dataset.url
+    const urls = e.currentTarget.dataset.urls || []
+    if (!current || !urls.length) return
+    wx.previewImage({ current, urls })
+  },
+
+  onCall(e) {
+    const phone = e.currentTarget.dataset.phone
+    if (!PHONE_PATTERN.test(String(phone || ''))) {
+      wx.showToast({ title: '号码格式有误', icon: 'none' })
+      return
+    }
+    wx.makePhoneCall({
+      phoneNumber: phone,
+      fail() {}
     })
   }
 })

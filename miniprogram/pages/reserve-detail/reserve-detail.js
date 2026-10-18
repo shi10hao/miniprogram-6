@@ -1,406 +1,433 @@
 // pages/reserve-detail/reserve-detail.js
-Page({
+const cloudFile = require('../../utils/cloudFile.js')
+const datetime = require('../../utils/datetime.js')
 
-  /**
-   * 页面的初始数据
-   */
+// 与管理端一致：教师和管理员才能处理异常
+const ADMIN_ROLES = ['teacher', 'admin']
+const MAX_USAGE_QUERY = 10
+
+const STATUS_META = {
+  upcoming: { text: '即将到来' },
+  using: { text: '使用中' },
+  completed: { text: '已完成' },
+  abnormal: { text: '待处理异常' }
+}
+
+Page({
   data: {
     isLoading: true,
+    hasError: false,
+    errorText: '',
     forbidden: false,
-    status: 'using', // upcoming | using | completed | abnormal
+    isAdmin: false,
+    status: 'upcoming',
+    statusText: '即将到来',
+    statusTip: '',
     detail: {
-      student_name: '',
-      group_name: '',
-      device_id: '',
-      device_name: '',
+      studentName: '',
+      groupName: '',
+      deviceId: '',
+      deviceName: '',
       dateDisplay: '',
       timeDisplay: '',
-      allPhotos: [],
+      startAtDisplay: '',
+      endAtDisplay: '',
       startPhotoUrl: '',
-      usageImageUrls: [], // 多张
-      endPhotoItems: [], // 结束核验照片数组
-      reservePageUrl: '' // 系统预约单
+      usageImageUrls: [],
+      reservePageUrl: '',
+      endChecklist: null
     },
-    feedback: {
-      content: '',
+    abnormal: {
+      has: false,
+      isResolved: false,
+      pending: false,
       title: '',
-      submit_time: '',
-      submit_time_display: ''
+      content: '',
+      timeDisplay: '',
+      photos: [],
+      handledBy: '',
+      handledTimeDisplay: ''
     },
-    isHandlingAbnormal: false,
-    reserveId: ''
+    allPhotos: [],
+    isHandling: false,
+    skeletonRows: [0, 1, 2]
   },
+
+  // ==================== 生命周期 ====================
 
   onLoad(options) {
-    const reserveId = options.id
-    console.log('id:', reserveId)
-    if (!reserveId) return
-
-    this.setData({
-      reserveId
-    }) // 新增：保存 reserveId
-    this.bootstrapPage(reserveId)
+    this.reserveId = this.resolveReserveId(options)
+    this.setData({ isAdmin: this.isAdminViewer() })
+    if (!this.reserveId) {
+      this.setData({
+        isLoading: false,
+        hasError: true,
+        errorText: '缺少预约编号，请返回重新进入'
+      })
+      return
+    }
+    this.loadDetail()
   },
 
-  bootstrapPage(reserveId) {
-    this.loadReserveDetail(reserveId)
+  async onPullDownRefresh() {
+    if (!this.reserveId) {
+      wx.stopPullDownRefresh()
+      return
+    }
+    try {
+      await this.loadDetail({ silent: true })
+    } finally {
+      wx.stopPullDownRefresh()
+    }
+  },
+
+  // ==================== 身份与权限 ====================
+
+  resolveReserveId(options) {
+    const raw = (options && options.id) || ''
+    if (!raw) return ''
+    try {
+      return String(decodeURIComponent(raw)).trim()
+    } catch (err) {
+      return String(raw).trim()
+    }
+  },
+
+  /** 管理端身份（adminInfo 由 loginAdmin 写入），只用于决定按钮显隐 */
+  isAdminViewer() {
+    const adminInfo = wx.getStorageSync('adminInfo') || {}
+    return Boolean(adminInfo.userId) && ADMIN_ROLES.indexOf(adminInfo.role) !== -1
   },
 
   /**
-   * 是否允许查看该预约：
-   * - 管理员（teacher/admin）可查看任意预约
-   * - 学生只能查看 user_id 等于自己的预约
-   * 注意：这是客户端侧校验，真正兜底还需在云数据库配置「仅本人/管理员可读」的安全规则。
+   * 谁可以看这条预约：管理员看全部，学生只能看自己的。
+   * 注意：这里只是界面兜底，真正的数据安全依赖数据库安全规则。
    */
   canViewReserve(reserve) {
     if (!reserve) return false
-
-    const adminInfo = wx.getStorageSync('adminInfo') || {}
-    if (adminInfo.userId && (adminInfo.role === 'admin' || adminInfo.role === 'teacher')) {
-      return true
-    }
-
+    if (this.data.isAdmin) return true
     const userInfo = wx.getStorageSync('userInfo') || {}
     const myUserId = String(userInfo.userId || '').trim()
     if (!myUserId) return false
     return String(reserve.user_id || '').trim() === myUserId
   },
 
-  async loadReserveDetail(reserveId) {
-    const db = wx.cloud.database()
+  // ==================== 数据加载 ====================
 
-    // 1. 查两条表
-    const [reserveRes, usageRes] = await Promise.all([
-      db.collection('reserves').doc(reserveId).get(),
-      db.collection('device_usage')
-        .where({
-          reserve_id: reserveId
-        })
-        .get()
-    ])
-    const reserve = reserveRes.data
-    const usage = usageRes.data[0] || null
+  /** silent: true 用于下拉刷新，保留当前内容不闪骨架屏 */
+  async loadDetail(options) {
+    const silent = Boolean(options && options.silent)
+    const patch = { hasError: false, errorText: '' }
+    if (!silent) patch.isLoading = true
+    this.setData(patch)
 
-    // 安全：预约不存在或不是本人的（管理员除外）→ 拒绝展示
-    if (!reserve || !this.canViewReserve(reserve)) {
-      this.setData({ forbidden: true, isLoading: false })
-      return
-    }
+    try {
+      const snapshot = await this.fetchSnapshot()
+      if (!snapshot.reserve) {
+        this.setData({ isLoading: false, forbidden: true })
+        return
+      }
+      if (!this.canViewReserve(snapshot.reserve)) {
+        this.setData({ isLoading: false, forbidden: true })
+        return
+      }
 
-    console.log('预约完整数据：', reserve)
-    console.log('usage:', usage)
-    if (usage && usage.feedback) {
+      const fileIds = this.collectFileIDs(snapshot.reserve, snapshot.usage)
+      let urlMap = {}
+      try {
+        urlMap = await cloudFile.resolveTempUrls(fileIds)
+      } catch (err) {
+        // 图片换链接失败不影响文字信息展示
+        console.error('[reserve-detail] 换取图片临时链接失败', err)
+      }
+
+      const detail = this.buildDetail(snapshot.reserve, snapshot.usage, urlMap)
+      const abnormal = this.buildAbnormal(snapshot.usage, urlMap)
+      const status = this.calcStatus(snapshot.reserve, snapshot.usage)
+      const meta = STATUS_META[status] || STATUS_META.completed
+
       this.setData({
-        feedback: {
-          content: usage.feedback.content,
-          submit_time: usage.feedback.submit_time,
-          submit_time_display: this.formatUTCDisplay(usage.feedback.submit_time),
-          title: usage.feedback.title
-        }
+        isLoading: false,
+        status,
+        statusText: meta.text,
+        statusTip: this.buildStatusTip(status, detail),
+        detail,
+        abnormal,
+        allPhotos: this.collectPhotos(detail, abnormal)
+      })
+    } catch (err) {
+      console.error('[reserve-detail] 加载预约详情失败', err)
+      this.setData({
+        isLoading: false,
+        hasError: true,
+        errorText: '预约详情加载失败，请下拉刷新重试'
       })
     }
-    // 2. 收集所有 fileID
-    const fileIDs = this.collectFileIDs(reserve, usage)
+  },
 
-    // 3. 一次性转 URL
-    const urlMap = await this.fetchTempURLs(fileIDs)
-    console.log('map:', urlMap)
-    // 4. 回填
-    const photoUrls = this.applyPhotosToData(reserve, usage, urlMap)
-    console.log('photoUrls:', photoUrls)
-    const allPhotos = [
-      photoUrls.reservePageUrl,
-      photoUrls.startPhotoUrl,
-      ...photoUrls.usageImageUrls,
-      photoUrls.endChecklistDisplay?.totalPageUrl,
-      photoUrls.endChecklistDisplay?.supplementPageUrl,
-      ...photoUrls.feedbackPhotoUrls
-    ].filter(Boolean) // 去掉空字符串
+  /** 一次取回预约与它的使用记录（用 where 查询，记录不存在时返回空数组而不是抛错） */
+  async fetchSnapshot() {
+    const db = wx.cloud.database()
+    const [reserveRes, usageRes] = await Promise.all([
+      db.collection('reserves')
+        .where({ _id: this.reserveId })
+        .limit(1)
+        .get(),
+      // 不用 orderBy：老记录可能缺 create_time，orderBy 会把它们整条滤掉，这里改在内存里排序
+      db.collection('device_usage')
+        .where({ reserve_id: this.reserveId })
+        .limit(MAX_USAGE_QUERY)
+        .get()
+    ])
 
-    // 计算预约真实状态
-    const status = this.calcReserveStatus(reserve, usage)
-    // 计算时间显示（支持跨天）
-    let timeDisplay = ''
-    const dateDisplay = reserve.reserve_date || ''
-    if (reserve.start_time && reserve.end_time) {
-      const startDateOnly = this.formatDateOnly(reserve.start_time)
-      const endDateOnly = this.formatDateOnly(reserve.end_time)
-      const isCrossDay = startDateOnly && endDateOnly && startDateOnly !== endDateOnly
+    const reserve = (reserveRes.data || [])[0] || null
+    const usages = usageRes.data || []
+    return { reserve, usage: this.pickUsage(reserve, usages) }
+  },
 
-      if (isCrossDay) {
-        // 跨天：2026-07-10 19:00 - 07-18 19:30
-        const pad = n => String(n).padStart(2, '0')
-        const startD = this.parseDateTime(reserve.start_time)
-        const endD = this.parseDateTime(reserve.end_time)
-        if (startD && endD) {
-          const startTime = `${pad(startD.getHours())}:${pad(startD.getMinutes())}`
-          const endDisplay = `${pad(endD.getMonth() + 1)}-${pad(endD.getDate())} ${pad(endD.getHours())}:${pad(endD.getMinutes())}`
-          timeDisplay = `${startTime} - ${endDisplay}`
-        } else {
-          timeDisplay = `${this.formatTime(reserve.start_time)} - ${this.formatTime(reserve.end_time)}`
-        }
-      } else {
-        // 同天：19:00 - 19:30
-        timeDisplay = `${this.formatTime(reserve.start_time)} - ${this.formatTime(reserve.end_time)}`
-      }
-    }
+  /** 优先取预约上登记的使用记录，其次取异常记录，最后取最新一条 */
+  pickUsage(reserve, usages) {
+    if (!usages.length) return null
 
-    this.setData({
-      detail: {
-        student_name: reserve.student_name || '',
-        group_name: reserve.research_group || '',
-        device_id: reserve.device_id || '',
-        device_name: reserve.device_name || '',
-        dateDisplay: dateDisplay,
-        timeDisplay: timeDisplay,
-        ...photoUrls
-      },
-      allPhotos,
-      status,
-      isLoading: false
+    const sorted = usages.slice().sort((left, right) => {
+      const leftTime = datetime.parseDateTime(left.create_time)
+      const rightTime = datetime.parseDateTime(right.create_time)
+      return (rightTime ? rightTime.getTime() : 0) - (leftTime ? leftTime.getTime() : 0)
     })
-  },
-  formatDateOnly(isoStr) {
-    if (!isoStr) return ''
-    const d = this.parseDateTime(isoStr)
-    if (!d) return ''
-    const pad = n => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-  },
 
-  formatUTCDisplay(utcStr) {
-    if (!utcStr) return ''
-
-    const d = new Date(utcStr)
-    if (isNaN(d.getTime())) return utcStr
-
-    // 转为北京时间（东八区）
-    const beijing = new Date(d.getTime() + 8 * 60 * 60 * 1000)
-
-    const pad = n => String(n).padStart(2, '0')
-    const year = beijing.getUTCFullYear()
-    const month = pad(beijing.getUTCMonth() + 1)
-    const day = pad(beijing.getUTCDate())
-    const hours = pad(beijing.getUTCHours())
-    const minutes = pad(beijing.getUTCMinutes())
-    const seconds = pad(beijing.getUTCSeconds())
-
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
-  },
-
-  // 计算预约状态
-  calcReserveStatus(reserve, usage) {
-    const now = new Date()
-
-    // 1. 使用记录优先判断
-    if (usage) {
-      if (usage.status === 'completed') return 'completed'
-      if (usage.status === 'using') return 'using'
-      if (usage.status === 'abnormal') return 'abnormal'
+    const linkedId = reserve && reserve.linked_usage_id
+    if (linkedId) {
+      const linked = sorted.find(item => item._id === linkedId)
+      if (linked) return linked
     }
-
-    // 2. 按预约时间判断
-    const startTime = this.parseDateTime(reserve.start_time)
-    const endTime = this.parseDateTime(reserve.end_time)
-    const nowTime = now.getTime()
-
-    if (nowTime < startTime) return 'upcoming'
-    if (nowTime >= startTime && nowTime < endTime) return 'using'
-    return 'completed'
+    const abnormal = sorted.find(item => item.status === 'abnormal')
+    if (abnormal) return abnormal
+    return sorted[0]
   },
-  parseDateTime(rawValue) {
-    if (!rawValue) return null
-    if (rawValue instanceof Date) return Number.isNaN(rawValue.getTime()) ? null : rawValue
 
-    const text = String(rawValue).trim()
-    if (!text) return null
+  // ==================== 视图组装 ====================
 
-    let normalized = text
-    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-      normalized = `${text}T00:00:00`
-    } else if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(text)) {
-      normalized = text.replace(' ', 'T')
-    }
-
-    const d = new Date(normalized)
-    return Number.isNaN(d.getTime()) ? null : d
-  },
   collectFileIDs(reserve, usage) {
     const ids = []
+    if (reserve && reserve.reserve_page) ids.push(reserve.reserve_page)
+    if (!usage) return this.uniqueIds(ids)
 
-    // 预约单
-    if (reserve?.reserve_page) ids.push(reserve.reserve_page)
+    if (usage.start_photo) ids.push(usage.start_photo)
+    if (Array.isArray(usage.usage_images)) ids.push(...usage.usage_images)
 
-    if (usage) {
-      // 开始照片
-      if (usage.start_photo) ids.push(usage.start_photo)
-
-      // 使用照片（数组）
-      if (Array.isArray(usage.usage_images)) {
-        ids.push(...usage.usage_images)
-      }
-      // 新增：结束信息中的图片
-      const ec = usage.end_checklist
-      if (ec) {
-        if (ec.total_page) ids.push(ec.total_page)
-        if (ec.device_page) ids.push(ec.device_page) // 新增：仪器关闭照片
-        if (ec.room_page) ids.push(ec.room_page) // 新增：实验室关门照片
-        if (ec.supplement_page) ids.push(ec.supplement_page)
-      }
-      // 新增：反馈照片
-      const fb = usage.feedback
-      if (fb && Array.isArray(fb.photos)) {
-        fb.photos.forEach((pid) => {
-          if (pid) ids.push(pid)
-        })
-      }
+    const checklist = usage.end_checklist
+    if (checklist) {
+      ids.push(checklist.total_page, checklist.device_page, checklist.room_page, checklist.supplement_page)
     }
 
-    // 去重 + 去掉空值
-    return [...new Set(ids.filter(Boolean))]
+    const feedback = usage.feedback
+    if (feedback && Array.isArray(feedback.photos)) ids.push(...feedback.photos)
+
+    return this.uniqueIds(ids)
   },
 
-  async fetchTempURLs(fileIDs) {
-    if (fileIDs.length === 0) return {}
-
-    const fileList = await wx.cloud.callFunction({
-      name: 'getBatchTempUrl',
-      data: { fileList: fileIDs }
+  uniqueIds(list) {
+    const result = []
+    list.forEach((id) => {
+      if (cloudFile.isCloudFileId(id) && result.indexOf(id) === -1) result.push(id)
     })
-    const map = {}
-    fileList.result.forEach((f) => {
-      map[f.fileID] = f.tempFileURL
-    })
-    return map
+    return result
   },
 
-  applyPhotosToData(reserve, usage, map) {
-    let endChecklistDisplay = null
-    const ec = usage?.end_checklist
-    if (ec) {
-      endChecklistDisplay = {
-        instrumentOff: ec.instrument_off,
-        computerOff: ec.computer_off,
-        nextUser: ec.nextUser || '', // 新增：下一个使用者
-        sampleCount: ec.sample_count,
-        moreSample: ec.more_sample,
-        moreSampleCount: ec.more_sample_count || 0,
-        totalPageUrl: map[ec.total_page] || '',
-        devicePageUrl: map[ec.device_page] || '', // 新增：仪器关闭照片
-        roomPageUrl: map[ec.room_page] || '', // 新增：实验室关门照片
-        needSupplement: ec.need_supplement,
-        supplementPageUrl: map[ec.supplement_page] || ''
-      }
-    }
-    let feedbackPhotoUrls = []
-    const fb = usage?.feedback
-    if (fb && Array.isArray(fb.photos)) {
-      feedbackPhotoUrls = fb.photos.map(pid => map[pid] || '').filter(Boolean)
-    }
+  buildDetail(reserve, usage, urlMap) {
+    const toUrl = value => cloudFile.resolveSingle(value, urlMap)
+    const range = this.buildTimeRange(reserve)
+    const checklist = this.buildEndChecklist(usage && usage.end_checklist, toUrl)
+
     return {
-      reservePageUrl: map[reserve?.reserve_page] || '',
-      // 开始照片
-      startPhotoUrl: map[usage?.start_photo] || '',
-      // 使用照片（保持数组顺序）
-      usageImageUrls: (usage?.usage_images || []).map(id => map[id] || ''),
-      // 结束信息展示
-      endChecklistDisplay,
-      // 新增：反馈照片
-      feedbackPhotoUrls
+      studentName: reserve.student_name || reserve.user_id || '未知用户',
+      groupName: reserve.research_group || reserve.group_name || '未填写',
+      deviceId: reserve.device_id || '',
+      deviceName: reserve.device_name || '',
+      dateDisplay: range.dateDisplay,
+      timeDisplay: range.timeDisplay,
+      startAtDisplay: datetime.formatMoment(usage && usage.start_time),
+      endAtDisplay: datetime.formatMoment(usage && usage.end_time),
+      startPhotoUrl: toUrl(usage && usage.start_photo),
+      usageImageUrls: ((usage && usage.usage_images) || []).map(toUrl).filter(Boolean),
+      reservePageUrl: toUrl(reserve.reserve_page),
+      endChecklist: checklist
     }
   },
 
-  formatTime(datetime) {
-    return datetime.split(' ')[1] || ''
+  /** 预约时间段：同天只显示时钟，跨天带上结束日期 */
+  buildTimeRange(reserve) {
+    const range = datetime.formatTimeRange(reserve.start_time, reserve.end_time)
+    if (!range.dateDisplay) {
+      return { dateDisplay: reserve.reserve_date || '', timeDisplay: '' }
+    }
+    return range
   },
+
+  buildEndChecklist(checklist, toUrl) {
+    if (!checklist) return null
+    return {
+      instrumentOff: checklist.instrument_off === true,
+      computerOff: checklist.computer_off === true,
+      nextUser: checklist.nextUser || checklist.next_user || '',
+      sampleCount: Number(checklist.sample_count) || 0,
+      moreSample: checklist.more_sample === true,
+      moreSampleCount: Number(checklist.more_sample_count) || 0,
+      needSupplement: checklist.need_supplement === true,
+      totalPageUrl: toUrl(checklist.total_page),
+      devicePageUrl: toUrl(checklist.device_page),
+      roomPageUrl: toUrl(checklist.room_page),
+      supplementPageUrl: toUrl(checklist.supplement_page)
+    }
+  },
+
+  /** 异常反馈：兼容 feedback 对象与只写了 abnormal_reason 的旧记录 */
+  buildAbnormal(usage, urlMap) {
+    const empty = {
+      has: false,
+      isResolved: false,
+      pending: false,
+      title: '',
+      content: '',
+      timeDisplay: '',
+      photos: [],
+      handledBy: '',
+      handledTimeDisplay: ''
+    }
+    if (!usage) return empty
+
+    const feedback = usage.feedback || {}
+    const content = feedback.content || usage.abnormal_reason || ''
+    const isAbnormalRecord = usage.status === 'abnormal' || usage.abnormal_resolved === true
+    if (!isAbnormalRecord && !content) return empty
+
+    const handler = usage.abnormal_handled_by || {}
+    return {
+      has: Boolean(content || feedback.title),
+      isResolved: usage.abnormal_resolved === true,
+      // 只有状态停在 abnormal 的记录才能被标记处理，否则云函数会找不到目标
+      pending: usage.status === 'abnormal',
+      title: feedback.title || '使用异常',
+      content: content || '未填写详细说明',
+      timeDisplay: datetime.formatMoment(feedback.submit_time || usage.abnormal_time || usage.end_time),
+      photos: ((feedback.photos) || [])
+        .map(id => cloudFile.resolveSingle(id, urlMap))
+        .filter(Boolean),
+      handledBy: handler.name || handler.user_id || '',
+      handledTimeDisplay: datetime.formatMoment(usage.abnormal_handled_time)
+    }
+  },
+
+  collectPhotos(detail, abnormal) {
+    const checklist = detail.endChecklist || {}
+    return [
+      detail.reservePageUrl,
+      detail.startPhotoUrl,
+      ...detail.usageImageUrls,
+      checklist.totalPageUrl,
+      checklist.devicePageUrl,
+      checklist.roomPageUrl,
+      checklist.supplementPageUrl,
+      ...abnormal.photos
+    ].filter(Boolean)
+  },
+
+  // ==================== 状态 ====================
+
+  /** 使用记录优先，其次按预约时间判断，时间缺失时退回预约上的 usage_status */
+  calcStatus(reserve, usage) {
+    if (usage) {
+      if (usage.status === 'abnormal') return 'abnormal'
+      if (usage.status === 'using') return 'using'
+      if (usage.status === 'completed') return 'completed'
+    }
+
+    const start = datetime.parseDateTime(reserve.start_time)
+    const end = datetime.parseDateTime(reserve.end_time)
+    if (!start) {
+      const usageStatus = reserve.usage_status
+      if (usageStatus === 'completed') return 'completed'
+      if (usageStatus === 'active') return 'using'
+      if (usageStatus === 'abnormal') return 'abnormal'
+      return 'upcoming'
+    }
+
+    const now = Date.now()
+    if (now < start.getTime()) return 'upcoming'
+    if (!end || now < end.getTime()) return 'using'
+    return 'completed'
+  },
+
+  buildStatusTip(status, detail) {
+    if (status === 'upcoming') {
+      const when = [detail.dateDisplay, detail.timeDisplay].filter(Boolean).join(' ')
+      return when ? `预约已通过，请在 ${when} 到实验室开始使用` : '预约已通过，请留意开始时间'
+    }
+    if (status === 'using') return '正在使用中，离开前请提交结束核验'
+    if (status === 'abnormal') return '本次使用已上报异常，等待管理员处理'
+    return '本次使用已完成，照片与核验信息可随时回看'
+  },
+
+  // ==================== 交互 ====================
 
   previewPhoto(e) {
     const current = e.currentTarget.dataset.url
-    const urls = e.currentTarget.dataset.urls
-
-    if (!current || !urls || urls.length === 0) return
-
-    wx.previewImage({
-      current,
-      urls
-    })
+    const urls = e.currentTarget.dataset.urls || []
+    if (!current || !urls.length) return
+    wx.previewImage({ current, urls })
   },
-  // 点击"标记为已处理"按钮
+
+  onRetry() {
+    if (!this.reserveId) {
+      wx.navigateBack({ delta: 1 })
+      return
+    }
+    this.loadDetail()
+  },
+
+  goBack() {
+    if (getCurrentPages().length > 1) {
+      wx.navigateBack({ delta: 1 })
+      return
+    }
+    wx.switchTab({ url: '/pages/index/index' })
+  },
+
   onResolveAbnormal() {
+    if (this.data.isHandling) return
     wx.showModal({
-      title: '确认处理',
-      content: '确认该异常已在线下处理完毕？此操作将把预约和使用记录标记为已完成。',
+      title: '确认已处理',
+      content: '确认该异常已在线下处理完毕？标记后预约将变为「已完成」，异常记录会保留并标注处理人。',
       confirmText: '确认处理',
-      cancelText: '取消',
+      confirmColor: '#ef4444',
       success: (res) => {
-        if (res.confirm) {
-          this.doResolveAbnormal()
-        }
+        if (res.confirm) this.doResolveAbnormal()
       }
     })
   },
 
   async doResolveAbnormal() {
-    this.setData({
-      isHandlingAbnormal: true
-    })
-
+    if (this.data.isHandling) return
+    this.setData({ isHandling: true })
     try {
-      const db = wx.cloud.database()
-      const reserveId = this.data.reserveId || '' // 需要在 onLoad 中保存 reserveId
-
-      // 1. 查询当前的使用记录
-      const usageRes = await db.collection('device_usage')
-        .where({
-          reserve_id: reserveId,
-          status: 'abnormal'
-        })
-        .get()
-
-      const usage = usageRes.data[0]
-      if (!usage) {
-        throw new Error('未找到对应的异常使用记录')
+      const res = await wx.cloud.callFunction({
+        name: 'resolveAbnormalUsage',
+        data: { reserveId: this.reserveId }
+      })
+      const result = (res && res.result) || {}
+      if (result.code !== 0) {
+        throw new Error(result.msg || '处理失败，请重试')
       }
-
-      const now = new Date().toISOString()
-
-      // 2. 更新 device_usage：status 改为 completed，补填 end_time
-      await db.collection('device_usage').doc(usage._id).update({
-        data: {
-          status: 'completed',
-          end_time: now
-        }
-      })
-
-      // 3. 更新 reserves：usage_status 改为 completed
-      await db.collection('reserves').doc(reserveId).update({
-        data: {
-          usage_status: 'completed'
-        }
-      })
-
-      // 4. 更新页面状态
-      this.setData({
-        status: 'completed',
-        isHandlingAbnormal: false
-      })
-
-      wx.showToast({
-        title: '处理成功',
-        icon: 'success'
-      })
-
-      // 5. 刷新页面数据
-      this.loadReserveDetail(reserveId)
+      wx.showToast({ title: '已标记为已处理', icon: 'success' })
+      await this.loadDetail({ silent: true })
     } catch (err) {
-      console.error('处理异常失败:', err)
-      this.setData({
-        isHandlingAbnormal: false
-      })
+      console.error('[reserve-detail] 标记异常已处理失败', err)
       wx.showToast({
         title: err.message || '处理失败，请重试',
         icon: 'none'
       })
+    } finally {
+      this.setData({ isHandling: false })
     }
   }
 })

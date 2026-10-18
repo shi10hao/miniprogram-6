@@ -1,186 +1,201 @@
-<view class="container">
-  <!-- 顶部状态 -->
-  <view class="header">
-    <view class="info-card-header">
-      <text class="device-name">预约详情</text>
-      <view class="status-badge {{status}}">
-        {{status === 'upcoming' ? '即将到来' : status === 'using' ? '使用中' : status === 'abnormal' ? '出现问题' : '已完成'}}
-      </view>
-    </view>
+<view class="page">
 
-    <!-- 新增：异常处理按钮 -->
-    <view wx:if="{{status === 'abnormal' && !isHandlingAbnormal}}" class="abnormal-action">
-      <button class="resolve-btn" bindtap="onResolveAbnormal">标记为已处理</button>
+  <!-- 顶部：仪器 + 状态 -->
+  <view class="hero">
+    <view class="hero-top">
+      <text class="hero-eyebrow">预约单详情</text>
+      <text wx:if="{{!isLoading && !forbidden && !hasError}}" class="hero-chip hero-chip-{{status}}">{{statusText}}</text>
     </view>
-
+    <text class="hero-title">{{detail.deviceName || '预约详情'}}</text>
+    <text wx:if="{{detail.dateDisplay}}" class="hero-sub">{{detail.dateDisplay}} {{detail.timeDisplay}}</text>
   </view>
 
-  <!-- 加载中 -->
-  <view wx:if="{{isLoading}}" class="center-hint">
-    <view class="loading-spin"></view>
-    <text>加载中...</text>
-  </view>
+  <view class="body">
 
-  <!-- 无权查看 -->
-  <view wx:elif="{{forbidden}}" class="center-hint">
-    <text class="forbidden-icon">🔒</text>
-    <text>无权查看该预约</text>
-  </view>
+    <!-- 加载中 -->
+    <block wx:if="{{isLoading}}">
+      <view wx:for="{{skeletonRows}}" wx:key="*this" class="ds-card sk-card">
+        <view class="ds-skeleton sk-line sk-line-lg"></view>
+        <view class="ds-skeleton sk-line"></view>
+        <view class="ds-skeleton sk-line sk-line-sm"></view>
+      </view>
+    </block>
 
-  <view wx:else class="content">
-    <!-- 基本信息 -->
-    <view class="info-card">
-      <view class="info-card-header">
-        <text class="info-card-title">预约信息</text>
+    <!-- 无权查看 -->
+    <block wx:elif="{{forbidden}}">
+      <view class="ds-card state-card">
+        <text class="state-icon">🔒</text>
+        <text class="state-title">无权查看该预约</text>
+        <text class="state-desc">这条预约不属于当前账号，如需查看请联系实验室管理员</text>
+        <button class="ds-btn ds-btn-block state-btn" bindtap="goBack">返回</button>
+      </view>
+    </block>
+
+    <!-- 加载失败 -->
+    <block wx:elif="{{hasError}}">
+      <view class="ds-card state-card" bindtap="onRetry">
+        <text class="state-icon">⚠️</text>
+        <text class="state-title">{{errorText}}</text>
+        <text class="state-desc">点击此处重试</text>
+      </view>
+    </block>
+
+    <!-- 正文 -->
+    <block wx:else>
+
+      <!-- 状态提示 -->
+      <view class="tip tip-{{status}}">
+        <text class="tip-dot"></text>
+        <text class="tip-text">{{statusTip}}</text>
       </view>
 
-      <view class="info-list">
-        <view class="info-item">
-          <text class="info-item-label">使用人员:</text>
-          <text class="info-item-value">{{detail.student_name || detail.user_id}}</text>
+      <!-- 异常反馈：始终保留，处理完只改标记，不销毁记录 -->
+      <view wx:if="{{abnormal.has}}" class="ds-card abnormal-card {{abnormal.isResolved ? 'is-resolved' : ''}}">
+        <view class="card-head">
+          <text class="ds-section-title">异常反馈</text>
+          <text class="ds-tag {{abnormal.isResolved ? 'ds-tag-muted' : 'ds-tag-danger'}}">{{abnormal.isResolved ? '已处理' : '待处理'}}</text>
         </view>
-        <view class="info-item">
-          <text class="info-item-label">课题组:</text>
-          <text class="info-item-value">{{detail.group_name || '未填写'}}</text>
-        </view>
-        <view class="info-item">
-          <text class="info-item-label">仪器编号:</text>
-          <text class="info-item-value">{{detail.device_id}}</text>
-        </view>
-        <view class="info-item">
-          <text class="info-item-label">仪器名称:</text>
-          <text class="info-item-value">{{detail.device_name}}</text>
-        </view>
-        <view class="info-item">
-          <text class="info-item-label">预约时间:</text>
-          <text class="info-item-value">{{detail.dateDisplay}} {{detail.timeDisplay}}</text>
-        </view>
-      </view>
-    </view>
 
-    <view wx:if="{{status === 'abnormal'}}" class=" wrong-section">
+        <view class="abnormal-title">{{abnormal.title}}</view>
+        <view class="abnormal-desc">{{abnormal.content}}</view>
+        <view class="abnormal-meta">上报于 {{abnormal.timeDisplay}}</view>
 
-      <!-- 新增：处理中状态 -->
-      <view wx:if="{{isHandlingAbnormal}}" class="handling-hint">
-        <view class="loading-spin"></view>
-        <text>处理中...</text>
+        <view wx:if="{{abnormal.photos.length}}" class="photo-grid abnormal-photos">
+          <image wx:for="{{abnormal.photos}}" wx:key="*this" class="photo" src="{{item}}" mode="aspectFill" data-url="{{item}}" data-urls="{{allPhotos}}" bindtap="previewPhoto" />
+        </view>
+
+        <view wx:if="{{abnormal.isResolved}}" class="abnormal-handled">
+          已由 {{abnormal.handledBy || '管理员'}} 于 {{abnormal.handledTimeDisplay}} 处理
+        </view>
+        <button wx:elif="{{isAdmin && abnormal.pending}}" class="ds-btn ds-btn-block resolve-btn" loading="{{isHandling}}" disabled="{{isHandling}}" bindtap="onResolveAbnormal">标记为已处理</button>
+        <view wx:else class="abnormal-wait">已通知管理员，请等待处理</view>
       </view>
 
-      <view class="feedback-section">
-        <text class="feedback-section-title">问题反馈</text>
-        <text class="feedback-title-content">{{feedback.title}}</text>
-      </view>
-      <view class="feedback-section">
-        <text class="feedback-section-title">详细内容</text>
-        <text class="feedback-content-content">{{feedback.content}}</text>
-      </view>
-      <view class="feedback-section">
-        <text class="feedback-section-title">反馈时间</text>
-        <text class="feedback-content-content">{{feedback.submit_time_display}}</text>
-      </view>
-      <!-- 新增：反馈照片 -->
-      <view wx:if="{{detail.feedbackPhotoUrls && detail.feedbackPhotoUrls.length > 0}}" class="feedback-section">
-        <text class="feedback-section-title">反馈照片（{{detail.feedbackPhotoUrls.length}}）</text>
-        <view class="photo-grid">
-          <image wx:for="{{detail.feedbackPhotoUrls}}" wx:key="*this" class="usage-photo" src="{{item}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{item}}" data-urls="{{allPhotos}}" />
+      <!-- 预约信息 -->
+      <view class="ds-card">
+        <view class="card-head">
+          <text class="ds-section-title">预约信息</text>
+        </view>
+        <view class="row">
+          <text class="row-label">使用人员</text>
+          <text class="row-value">{{detail.studentName}}</text>
+        </view>
+        <view class="row">
+          <text class="row-label">课题组</text>
+          <text class="row-value">{{detail.groupName}}</text>
+        </view>
+        <view wx:if="{{detail.deviceId}}" class="row">
+          <text class="row-label">仪器编号</text>
+          <text class="row-value">{{detail.deviceId}}</text>
+        </view>
+        <view class="row">
+          <text class="row-label">预约时间</text>
+          <text class="row-value">{{detail.dateDisplay}} {{detail.timeDisplay}}</text>
+        </view>
+        <view wx:if="{{detail.startAtDisplay}}" class="row">
+          <text class="row-label">开始使用</text>
+          <text class="row-value">{{detail.startAtDisplay}}</text>
+        </view>
+        <view wx:if="{{detail.endAtDisplay}}" class="row">
+          <text class="row-label">结束使用</text>
+          <text class="row-value">{{detail.endAtDisplay}}</text>
         </view>
       </view>
-    </view>
 
-    <view wx:else class="ok-section">
       <!-- 开始照片 -->
-      <view class="section">
-        <view class="section-title-wrap">
-          <text class="section-title">开始照片</text>
+      <view wx:if="{{detail.startPhotoUrl}}" class="ds-card">
+        <view class="card-head">
+          <text class="ds-section-title">开始照片</text>
+          <text class="card-hint">开始使用时的现场</text>
         </view>
-        <view class="photo-section">
-          <image wx:if="{{detail.startPhotoUrl}}" class="usage-photo" src="{{detail.startPhotoUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.startPhotoUrl}}" data-urls="{{allPhotos}}" />
-          <text wx:else class="empty-hint">暂无照片</text>
+        <view class="photo-grid">
+          <image class="photo" src="{{detail.startPhotoUrl}}" mode="aspectFill" data-url="{{detail.startPhotoUrl}}" data-urls="{{allPhotos}}" bindtap="previewPhoto" />
         </view>
       </view>
 
-      <!-- 使用照片（多张） -->
-      <view class="section">
-        <view class="section-title-wrap">
-          <text class="section-title">使用照片（{{detail.usageImageUrls.length}}）</text>
+      <!-- 使用照片 -->
+      <view wx:if="{{detail.usageImageUrls.length}}" class="ds-card">
+        <view class="card-head">
+          <text class="ds-section-title">使用照片</text>
+          <text class="card-hint">{{detail.usageImageUrls.length}} 张</text>
         </view>
-        <view wx:if="{{detail.usageImageUrls.length > 0}}" class="photo-grid">
-          <image wx:for="{{detail.usageImageUrls}}" wx:key="*this" class="usage-photo" src="{{item}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{item}}" data-urls="{{allPhotos}}" />
+        <view class="photo-grid">
+          <image wx:for="{{detail.usageImageUrls}}" wx:key="*this" class="photo" src="{{item}}" mode="aspectFill" data-url="{{item}}" data-urls="{{allPhotos}}" bindtap="previewPhoto" />
         </view>
-        <text wx:else class="empty-hint">暂无照片</text>
+      </view>
+
+      <!-- 结束核验 -->
+      <view wx:if="{{detail.endChecklist}}" class="ds-card">
+        <view class="card-head">
+          <text class="ds-section-title">结束核验</text>
+        </view>
+        <view class="row">
+          <text class="row-label">仪器关闭</text>
+          <text class="row-value {{detail.endChecklist.instrumentOff ? 'is-yes' : 'is-no'}}">{{detail.endChecklist.instrumentOff ? '已关闭' : '未关闭'}}</text>
+        </view>
+        <view class="row">
+          <text class="row-label">电脑关闭</text>
+          <text class="row-value {{detail.endChecklist.computerOff ? 'is-yes' : 'is-no'}}">{{detail.endChecklist.computerOff ? '已关闭' : '未关闭'}}</text>
+        </view>
+        <view wx:if="{{!detail.endChecklist.computerOff}}" class="row">
+          <text class="row-label">下一个使用者</text>
+          <text class="row-value">{{detail.endChecklist.nextUser || '未填写'}}</text>
+        </view>
+        <view class="row">
+          <text class="row-label">运行样品</text>
+          <text class="row-value">{{detail.endChecklist.sampleCount}} 个</text>
+        </view>
+        <view class="row">
+          <text class="row-label">多余预约</text>
+          <text class="row-value {{detail.endChecklist.moreSample ? 'is-no' : 'is-yes'}}">{{detail.endChecklist.moreSample ? '是' : '否'}}</text>
+        </view>
+        <view wx:if="{{detail.endChecklist.moreSample}}" class="row">
+          <text class="row-label">剩余样品</text>
+          <text class="row-value">{{detail.endChecklist.moreSampleCount}} 个</text>
+        </view>
+        <view class="row">
+          <text class="row-label">补充预约</text>
+          <text class="row-value">{{detail.endChecklist.needSupplement ? '需要' : '不需要'}}</text>
+        </view>
+
+        <view wx:if="{{detail.endChecklist.totalPageUrl || detail.endChecklist.devicePageUrl || detail.endChecklist.roomPageUrl || detail.endChecklist.supplementPageUrl}}" class="sub-photos">
+          <view wx:if="{{detail.endChecklist.totalPageUrl}}" class="sub-photo">
+            <text class="sub-photo-label">总的预约单</text>
+            <image class="photo photo-sm" src="{{detail.endChecklist.totalPageUrl}}" mode="aspectFill" data-url="{{detail.endChecklist.totalPageUrl}}" data-urls="{{allPhotos}}" bindtap="previewPhoto" />
+          </view>
+          <view wx:if="{{detail.endChecklist.devicePageUrl}}" class="sub-photo">
+            <text class="sub-photo-label">仪器关闭</text>
+            <image class="photo photo-sm" src="{{detail.endChecklist.devicePageUrl}}" mode="aspectFill" data-url="{{detail.endChecklist.devicePageUrl}}" data-urls="{{allPhotos}}" bindtap="previewPhoto" />
+          </view>
+          <view wx:if="{{detail.endChecklist.roomPageUrl}}" class="sub-photo">
+            <text class="sub-photo-label">实验室关门</text>
+            <image class="photo photo-sm" src="{{detail.endChecklist.roomPageUrl}}" mode="aspectFill" data-url="{{detail.endChecklist.roomPageUrl}}" data-urls="{{allPhotos}}" bindtap="previewPhoto" />
+          </view>
+          <view wx:if="{{detail.endChecklist.supplementPageUrl}}" class="sub-photo">
+            <text class="sub-photo-label">补充预约单</text>
+            <image class="photo photo-sm" src="{{detail.endChecklist.supplementPageUrl}}" mode="aspectFill" data-url="{{detail.endChecklist.supplementPageUrl}}" data-urls="{{allPhotos}}" bindtap="previewPhoto" />
+          </view>
+        </view>
       </view>
 
       <!-- 系统预约单 -->
-      <view class="section">
-        <view class="section-title-wrap">
-          <text class="section-title">系统预约单</text>
+      <view wx:if="{{detail.reservePageUrl}}" class="ds-card">
+        <view class="card-head">
+          <text class="ds-section-title">系统预约单</text>
         </view>
-        <view class="photo-section">
-          <image wx:if="{{detail.reservePageUrl}}" class="usage-photo" src="{{detail.reservePageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.reservePageUrl}}" data-urls="{{allPhotos}}" />
-          <text wx:else class="empty-hint">未上传预约单</text>
-        </view>
-      </view>
-
-      <!-- 结束信息 -->
-      <view wx:if="{{detail.endChecklistDisplay}}" class="section">
-        <view class="section-title-wrap">
-          <text class="section-title">结束使用信息</text>
-        </view>
-
-        <!-- 仪器是否关闭 -->
-        <view class="end-info-row">
-          <text class="end-info-label">仪器关闭</text>
-          <text class="end-info-value {{detail.endChecklistDisplay.instrumentOff ? 'yes' : 'no'}}">{{detail.endChecklistDisplay.instrumentOff ? '是' : '否'}}</text>
-        </view>
-
-        <!-- 电脑是否关闭 -->
-        <view class="end-info-row">
-          <text class="end-info-label">电脑关闭</text>
-          <text class="end-info-value {{detail.endChecklistDisplay.computerOff ? 'yes' : 'no'}}">{{detail.endChecklistDisplay.computerOff ? '是' : '否'}}</text>
-        </view>
-        <view wx:if="{{detail.endChecklistDisplay.computerOff === false}}" class="end-info-row">
-          <text class="end-info-label">下一个使用者</text>
-          <text class="end-info-value">{{detail.endChecklistDisplay.nextUser}}</text>
-        </view>
-        <!-- 运行样品总数 -->
-        <view class="end-info-row">
-          <text class="end-info-label">运行样品总数</text>
-          <text class="end-info-value">{{detail.endChecklistDisplay.sampleCount}} 个</text>
-        </view>
-        <!-- ===== 新增：是否多余预约 ===== -->
-        <view class="end-info-row">
-          <text class="end-info-label">是否多余预约</text>
-          <text class="end-info-value {{detail.endChecklistDisplay.moreSample ? 'yes' : 'no'}}">{{detail.endChecklistDisplay.moreSample ? '是' : '否'}}</text>
-        </view>
-        <view wx:if="{{detail.endChecklistDisplay.moreSample}}" class="end-info-row">
-          <text class="end-info-label">剩余样品数量</text>
-          <text class="end-info-value">{{detail.endChecklistDisplay.moreSampleCount}} 个</text>
-        </view>
-        <!-- 是否需要补充预约 -->
-        <view class="end-info-row">
-          <text class="end-info-label">补充预约</text>
-          <text class="end-info-value {{detail.endChecklistDisplay.needSupplement ? 'yes' : 'no'}}">{{detail.endChecklistDisplay.needSupplement ? '是' : '否'}}</text>
-        </view>
-
-        <!-- 总的预约单图片 -->
-        <view wx:if="{{detail.endChecklistDisplay.totalPageUrl}}" class="end-info-photo-section">
-          <text class="end-info-photo-label">总的预约单</text>
-          <image class="usage-photo" src="{{detail.endChecklistDisplay.totalPageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.endChecklistDisplay.totalPageUrl}}" data-urls="{{allPhotos}}" />
-        </view>
-        <view wx:if="{{detail.endChecklistDisplay.devicePageUrl}}" class="end-info-photo-section">
-          <text class="end-info-photo-label">仪器关闭图片</text>
-          <image class="usage-photo" src="{{detail.endChecklistDisplay.devicePageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.endChecklistDisplay.devicePageUrl}}" data-urls="{{allPhotos}}" />
-        </view>
-        <view wx:if="{{detail.endChecklistDisplay.roomPageUrl}}" class="end-info-photo-section">
-          <text class="end-info-photo-label">实验室关门图片</text>
-          <image class="usage-photo" src="{{detail.endChecklistDisplay.roomPageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.endChecklistDisplay.roomPageUrl}}" data-urls="{{allPhotos}}" />
-        </view>
-        <!-- 补充预约单图片 -->
-        <view wx:if="{{detail.endChecklistDisplay.supplementPageUrl}}" class="end-info-photo-section">
-          <text class="end-info-photo-label">补充预约单</text>
-          <image class="usage-photo" src="{{detail.endChecklistDisplay.supplementPageUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{detail.endChecklistDisplay.supplementPageUrl}}" data-urls="{{allPhotos}}" />
+        <view class="photo-grid">
+          <image class="photo" src="{{detail.reservePageUrl}}" mode="aspectFill" data-url="{{detail.reservePageUrl}}" data-urls="{{allPhotos}}" bindtap="previewPhoto" />
         </view>
       </view>
-    </view>
+
+      <!-- 无照片提示 -->
+      <view wx:if="{{!allPhotos.length}}" class="ds-card empty-photo">
+        <text class="empty-photo-text">本次预约暂无上传照片</text>
+      </view>
+
+      <view wx:if="{{allPhotos.length}}" class="foot-hint">共 {{allPhotos.length}} 张照片，点击可查看大图</view>
+
+    </block>
+
   </view>
 </view>

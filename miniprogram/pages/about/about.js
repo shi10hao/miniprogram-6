@@ -1,6 +1,6 @@
 Page({
   data: {
-    version: '1.0.0',
+    version: '1.3.2',
     edition: '测试版',
     college: '安徽大学资源与环境工程学院'
   },

@@ -1,4 +1,6 @@
 {
+  "usingComponents": {},
+  "navigationBarTitleText": "经验交流",
   "enablePullDownRefresh": true,
-  "backgroundTextStyle":"dark"
+  "backgroundTextStyle": "dark"
 }
