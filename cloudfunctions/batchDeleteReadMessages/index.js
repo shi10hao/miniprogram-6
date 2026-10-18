@@ -22,7 +22,7 @@ exports.main = async (event) => {
     if (records.length === 0) break
 
     const ids = records.map(item => item._id)
-    
+
     await db.collection('messages')
       .where({
         _id: _.in(ids)

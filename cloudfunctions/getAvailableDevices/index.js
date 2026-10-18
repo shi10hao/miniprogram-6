@@ -68,7 +68,7 @@ exports.main = async (event) => {
   // 前端原本要串行 3 次云函数/数据库往返，现在合并为 1 次。
   const deviceIds = list.map(d => d.device_id).filter(Boolean)
 
-  let conflictMap = {}
+  const conflictMap = {}
   let reservedDevices = []
   let usingDeviceIds = []
 
@@ -93,7 +93,7 @@ exports.main = async (event) => {
 
     const conflicts = conflictRes.data || []
     reservedDevices = conflicts.map(item => item.device_id)
-    conflicts.forEach(r => {
+    conflicts.forEach((r) => {
       conflictMap[r.device_id] = (conflictMap[r.device_id] || 0) + 1
     })
     usingDeviceIds = (usingRes.data || []).map(item => item.device_id).filter(Boolean)

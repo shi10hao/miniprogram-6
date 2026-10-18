@@ -7,8 +7,8 @@ Page({
     deviceInstanceInfo: {},
     deviceUsages: [],
     deviceReserves: [],
-    timelineItems: [],        // ← 原来是 timelineItems，少了 : []
-    todayStats: {             // ← 原来是 todayStats，少了完整定义
+    timelineItems: [], // ← 原来是 timelineItems，少了 : []
+    todayStats: { // ← 原来是 todayStats，少了完整定义
       usageDuration: '',
       idleDuration: '',
       usageRate: ''
@@ -51,7 +51,7 @@ Page({
         .get()
       const device = (res.data || [])[0]
       if (!device) {
-        console.log("未找到该仪器")
+        console.log('未找到该仪器')
         return null
       }
       return {
@@ -62,7 +62,7 @@ Page({
         displayStatus: device.status || 'available'
       }
     } catch (err) {
-      console.log("获取仪器信息报错", err)
+      console.log('获取仪器信息报错', err)
       return null
     }
   },
@@ -79,7 +79,7 @@ Page({
 
       return res.data || []
     } catch (err) {
-      console.log("获取使用记录报错", err)
+      console.log('获取使用记录报错', err)
       return []
     }
   },
@@ -97,7 +97,7 @@ Page({
 
       return res.data || []
     } catch (err) {
-      console.log("获取预约记录报错", err)
+      console.log('获取预约记录报错', err)
       return []
     }
   },
@@ -107,7 +107,7 @@ Page({
     const pad = n => String(n).padStart(2, '0')
     const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
     // 2. 从 usages 中筛选出今天的记录，标记为 type: 'usage'
-    const todayUsages = (usages || []).filter(u => {
+    const todayUsages = (usages || []).filter((u) => {
       const date = this.parseDateTime(u.start_time)
       if (!date) return false
       const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
@@ -123,7 +123,7 @@ Page({
     }))
     // 3. 从 reserves 中筛选出今天的记录，标记为 type: 'reserve'
     // 3. 从 reserves 中筛选出今天的记录，标记为 type: 'reserve'
-    const todayReserves = (reserves || []).filter(r => {
+    const todayReserves = (reserves || []).filter((r) => {
       // 只保留还未结束的预约
       return r.reserve_date === todayStr && this.getTimeValue(r.end_time) > Date.now()
     }).map(r => ({
@@ -145,7 +145,7 @@ Page({
     const dayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 22, 0, 0).getTime()
     let cursor = dayStart
 
-    events.forEach(event => {
+    events.forEach((event) => {
       // 如果当前事件开始时间晚于游标，插入空闲段
       if (event.time > cursor) {
         items.push({
@@ -179,7 +179,7 @@ Page({
     // 6. 计算今日统计（使用时长、空闲时长、利用率）
     let usageMs = 0
     let idleMs = 0
-    items.forEach(item => {
+    items.forEach((item) => {
       if (item.type === 'usage' || item.type === 'reserve') {
         usageMs += this.parseDurationToMs(item.duration)
       } else if (item.type === 'idle') {

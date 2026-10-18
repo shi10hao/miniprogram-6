@@ -12,19 +12,19 @@ Page({
   bindInputLabName(e) {
     this.setData({
       'dutyInfo.labName': e.detail.value
-    });
+    })
   },
 
   bindInputName(e) {
     this.setData({
       'dutyInfo.name': e.detail.value
-    });
+    })
   },
 
   bindInputPhone(e) {
     this.setData({
       'dutyInfo.phone': e.detail.value
-    });
+    })
   },
 
   chooseImage() {
@@ -41,52 +41,52 @@ Page({
       success: (res) => {
         this.setData({
           'dutyInfo.images': this.data.dutyInfo.images.concat(res.tempFilePaths)
-        });
+        })
       }
-    });
+    })
   },
 
   deleteImage(e) {
-    const index = e.currentTarget.dataset.index;
-    const images = this.data.dutyInfo.images;
-    images.splice(index, 1);
+    const index = e.currentTarget.dataset.index
+    const images = this.data.dutyInfo.images
+    images.splice(index, 1)
     this.setData({
       'dutyInfo.images': images
-    });
+    })
   },
 
   handleSubmit() {
     if (this.data.isSubmitting) {
-      return;
+      return
     }
 
     if (!this.validateForm()) {
-      return;
+      return
     }
 
-    this.setData({ isSubmitting: true });
-    wx.showLoading({ title: '提交中...' });
+    this.setData({ isSubmitting: true })
+    wx.showLoading({ title: '提交中...' })
 
     this.uploadDutyImages(this.data.dutyInfo.images)
       .then(fileIds => this.saveDutyRecord(fileIds))
       .then(() => {
-        wx.hideLoading();
-        wx.showToast({ title: '提交成功', icon: 'success' });
-        this.resetForm();
+        wx.hideLoading()
+        wx.showToast({ title: '提交成功', icon: 'success' })
+        this.resetForm()
         setTimeout(() => {
           if (getCurrentPages().length > 1) {
-            wx.navigateBack();
+            wx.navigateBack()
           }
-        }, 800);
+        }, 800)
       })
-      .catch(err => {
-        wx.hideLoading();
-        console.error('提交值日信息失败:', err);
-        wx.showToast({ title: '提交失败，请重试', icon: 'none' });
+      .catch((err) => {
+        wx.hideLoading()
+        console.error('提交值日信息失败:', err)
+        wx.showToast({ title: '提交失败，请重试', icon: 'none' })
       })
       .finally(() => {
-        this.setData({ isSubmitting: false });
-      });
+        this.setData({ isSubmitting: false })
+      })
   },
 
   uploadDutyImages(images) {
@@ -97,17 +97,17 @@ Page({
           filePath,
           success: res => resolve(res.fileID),
           fail: reject
-        });
-      });
-    });
+        })
+      })
+    })
 
-    return Promise.all(uploadTasks);
+    return Promise.all(uploadTasks)
   },
 
   saveDutyRecord(imageFileIds) {
-    const db = wx.cloud.database();
-    const userInfo = wx.getStorageSync('userInfo') || {};
-    const { labName, name, phone } = this.data.dutyInfo;
+    const db = wx.cloud.database()
+    const userInfo = wx.getStorageSync('userInfo') || {}
+    const { labName, name, phone } = this.data.dutyInfo
 
     return db.collection('duty_records').add({
       data: {
@@ -118,7 +118,7 @@ Page({
         user_id: userInfo.userId || '',
         submit_time: new Date().toISOString()
       }
-    });
+    })
   },
 
   resetForm() {
@@ -129,23 +129,23 @@ Page({
         phone: '',
         images: []
       }
-    });
+    })
   },
 
   validateForm() {
-    const { labName, name, phone } = this.data.dutyInfo;
+    const { labName, name, phone } = this.data.dutyInfo
     if (!labName) {
-      wx.showToast({ title: '请填写实验室名称', icon: 'none' });
-      return false;
+      wx.showToast({ title: '请填写实验室名称', icon: 'none' })
+      return false
     }
     if (!name) {
-      wx.showToast({ title: '请填写姓名', icon: 'none' });
-      return false;
+      wx.showToast({ title: '请填写姓名', icon: 'none' })
+      return false
     }
     if (!/^1[3-9]\d{9}$/.test(phone)) {
-      wx.showToast({ title: '手机号格式错误', icon: 'none' });
-      return false;
+      wx.showToast({ title: '手机号格式错误', icon: 'none' })
+      return false
     }
-    return true;
+    return true
   }
-});
+})

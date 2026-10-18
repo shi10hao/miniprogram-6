@@ -13,20 +13,20 @@ Page({
     userName: ''
   },
 
-  onLoad: function() {
+  onLoad() {
     this.loadUserState()
   },
 
-  onShow: function() {
+  onShow() {
     getApp().refreshMessageBadge()
     this.loadUserState()
     this.loadOverview()
   },
 
   // 读取登录态（不再重复请求用户资料，资料只在"我的"里展示）
-  loadUserState: function() {
-    var userInfo = wx.getStorageSync('userInfo') || {}
-    var isAuth = !!(userInfo && userInfo.userId)
+  loadUserState() {
+    const userInfo = wx.getStorageSync('userInfo') || {}
+    const isAuth = !!(userInfo && userInfo.userId)
     this.setData({
       isAuthenticated: isAuth,
       userName: userInfo.name || ''
@@ -37,8 +37,8 @@ Page({
    * 三个概览数字：待开始预约 / 使用中 / 历史记录
    * 用 count() 而不是把记录全拉回来，只为了显示数字。
    */
-  loadOverview: function() {
-    var userInfo = wx.getStorageSync('userInfo') || {}
+  loadOverview() {
+    const userInfo = wx.getStorageSync('userInfo') || {}
     if (!userInfo.userId) {
       this.setData({
         overview: { pending: 0, using: 0, history: 0 },
@@ -49,8 +49,8 @@ Page({
 
     this.setData({ isLoadingOverview: true })
 
-    var reserves = db.collection('reserves')
-    var usages = db.collection('device_usage')
+    const reserves = db.collection('reserves')
+    const usages = db.collection('device_usage')
 
     return Promise.all([
       // 待开始预约 = 已通过 且 尚未开始使用（usage_status 为空或 not_started）
@@ -61,7 +61,7 @@ Page({
       }).count(),
       usages.where({ user_id: userInfo.userId, status: 'using' }).count(),
       usages.where({ user_id: userInfo.userId, status: 'completed' }).count()
-    ]).then(results => {
+    ]).then((results) => {
       this.setData({
         overview: {
           pending: (results[0] && results[0].total) || 0,
@@ -70,16 +70,16 @@ Page({
         },
         isLoadingOverview: false
       })
-    }).catch(err => {
+    }).catch((err) => {
       console.error('加载使用概览失败:', err)
       this.setData({ isLoadingOverview: false })
     })
   },
 
   // 跳转到功能页面（需要登录的入口统一拦截）
-  navigateToFunction: function(e) {
-    var url = e.currentTarget.dataset.url
-    var needAuth = e.currentTarget.dataset.needauth === true || e.currentTarget.dataset.needauth === 'true'
+  navigateToFunction(e) {
+    const url = e.currentTarget.dataset.url
+    const needAuth = e.currentTarget.dataset.needauth === true || e.currentTarget.dataset.needauth === 'true'
     if (!url) return
 
     if (needAuth && !this.data.isAuthenticated) {
@@ -89,17 +89,17 @@ Page({
 
     wx.navigateTo({
       url: url,
-      fail: function() {}
+      fail() {}
     })
   },
 
-  showAuthPrompt: function() {
+  showAuthPrompt() {
     wx.showModal({
       title: '提示',
       content: '该功能需要登录后使用',
       confirmText: '去登录',
       cancelText: '取消',
-      success: res => {
+      success: (res) => {
         if (res.confirm) {
           wx.navigateTo({ url: '/pages/auth/auth' })
         }
@@ -108,7 +108,7 @@ Page({
   },
 
   // 跳转到仪器列表（首页已有入口，这里保留给"使用提示"里的链接）
-  navigateToDeviceList: function() {
+  navigateToDeviceList() {
     wx.navigateTo({
       url: '/pages/device/list/devicelist'
     })

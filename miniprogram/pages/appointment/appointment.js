@@ -3,9 +3,9 @@ const PAGE_SIZE = 20
 
 Page({
   data: {
-    activeTab: 'reservation',      // reservation | usage
-    reservationFilter: 'all',      // all | upcoming | effective | cancelled
-    usageFilter: 'all',            // all | completed | abnormal
+    activeTab: 'reservation', // reservation | usage
+    reservationFilter: 'all', // all | upcoming | effective | cancelled
+    usageFilter: 'all', // all | completed | abnormal
     reservationHistory: [],
     usageHistory: [],
     isLoading: true,
@@ -117,7 +117,7 @@ Page({
       .skip((page - 1) * PAGE_SIZE)
       .limit(PAGE_SIZE)
       .get()
-      .then(res => {
+      .then((res) => {
         const rows = (res.data || []).map(item => this.processReservation(item))
         const hasMore = (res.data || []).length === PAGE_SIZE
         this.setData({
@@ -128,7 +128,7 @@ Page({
           isLoadingMore: false
         })
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('加载预约记录失败:', err)
         if (!silent) {
           wx.showToast({ title: '加载失败', icon: 'none' })
@@ -195,7 +195,7 @@ Page({
       .skip((page - 1) * PAGE_SIZE)
       .limit(PAGE_SIZE)
       .get()
-      .then(res => {
+      .then((res) => {
         const rows = (res.data || []).map(item => this.processUsage(item))
         const hasMore = (res.data || []).length === PAGE_SIZE
         this.setData({
@@ -206,7 +206,7 @@ Page({
           isLoadingMore: false
         })
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('加载使用记录失败:', err)
         if (!silent) {
           wx.showToast({ title: '加载失败', icon: 'none' })

@@ -47,7 +47,7 @@ Page({
     maxDate: '', // 最大日期（30天后）
     reservePage: '',
     reservePageFileID: '',
-    maxEndDate: '', // 新增：结束日期最大可选值
+    maxEndDate: '' // 新增：结束日期最大可选值
   },
 
   onLoad() {
@@ -216,8 +216,8 @@ Page({
   },
 
   // 注意！这是将       Object类型        的型号转为        String类型
-  getDeviceModel: function (device) {
-    var specs = device.specifications || {}
+  getDeviceModel(device) {
+    const specs = device.specifications || {}
     if (specs && typeof specs === 'object') {
       return String(specs['型号'] || specs.model || '').trim()
     }
@@ -257,24 +257,26 @@ Page({
 
       // 如果有搜索关键词，先过滤原始设备，再分组
       const searchKeyword = filters.searchKeyword?.toLowerCase().trim()
-      let rawDevices = searchKeyword ? devices.filter(d => {
-        const room = (d.device_room || '').toLowerCase()
-        const name = (d.device_name || '').toLowerCase()
-        const model = (this.getDeviceModel(d) || '').toLowerCase()
-        const lab = (d.lab_name || '').toLowerCase()
-        const desc = (d.description || '').toLowerCase()
-        const id = (d.device_id || '').toLowerCase()
-        return room.includes(searchKeyword) || name.includes(searchKeyword) ||
-          model.includes(searchKeyword) || lab.includes(searchKeyword) ||
-          desc.includes(searchKeyword) || id.includes(searchKeyword)
-      }) : devices
+      const rawDevices = searchKeyword
+        ? devices.filter((d) => {
+            const room = (d.device_room || '').toLowerCase()
+            const name = (d.device_name || '').toLowerCase()
+            const model = (this.getDeviceModel(d) || '').toLowerCase()
+            const lab = (d.lab_name || '').toLowerCase()
+            const desc = (d.description || '').toLowerCase()
+            const id = (d.device_id || '').toLowerCase()
+            return room.includes(searchKeyword) || name.includes(searchKeyword)
+              || model.includes(searchKeyword) || lab.includes(searchKeyword)
+              || desc.includes(searchKeyword) || id.includes(searchKeyword)
+          })
+        : devices
 
-      var groupedMap = {}
-      var that = this;
+      const groupedMap = {}
+      const that = this;
 
       (rawDevices || []).forEach(function (device) {
-        var model = that.getDeviceModel(device)
-        var key = (device.device_name || '') + '::' + model
+        const model = that.getDeviceModel(device)
+        const key = (device.device_name || '') + '::' + model
         if (!groupedMap[key]) {
           groupedMap[key] = {
             device_name: device.device_name,
@@ -304,9 +306,9 @@ Page({
         }
       })
 
-      const valueOfGroupedMap = Object.values(groupedMap).map(item => {
-        var labType = item.labTypes.length === 1 ? item.labTypes[0] : 'mixed'
-        var deviceType = item.deviceTypes.length === 1 ? item.deviceTypes[0] : 'mixed'
+      const valueOfGroupedMap = Object.values(groupedMap).map((item) => {
+        const labType = item.labTypes.length === 1 ? item.labTypes[0] : 'mixed'
+        const deviceType = item.deviceTypes.length === 1 ? item.deviceTypes[0] : 'mixed'
         return {
           ...item,
           lab_type: labType,
@@ -335,10 +337,10 @@ Page({
       // 保留当前已选仪器：列表重新加载后选中态不应该丢失
       const keepDeviceId = this.data.selectedDeviceId || ''
 
-      let devicesWithStatus = valueOfGroupedMap.map(group => {
+      const devicesWithStatus = valueOfGroupedMap.map((group) => {
         let total = 0
         const deviceStatusList = []
-        group.device_ids.forEach(id => {
+        group.device_ids.forEach((id) => {
           total += conflictMap[id] || 0
           deviceStatusList.push({
             device_id: id,
@@ -403,7 +405,7 @@ Page({
     if (!cloudIds.length) return Promise.resolve()
 
     return cloudFile.resolveTempUrls(cloudIds)
-      .then(map => {
+      .then((map) => {
         if (seq !== this._loadSeq) return
         const patch = {}
         devices.forEach((d, i) => {
@@ -413,7 +415,7 @@ Page({
         })
         if (Object.keys(patch).length) this.setData(patch)
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('解析仪器图片失败:', err)
       })
   },
@@ -442,13 +444,13 @@ Page({
         .where({ device_id: _.in(chunk) })
         .field({ device_id: true, status: true })
         .get()
-        .catch(err => {
+        .catch((err) => {
           console.error('查询设备状态出错:', err)
           return { data: [] }
         })
-    )).then(results => {
-      results.forEach(selfRes => {
-        (selfRes.data || []).forEach(item => {
+    )).then((results) => {
+      results.forEach((selfRes) => {
+        (selfRes.data || []).forEach((item) => {
           if (item.device_id) {
             selfStatusMap[item.device_id] = item.status || 'available'
           }
@@ -473,13 +475,13 @@ Page({
         .where({ device_id: _.in(chunk), status: 'using' })
         .field({ device_id: true })
         .get()
-        .catch(err => {
+        .catch((err) => {
           console.error('查询使用中设备出错:', err)
           return { data: [] }
         })
-    )).then(results => {
-      results.forEach(usingRes => {
-        (usingRes.data || []).forEach(item => {
+    )).then((results) => {
+      results.forEach((usingRes) => {
+        (usingRes.data || []).forEach((item) => {
           if (item.device_id) {
             statusMap[item.device_id] = 'using'
           }
@@ -491,7 +493,7 @@ Page({
 
   buildUsingStatusMap(usingDeviceIds) {
     const statusMap = {}
-    ;(usingDeviceIds || []).forEach(id => {
+    ;(usingDeviceIds || []).forEach((id) => {
       statusMap[id] = 'using'
     })
     return statusMap
@@ -504,13 +506,13 @@ Page({
 
     const statusMap = {}
     // 默认所有设备为 available
-    deviceIds.forEach(id => {
+    deviceIds.forEach((id) => {
       statusMap[id] = 'available'
     })
 
     // 1. 根据设备自身 status 标记维修中的设备（优先级最高）
     if (deviceSelfStatusMap) {
-      Object.keys(deviceSelfStatusMap).forEach(id => {
+      Object.keys(deviceSelfStatusMap).forEach((id) => {
         if (deviceSelfStatusMap[id] === 'maintenance' && statusMap[id] !== undefined) {
           statusMap[id] = 'maintenance'
         }
@@ -519,7 +521,7 @@ Page({
 
     // 2. 根据 conflictMap 标记已被预约的设备
     if (conflictMap) {
-      Object.keys(conflictMap).forEach(id => {
+      Object.keys(conflictMap).forEach((id) => {
         if (conflictMap[id] > 0 && statusMap[id] === 'available') {
           statusMap[id] = 'reserved'
         }
@@ -528,7 +530,7 @@ Page({
 
     // 3. 标记当前正在使用的设备
     if (usingStatusMap) {
-      Object.keys(usingStatusMap).forEach(id => {
+      Object.keys(usingStatusMap).forEach((id) => {
         if (statusMap[id] === 'available') {
           statusMap[id] = 'using'
         }
@@ -549,31 +551,35 @@ Page({
       if (!reserveDate || !startTime || !endTime) return 0
 
       const _ = db.command
+      // 本方法当前无调用方（死代码）。startDate/endDate 未定义，疑为 reserveDate 的笔误，
+      // 改了会改变冲突检测行为，故只标注不改，等业务方确认。
+      // eslint-disable-next-line no-undef
       const startDT = `${startDate} ${startTime}`
+      // eslint-disable-next-line no-undef
       const endDT = `${endDate} ${endTime}`
       const whereConditions = [{
-          device_id: deviceId
-        },
-        {
-          status: 'approved'
-        },
-        _.or([
-          _.and([{
-            start_time: _.lte(startDT)
-          }, {
-            end_time: _.gt(startDT)
-          }]),
-          _.and([{
-            start_time: _.lt(endDT)
-          }, {
-            end_time: _.gte(endDT)
-          }]),
-          _.and([{
-            start_time: _.gte(startDT)
-          }, {
-            end_time: _.lte(endDT)
-          }])
-        ])
+        device_id: deviceId
+      },
+      {
+        status: 'approved'
+      },
+      _.or([
+        _.and([{
+          start_time: _.lte(startDT)
+        }, {
+          end_time: _.gt(startDT)
+        }]),
+        _.and([{
+          start_time: _.lt(endDT)
+        }, {
+          end_time: _.gte(endDT)
+        }]),
+        _.and([{
+          start_time: _.gte(startDT)
+        }, {
+          end_time: _.lte(endDT)
+        }])
+      ])
       ]
 
       const res = await db.collection('reserves')
@@ -636,8 +642,8 @@ Page({
     // 再次点同一组时保留已经选好的编号：原来会无脑清空 selectedDeviceId，
     // 结果编号块还高亮着、提交按钮却变灰，交互上很割裂
     const current = this.data.selectedDevice
-    if (current && current.device_ids && device.device_ids &&
-        current.device_ids[0] === device.device_ids[0]) {
+    if (current && current.device_ids && device.device_ids
+      && current.device_ids[0] === device.device_ids[0]) {
       return
     }
     // 这里不查冲突：此刻还没有具体编号，用组内首台去查没有意义
@@ -795,31 +801,31 @@ Page({
 
       // 跨天冲突检测：查找任何与该时间段重叠的已批准预约
       const whereConditions = [{
-          device_id: this.data.selectedDeviceId || selectedDevice.device_id
-        },
-        {
-          status: 'approved'
-        },
-        _.or([
-          // 新预约的开始时间在已有预约时间段内
-          _.and([{
-            start_time: _.lte(startDT)
-          }, {
-            end_time: _.gt(startDT)
-          }]),
-          // 新预约的结束时间在已有预约时间段内
-          _.and([{
-            start_time: _.lt(endDT)
-          }, {
-            end_time: _.gte(endDT)
-          }]),
-          // 新预约完全包含已有预约
-          _.and([{
-            start_time: _.gte(startDT)
-          }, {
-            end_time: _.lte(endDT)
-          }])
-        ])
+        device_id: this.data.selectedDeviceId || selectedDevice.device_id
+      },
+      {
+        status: 'approved'
+      },
+      _.or([
+        // 新预约的开始时间在已有预约时间段内
+        _.and([{
+          start_time: _.lte(startDT)
+        }, {
+          end_time: _.gt(startDT)
+        }]),
+        // 新预约的结束时间在已有预约时间段内
+        _.and([{
+          start_time: _.lt(endDT)
+        }, {
+          end_time: _.gte(endDT)
+        }]),
+        // 新预约完全包含已有预约
+        _.and([{
+          start_time: _.gte(startDT)
+        }, {
+          end_time: _.lte(endDT)
+        }])
+      ])
       ]
 
       const res = await db.collection('reserves')
@@ -1021,9 +1027,9 @@ Page({
         create_time: new Date().toISOString()
       }
 
-      var useCloudFunction = false
+      let useCloudFunction = false
       try {
-        var checkRes = await wx.cloud.callFunction({
+        const checkRes = await wx.cloud.callFunction({
           name: 'getOpenId'
         })
         if (checkRes && checkRes.result) {
@@ -1079,13 +1085,13 @@ Page({
         duration: 2000
       })
       submitted = true
-      var currentDevices = this.data.availableDevices
-      var currentSelected = this.data.selectedDevice
+      const currentDevices = this.data.availableDevices
+      const currentSelected = this.data.selectedDevice
       if (currentSelected && currentDevices.length > 0) {
-        var updatedDevices = currentDevices.map(function (dev) {
+        const updatedDevices = currentDevices.map(function (dev) {
           if (dev.device_ids.includes(currentSelected.device_id)) {
-            var newConflict = (dev.conflictCount || 0) + 1 // 已预约次数+1
-            var newRemaining = (dev.totalCount || 0) - newConflict // 剩余次数-1
+            const newConflict = (dev.conflictCount || 0) + 1 // 已预约次数+1
+            let newRemaining = (dev.totalCount || 0) - newConflict // 剩余次数-1
             if (newRemaining < 0) newRemaining = 0
             return Object.assign({}, dev, {
               conflictCount: newConflict,
@@ -1110,7 +1116,6 @@ Page({
         })
         this.getAvailableDevices()
       }, 2000)
-
     } catch (err) {
       // console.error('提交预约失败:', err)
       wx.showToast({
@@ -1128,34 +1133,34 @@ Page({
   },
 
   async createReservationDirectly(reserveData) {
-    var _ = db.command
-    var startDT = reserveData.start_time
-    var endDT = reserveData.end_time
+    const _ = db.command
+    const startDT = reserveData.start_time
+    const endDT = reserveData.end_time
 
-    var overlapRes = await db.collection('reserves')
+    const overlapRes = await db.collection('reserves')
       .where(_.and([{
-          device_id: reserveData.device_id
-        },
-        {
-          status: 'approved'
-        },
-        _.or([
-          _.and([{
-            start_time: _.lte(startDT)
-          }, {
-            end_time: _.gt(startDT)
-          }]),
-          _.and([{
-            start_time: _.lt(endDT)
-          }, {
-            end_time: _.gte(endDT)
-          }]),
-          _.and([{
-            start_time: _.gte(startDT)
-          }, {
-            end_time: _.lte(endDT)
-          }])
-        ])
+        device_id: reserveData.device_id
+      },
+      {
+        status: 'approved'
+      },
+      _.or([
+        _.and([{
+          start_time: _.lte(startDT)
+        }, {
+          end_time: _.gt(startDT)
+        }]),
+        _.and([{
+          start_time: _.lt(endDT)
+        }, {
+          end_time: _.gte(endDT)
+        }]),
+        _.and([{
+          start_time: _.gte(startDT)
+        }, {
+          end_time: _.lte(endDT)
+        }])
+      ])
       ]))
       .limit(1)
       .get()
@@ -1167,7 +1172,7 @@ Page({
       throw new Error('该时间段与其他人预约时间段重叠')
     }
 
-    var record = Object.assign({}, reserveData, {
+    const record = Object.assign({}, reserveData, {
       status: 'approved',
       usage_status: 'not_started',
       start_reminder_sent: false,
@@ -1177,7 +1182,7 @@ Page({
     })
     delete record._openid
 
-    var addRes = await db.collection('reserves').add({
+    const addRes = await db.collection('reserves').add({
       data: record
     })
 
@@ -1374,8 +1379,12 @@ Page({
   },
 
   requestSubscribeMessage() {
+    // 本方法当前无调用方（死代码）。RESERVATION_TEMPLATE_ID 未在本文件声明，
+    // 同名常量见 pages/reservation/test.js，暂只标注不改，等业务方确认。
+    // eslint-disable-next-line no-undef
     if (!RESERVATION_TEMPLATE_ID || RESERVATION_TEMPLATE_ID === 'your_template_id_here') return
     wx.requestSubscribeMessage({
+      // eslint-disable-next-line no-undef
       tmplIds: [RESERVATION_TEMPLATE_ID],
       success(res) {
         // console.log('订阅消息授权结果:', res)
@@ -1391,7 +1400,7 @@ Page({
       count: 1,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
-      success: res => {
+      success: (res) => {
         const tempFilePath = res.tempFiles[0].tempFilePath
         const reservePage = tempFilePath
         this.setData({

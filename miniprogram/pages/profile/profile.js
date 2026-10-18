@@ -72,7 +72,7 @@ Page({
       db.collection('reserves').where({ user_id: userId, status: 'approved' }).count(),
       db.collection('device_usage').where({ user_id: userId, status: 'using' }).count(),
       db.collection('device_usage').where({ user_id: userId, status: 'completed' }).count()
-    ]).then(results => {
+    ]).then((results) => {
       this.setData({
         overview: {
           pending: (results[0] && results[0].total) || 0,
@@ -80,7 +80,7 @@ Page({
           history: (results[2] && results[2].total) || 0
         }
       })
-    }).catch(err => {
+    }).catch((err) => {
       console.error('加载使用概览失败:', err)
     })
   },
@@ -91,7 +91,7 @@ Page({
     const url = key === 'using' ? '/pages/usage/usage' : '/pages/appointment/appointment'
     wx.navigateTo({
       url,
-      fail: function() {}
+      fail() {}
     })
   },
 
@@ -105,7 +105,7 @@ Page({
     // db 已在文件顶部声明，这里不再重复获取，避免遮蔽外层变量
     const _ = db.command
 
-    var whereCondition
+    let whereCondition
     if (userGroupName && userGroupName !== '未设置') {
       whereCondition = _.or([
         { role: 'admin' },
@@ -119,7 +119,7 @@ Page({
       .where(whereCondition)
       .limit(10)
       .get()
-      .then(res => {
+      .then((res) => {
         const contacts = (res.data || []).map(item => ({
           _id: item._id,
           name: item.name || '管理员',
@@ -128,7 +128,7 @@ Page({
         }))
         this.setData({ adminContacts: contacts })
       })
-      .catch(err => {
+      .catch((err) => {
         // console.error('获取管理员信息失败:', err)
       })
   },
@@ -138,7 +138,7 @@ Page({
       title: '未登录',
       content: '请先完成登录认证',
       showCancel: false,
-      success: res => {
+      success: (res) => {
         if (res.confirm) {
           wx.redirectTo({
             url: '/pages/auth/auth'

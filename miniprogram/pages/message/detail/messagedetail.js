@@ -56,14 +56,14 @@ Page({
       : this.getUserMessageDetail(detailId)
 
     return request
-      .then(detail => {
+      .then((detail) => {
         this.setData({
           detail,
           isLoading: false
         })
         return detail
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('获取消息详情失败:', err)
         this.setData({
           detail: null,
@@ -95,14 +95,14 @@ Page({
       })
       .limit(1)
       .get()
-      .then(res => {
+      .then((res) => {
         const item = res.data && res.data.length > 0 ? res.data[0] : null
         if (!item) {
           throw new Error('message_not_found')
         }
 
         const detail = normalizeMessage(item)
-        return this.markMessageAsRead(messageId, userInfo.userId).then(marked => {
+        return this.markMessageAsRead(messageId, userInfo.userId).then((marked) => {
           if (marked) {
             detail.is_read = true
           }
@@ -120,7 +120,7 @@ Page({
       })
       .limit(1)
       .get()
-      .then(res => {
+      .then((res) => {
         if (res.data && res.data.length > 0) {
           return normalizeNotice(res.data[0])
         }
@@ -131,7 +131,7 @@ Page({
           })
           .limit(1)
           .get()
-          .then(docRes => {
+          .then((docRes) => {
             const item = docRes.data && docRes.data.length > 0 ? docRes.data[0] : null
             if (!item) {
               throw new Error('notice_not_found')
@@ -156,7 +156,7 @@ Page({
         }
       })
       .then(updateRes => !!(updateRes.stats && updateRes.stats.updated > 0))
-      .catch(err => {
+      .catch((err) => {
         console.error('详情页标记已读失败:', err)
         return false
       })

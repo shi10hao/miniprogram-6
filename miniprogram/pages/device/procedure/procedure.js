@@ -2,9 +2,9 @@ Page({
   data: {
     deviceName: '',
     pageTitle: '操作规程',
-    sections: [],  // 结构化数据
+    sections: [], // 结构化数据
     isStructured: false,
-    plainText: ''  // 旧版纯文本
+    plainText: '' // 旧版纯文本
   },
 
   onLoad(options) {
@@ -19,7 +19,7 @@ Page({
     }
 
     if (options.content) {
-      let content = decodeURIComponent(options.content)
+      const content = decodeURIComponent(options.content)
 
       // 判断是否是结构化数据
       if (options.type === 'structured') {

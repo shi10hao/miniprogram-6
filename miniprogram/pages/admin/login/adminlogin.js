@@ -31,22 +31,22 @@ Page({
       wx.showToast({ title: '请输入密码', icon: 'none' })
       return
     }
-  
+
     this.setData({ isLogging: true })
-  
+
     try {
       const res = await wx.cloud.callFunction({
         name: 'loginAdmin',
         data: { user_id: username, password }
       })
-  
+
       const { code, msg, data } = res.result
-      console.log("res:",res)
+      console.log('res:', res)
       if (code !== 0) {
         wx.showToast({ title: msg, icon: 'none' })
         return
       }
-  
+
       // 存缓存
       wx.setStorageSync('adminInfo', {
         userId: data.userId,
@@ -55,12 +55,11 @@ Page({
         groupName: data.group_name || '',
         loginTime: new Date().toISOString()
       })
-  
+
       wx.showToast({ title: '登录成功', icon: 'success' })
       setTimeout(() => {
         wx.reLaunch({ url: '/pages/admin/admin' })
       }, 600)
-  
     } catch (err) {
       console.error('管理端登录失败:', err)
       wx.showToast({ title: '登录失败，请重试', icon: 'none' })

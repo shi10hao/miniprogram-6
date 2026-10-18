@@ -65,7 +65,7 @@ async function resolveTempUrls(fileIds) {
   const result = {}
   const miss = []
 
-  unique.forEach(id => {
+  unique.forEach((id) => {
     const hit = cache[id]
     if (hit && hit.url && (now() - hit.ts) < TTL) {
       result[id] = hit.url
@@ -77,21 +77,21 @@ async function resolveTempUrls(fileIds) {
   if (!miss.length) return result
 
   const chunks = chunkArray(miss, CHUNK_SIZE)
-  const tasks = chunks.map(chunk => {
+  const tasks = chunks.map((chunk) => {
     return wx.cloud.callFunction({
       name: 'getBatchTempUrl',
       data: { fileList: chunk }
-    }).then(res => {
+    }).then((res) => {
       return (res && res.result) || []
-    }).catch(err => {
+    }).catch((err) => {
       console.error('[cloudFile] 获取临时链接失败:', err)
       return []
     })
   })
 
   const lists = await Promise.all(tasks)
-  lists.forEach(list => {
-    ;(list || []).forEach(item => {
+  lists.forEach((list) => {
+    ;(list || []).forEach((item) => {
       if (item && item.fileID && item.tempFileURL) {
         result[item.fileID] = item.tempFileURL
         cache[item.fileID] = { url: item.tempFileURL, ts: now() }
@@ -129,7 +129,7 @@ async function resolveListField(list, field = 'picture', urlField = null) {
   if (!rawIds.length) return items
 
   const map = await resolveTempUrls(rawIds)
-  return items.map(item => {
+  return items.map((item) => {
     if (!item || !isCloudFileId(item[field])) return item
     const url = resolveSingle(item[field], map)
     if (!url) return item
@@ -145,7 +145,7 @@ module.exports = {
   resolveSingle,
   resolveListField,
   // 仅供单元测试使用：清空内存与本地缓存
-  _resetCacheForTests: function() {
+  _resetCacheForTests() {
     memoryCache = null
     try {
       wx.removeStorageSync(STORAGE_KEY)

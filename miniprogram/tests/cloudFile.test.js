@@ -10,11 +10,11 @@ global.wx = {
   setStorageSync: (key, value) => {
     storage[key] = value
   },
-  removeStorageSync: key => {
+  removeStorageSync: (key) => {
     delete storage[key]
   },
   cloud: {
-    callFunction: options => {
+    callFunction: (options) => {
       callCount++
       if (shouldFail) return Promise.reject(new Error('mock failure'))
       const fileList = (options.data && options.data.fileList) || []
@@ -31,7 +31,7 @@ global.wx = {
 const cloudFile = require('../utils/cloudFile.js')
 
 function reset() {
-  Object.keys(storage).forEach(key => {
+  Object.keys(storage).forEach((key) => {
     delete storage[key]
   })
   callCount = 0
@@ -131,7 +131,7 @@ async function run() {
   console.log('cloudFile tests passed')
 }
 
-run().catch(err => {
+run().catch((err) => {
   console.error(err)
   process.exit(1)
 })

@@ -70,7 +70,6 @@ exports.main = async (event) => {
     }
     // ========== 新增结束 ==========
 
-
     // 返回管理端需要的字段
     return {
       code: 0,
@@ -82,7 +81,6 @@ exports.main = async (event) => {
         group_name: user.group_name
       }
     }
-
   } catch (err) {
     console.error('loginAdmin err', err)
     return {

@@ -1,7 +1,7 @@
 Page({
   data: {
     userId: '',
-    userInfo: null,   // 查到的用户信息
+    userInfo: null, // 查到的用户信息
     errMsg: '',
     querying: false,
     loading: false
@@ -48,7 +48,7 @@ Page({
   async doReset() {
     const { userInfo } = this.data
 
-    const modal = await new Promise(resolve => {
+    const modal = await new Promise((resolve) => {
       wx.showModal({
         title: '确认重置',
         content: `确定将 ${userInfo.name}（${userInfo.user_id}）的密码重置为手机号 ${userInfo.phone} 吗？`,

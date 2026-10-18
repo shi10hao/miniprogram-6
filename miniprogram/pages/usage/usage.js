@@ -89,7 +89,7 @@ Page({
         status: 'using'
       })
       .get()
-      .then(async res => {
+      .then(async (res) => {
         const usage = res.data && res.data.length > 0 ? res.data[0] : null
         const formattedUsage = usage ? this.formatUsage(usage) : null
         this.setData({
@@ -100,7 +100,7 @@ Page({
         await this.resolveUsageImages()
         return usage || null
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('获取当前使用记录失败:', err)
         return null
       })
@@ -187,14 +187,14 @@ Page({
       .orderBy('start_time', 'desc')
       .limit(10)
       .get()
-      .then(res => {
+      .then((res) => {
         const usageHistory = (res.data || []).map(item => this.formatUsage(item))
         this.setData({
           usageHistory
         })
         return usageHistory
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('获取使用历史失败:', err)
         return []
       })
@@ -230,12 +230,12 @@ Page({
         if (lastTime && lastId) {
           const _ = db.command
           query = query.where(_.or([{
-              start_time: _.gt(lastTime)
-            },
-            {
-              start_time: _.eq(lastTime),
-              _id: _.gt(lastId)
-            }
+            start_time: _.gt(lastTime)
+          },
+          {
+            start_time: _.eq(lastTime),
+            _id: _.gt(lastId)
+          }
           ]))
         }
 
@@ -254,26 +254,26 @@ Page({
       return allRecords
     }
     return queryAllReserves()
-      .then(res => {
-        var records = res || []
+      .then((res) => {
+        const records = res || []
         // console.log("records:", records)
-        var pending = records.filter(function (item) {
-          var usageNotStarted = !item.usage_status || item.usage_status === 'not_started'
-          var endTs = this.getReserveTimestamp(item, 'end')
+        const pending = records.filter(function (item) {
+          const usageNotStarted = !item.usage_status || item.usage_status === 'not_started'
+          const endTs = this.getReserveTimestamp(item, 'end')
           return usageNotStarted && endTs && endTs >= todayStartTs
-        }, this).map(item => {
-          var startTs = this.getReserveTimestamp(item, 'start')
-          var endTs = this.getReserveTimestamp(item, 'end')
+        }, this).map((item) => {
+          const startTs = this.getReserveTimestamp(item, 'start')
+          const endTs = this.getReserveTimestamp(item, 'end')
           return Object.assign({}, item, {
             _sort_ts: startTs || 0,
             _end_ts: endTs || 0
           })
         }).sort(function (a, b) {
           return a._sort_ts - b._sort_ts
-        }).map(item => {
-          var startTs = item._sort_ts
-          var endTs = item._end_ts
-          var state = 'expired'
+        }).map((item) => {
+          const startTs = item._sort_ts
+          const endTs = item._end_ts
+          let state = 'expired'
           if (startTs && endTs) {
             if (now.getTime() < startTs) {
               state = 'pending'
@@ -321,7 +321,7 @@ Page({
         })
         return pending
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('获取待使用预约失败:', err)
         this.setData({
           pendingReserves: []
@@ -349,14 +349,14 @@ Page({
       .orderBy('create_time', 'desc')
       .limit(1)
       .get()
-      .then(res => {
+      .then((res) => {
         const item = res.data && res.data.length > 0 ? res.data[0] : null
         this.setData({
           unreadReminder: item ? this.normalizeUnreadReminder(item) : null
         })
         return item
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('获取未读提醒失败:', err)
         this.setData({
           unreadReminder: null
@@ -540,7 +540,6 @@ Page({
   },
   // 4
   findCurrentValidReserve(userId) {
-
     return db.collection('reserves')
       .where({
         user_id: userId,
@@ -549,16 +548,15 @@ Page({
       .orderBy('start_time', 'desc')
       .limit(50)
       .get()
-      .then(res => {
+      .then((res) => {
         const records = res.data || []
-        return records.find(item => {
+        return records.find((item) => {
           if (item.usage_status && item.usage_status !== 'not_started') return false
           return true
         }) || null
       })
   },
   // 5
-
 
   addWatermarkToPhoto(tempFilePath, deviceName, deviceId) {
     return new Promise((resolve, reject) => {
@@ -705,7 +703,6 @@ Page({
 
       // 第六步：拍照加水印
       await this.takeAndProcessPhoto(deviceName, scanResult, reserveId)
-
     } catch (err) {
       wx.hideLoading()
       console.error('开始使用流程失败:', err)
@@ -728,7 +725,7 @@ Page({
         cancelText: '出现问题',
         success: (res) => {
           if (res.cancel) {
-            console.log("仪器启动不正常")
+            console.log('仪器启动不正常')
             this.setData({
               ifWorkingOK: false,
               feedbackTitle: '',
@@ -746,7 +743,7 @@ Page({
               ifWorkingOK: true,
               currentReserveId: reserveId
             })
-            console.log("仪器正常启动")
+            console.log('仪器正常启动')
             resolve(true)
           }
         }
@@ -886,7 +883,7 @@ Page({
         content: `仪器：${deviceName}\n编号：${deviceId}\n确认开始使用？`,
         confirmText: '确认',
         cancelText: '取消',
-        success: (res) => resolve(res.confirm)
+        success: res => resolve(res.confirm)
       })
     })
   },
@@ -906,7 +903,6 @@ Page({
 
       // 走原有的开始使用流程
       this.handleStartPhoto(watermarkedPath, reserveId)
-
     } catch (err) {
       console.error('拍照失败:', err)
       wx.showToast({
@@ -954,7 +950,7 @@ Page({
 
   // ===== 新增结束 =====
   ifWrong(reserveId) {
-    console.log("ifWrong被调用，reserveId:", reserveId)
+    console.log('ifWrong被调用，reserveId:', reserveId)
     this.setData({
       ifWorkingOK: false,
       feedbackTitle: '',
@@ -1013,8 +1009,8 @@ Page({
       feedbackPhotos,
       endWithFeedback
     } = this.data
-    console.log("this.data.currentReserveId:", this.data.currentReserveId)
-    console.log("解构的currentReserveId:", currentReserveId)
+    console.log('this.data.currentReserveId:', this.data.currentReserveId)
+    console.log('解构的currentReserveId:', currentReserveId)
     // 兜底：如果 currentReserveId 为空，从 pendingReserves 中查找
     let finalReserveId = currentReserveId
     if (!finalReserveId) {
@@ -1027,12 +1023,12 @@ Page({
     if (!feedbackContent.trim()) {
       wx.showToast({
         title: '请填写问题描述',
-        icon: "none"
+        icon: 'none'
       })
       return
     }
     if (!finalReserveId) {
-      console.log("预约信息异常")
+      console.log('预约信息异常')
       wx.showToast({
         title: '预约信息异常',
         icon: 'none'
@@ -1043,7 +1039,7 @@ Page({
       title: '提交中...'
     })
     const userInfo = wx.getStorageSync('userInfo') || {}
-    console.log("feedbackScene:", feedbackScene)
+    console.log('feedbackScene:', feedbackScene)
     // 调用异常反馈云函数
     wx.cloud.callFunction({
       name: 'submitAbnormalFeedback',
@@ -1062,10 +1058,10 @@ Page({
           openid: userInfo.openid || ''
         }
       }
-    }).then(res => {
+    }).then((res) => {
       wx.hideLoading()
       const result = res.result || {}
-      console.log("res:", res)
+      console.log('res:', res)
       if (result.success) {
         if (feedbackScene === 'using' || feedbackScene === 'start') {
           wx.cloud.callFunction({
@@ -1078,9 +1074,9 @@ Page({
               feedbackTitle: feedbackTitle.trim(),
               feedbackContent: feedbackContent.trim()
             }
-          }).then(notifyRes => {
+          }).then((notifyRes) => {
             console.log('异常通知发送结果:', notifyRes)
-          }).catch(err => {
+          }).catch((err) => {
             console.error('发送异常通知失败:', err)
           })
         }
@@ -1108,7 +1104,7 @@ Page({
           icon: 'none'
         })
       }
-    }).catch(err => {
+    }).catch((err) => {
       wx.hideLoading()
       console.error('提交反馈失败:', err)
       wx.showToast({
@@ -1116,7 +1112,6 @@ Page({
         icon: 'none'
       })
     })
-
   },
   // 7
   handleStartPhoto(tempFilePath, specificReserveId) {
@@ -1133,11 +1128,11 @@ Page({
       title: '获取预约信息...'
     })
 
-    var reservePromise
+    let reservePromise
     if (specificReserveId) {
       reservePromise = db.collection('reserves').doc(specificReserveId).get()
-        .then(res => {
-          var item = res.data
+        .then((res) => {
+          const item = res.data
           if (!item || item.status !== 'approved') return null
           if (String(item.user_id || '').trim() !== String(userInfo.userId || '').trim()) return null
           if (item.usage_status && item.usage_status !== 'not_started') return null
@@ -1148,19 +1143,18 @@ Page({
       reservePromise = this.findCurrentValidReserve(userInfo.userId)
     }
 
-    reservePromise.then(reserve => {
-        wx.hideLoading()
-        if (!reserve) {
-          wx.showToast({
-            title: '当前时间无可开始使用的预约',
-            icon: 'none'
-          })
-          return
-        }
-        this.createUsageRecord(reserve, tempFilePath, userInfo)
-
-      })
-      .catch(err => {
+    reservePromise.then((reserve) => {
+      wx.hideLoading()
+      if (!reserve) {
+        wx.showToast({
+          title: '当前时间无可开始使用的预约',
+          icon: 'none'
+        })
+        return
+      }
+      this.createUsageRecord(reserve, tempFilePath, userInfo)
+    })
+      .catch((err) => {
         wx.hideLoading()
         console.error('获取预约失败:', err)
         wx.showToast({
@@ -1178,7 +1172,7 @@ Page({
     wx.cloud.uploadFile({
       cloudPath: `usage_photos/start_${Date.now()}.jpg`,
       filePath: startPhotoPath,
-      success: uploadRes => {
+      success: (uploadRes) => {
         const startPhotoId = uploadRes.fileID
         wx.cloud.callFunction({
           name: 'startUsage',
@@ -1193,7 +1187,7 @@ Page({
               openid: userInfo.openid || ''
             }
           }
-        }).then(callRes => {
+        }).then((callRes) => {
           const result = callRes && callRes.result ? callRes.result : {}
           if (!result.success) {
             throw new Error(this.getStartUsageErrorMessage(result))
@@ -1209,7 +1203,7 @@ Page({
           this.loadCurrentUsage()
           this.loadPendingReserves()
           this.loadUsageHistory()
-        }).catch(err => {
+        }).catch((err) => {
           this.cleanupCloudFiles([startPhotoId]).then(() => {
             this.setData({
               isLoading: false
@@ -1222,7 +1216,7 @@ Page({
           })
         })
       },
-      fail: err => {
+      fail: (err) => {
         this.setData({
           isLoading: false
         })
@@ -1256,9 +1250,9 @@ Page({
     }
 
     return wx.cloud.deleteFile({
-        fileList: validFiles
-      })
-      .catch(err => {
+      fileList: validFiles
+    })
+      .catch((err) => {
         console.error('清理云文件失败:', err)
       })
   },
@@ -1267,11 +1261,11 @@ Page({
     if (!TEMPLATE_ID || TEMPLATE_ID === 'YOUR_TEMPLATE_ID_HERE') return
     wx.requestSubscribeMessage({
       tmplIds: [TEMPLATE_ID],
-      success: res => {
+      success: (res) => {
         // accept=同意则累加1次推送额度；用户勾选“总是保持以上选择”后无弹窗自动累加
         console.log('订阅授权结果', res[TEMPLATE_ID])
       },
-      fail: err => {
+      fail: (err) => {
         console.error('订阅消息授权失败:', err)
       }
     })
@@ -1285,7 +1279,7 @@ Page({
       count: 1,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
-      success: res => {
+      success: (res) => {
         const tempFilePath = res.tempFiles[0].tempFilePath
         this.setData({
           isLoading: true
@@ -1293,7 +1287,7 @@ Page({
         wx.cloud.uploadFile({
           cloudPath: `usage_photos/mid_${Date.now()}.jpg`,
           filePath: tempFilePath,
-          success: uploadRes => {
+          success: (uploadRes) => {
             db.collection('device_usage')
               .doc(this.data.currentUsage._id)
               .update({
@@ -1311,7 +1305,7 @@ Page({
                 })
                 this.loadCurrentUsage()
               })
-              .catch(err => {
+              .catch((err) => {
                 this.setData({
                   isLoading: false
                 })
@@ -1322,7 +1316,7 @@ Page({
                 })
               })
           },
-          fail: err => {
+          fail: (err) => {
             this.setData({
               isLoading: false
             })
@@ -1381,11 +1375,10 @@ Page({
       .then(() => {
         this.loadUnreadReminder()
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('写入结束使用提醒失败:', err)
       })
   },
-
 
   // 19
   cancelEnd() {
@@ -1422,7 +1415,7 @@ Page({
       count: maxCount,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
-      success: res => {
+      success: (res) => {
         const tempFiles = res.tempFiles || []
         this.uploadFeedbackPhotos(tempFiles)
       }
@@ -1434,7 +1427,7 @@ Page({
     wx.showLoading({
       title: '上传中...'
     })
-    const uploadTasks = tempFiles.map(file => {
+    const uploadTasks = tempFiles.map((file) => {
       return new Promise((resolve, reject) => {
         wx.cloud.uploadFile({
           cloudPath: `feedback_pics/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`,
@@ -1446,13 +1439,13 @@ Page({
     })
 
     Promise.all(uploadTasks)
-      .then(fileIDs => {
+      .then((fileIDs) => {
         wx.hideLoading()
         this.setData({
           feedbackPhotos: this.data.feedbackPhotos.concat(fileIDs)
         })
       })
-      .catch(err => {
+      .catch((err) => {
         wx.hideLoading()
         console.error('反馈照片上传失败:', err)
         wx.showToast({
@@ -1506,7 +1499,7 @@ Page({
     })
   },
   onNextUserInput(e) {
-    let val = e.detail.value.trim()
+    const val = e.detail.value.trim()
     this.setData({
       'endForm.nextUser': val
     })
@@ -1536,12 +1529,12 @@ Page({
       count: 1,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
-      success: res => {
+      success: (res) => {
         this.setData({
           'endForm.totalPage': res.tempFiles[0].tempFilePath
         })
       },
-      fail: err => {
+      fail: (err) => {
         console.error('选择预约单失败:', err)
       }
     })
@@ -1551,12 +1544,12 @@ Page({
       count: 1,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
-      success: res => {
+      success: (res) => {
         this.setData({
           'endForm.devicePage': res.tempFiles[0].tempFilePath
         })
       },
-      fail: err => {
+      fail: (err) => {
         console.error('选择仪器关闭照片失败:', err)
       }
     })
@@ -1566,12 +1559,12 @@ Page({
       count: 1,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
-      success: res => {
+      success: (res) => {
         this.setData({
           'endForm.roomPage': res.tempFiles[0].tempFilePath
         })
       },
-      fail: err => {
+      fail: (err) => {
         console.error('选择实验室关门照片失败:', err)
       }
     })
@@ -1590,12 +1583,12 @@ Page({
       count: 1,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
-      success: res => {
+      success: (res) => {
         this.setData({
           'endForm.supplementPage': res.tempFiles[0].tempFilePath
         })
       },
-      fail: err => {
+      fail: (err) => {
         console.error('选择补充预约单失败:', err)
       }
     })
@@ -1770,7 +1763,6 @@ Page({
         icon: 'success'
       })
       this.loadData()
-
     } catch (err) {
       this.setData({
         isLoading: false
@@ -1781,5 +1773,5 @@ Page({
         icon: 'none'
       })
     }
-  },
+  }
 })

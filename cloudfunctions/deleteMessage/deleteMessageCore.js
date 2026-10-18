@@ -26,8 +26,8 @@ function getRemovedCount(result) {
 function canDeleteMessage(message, userId, openid) {
   if (!message) return false
 
-  var messageOpenId = normalizeString(message._openid)
-  var currentOpenId = normalizeString(openid)
+  const messageOpenId = normalizeString(message._openid)
+  const currentOpenId = normalizeString(openid)
   if (messageOpenId && currentOpenId && messageOpenId !== currentOpenId) {
     return false
   }
@@ -36,16 +36,16 @@ function canDeleteMessage(message, userId, openid) {
 }
 
 function createDeleteMessageHandler(deps) {
-  var db = deps && deps.db
-  var getOpenId = deps && deps.getOpenId
+  const db = deps && deps.db
+  const getOpenId = deps && deps.getOpenId
 
   if (!db) {
     throw new Error('missing_db')
   }
 
   return async function deleteMessage(event) {
-    var messageId = normalizeString(event && event.messageId)
-    var userId = normalizeString(event && event.userId)
+    const messageId = normalizeString(event && event.messageId)
+    const userId = normalizeString(event && event.userId)
 
     if (!messageId || !userId) {
       return {
@@ -56,9 +56,9 @@ function createDeleteMessageHandler(deps) {
     }
 
     try {
-      var docRef = db.collection('messages').doc(messageId)
-      var messageRes = await docRef.get()
-      var message = normalizeDocument(messageRes && messageRes.data)
+      const docRef = db.collection('messages').doc(messageId)
+      const messageRes = await docRef.get()
+      const message = normalizeDocument(messageRes && messageRes.data)
       if (!message) {
         return {
           success: false,
@@ -67,7 +67,7 @@ function createDeleteMessageHandler(deps) {
         }
       }
 
-      var openid = typeof getOpenId === 'function' ? await getOpenId() : ''
+      const openid = typeof getOpenId === 'function' ? await getOpenId() : ''
       if (!canDeleteMessage(message, userId, openid)) {
         return {
           success: false,
@@ -76,8 +76,8 @@ function createDeleteMessageHandler(deps) {
         }
       }
 
-      var removeRes = await docRef.remove()
-      var removed = getRemovedCount(removeRes)
+      const removeRes = await docRef.remove()
+      const removed = getRemovedCount(removeRes)
       if (removed < 1) {
         return {
           success: false,

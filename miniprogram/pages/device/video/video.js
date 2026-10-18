@@ -9,18 +9,18 @@ Page({
     hasVideo: false
   },
 
-  onLoad: function(options) {
-    var deviceName = this.safeDecode(options.deviceName || '设备')
-    var sourceUrl = this.safeDecode(options.fileID || options.videoUrl || '')
+  onLoad(options) {
+    const deviceName = this.safeDecode(options.deviceName || '设备')
+    const sourceUrl = this.safeDecode(options.fileID || options.videoUrl || '')
 
     console.log('视频页面参数:', options)
-    
+
     this.setData({
       deviceName: deviceName,
       sourceUrl: sourceUrl,
       isLoading: true
     })
-    
+
     wx.setNavigationBarTitle({
       title: deviceName + ' - 操作视频'
     })
@@ -28,8 +28,8 @@ Page({
     this.loadVideoSource(sourceUrl)
   },
 
-  safeDecode: function(value) {
-    var text = String(value || '')
+  safeDecode(value) {
+    const text = String(value || '')
     try {
       return decodeURIComponent(text)
     } catch (err) {
@@ -37,8 +37,8 @@ Page({
     }
   },
 
-  loadVideoSource: function(sourceUrl) {
-    var url = String(sourceUrl || '').trim()
+  loadVideoSource(sourceUrl) {
+    const url = String(sourceUrl || '').trim()
     if (!url) {
       this.handleNoVideo('暂无视频链接')
       return
@@ -70,18 +70,18 @@ Page({
   },
 
   // 获取视频临时链接
-  getVideoTempUrl: function(fileID) {
-    var that = this
+  getVideoTempUrl(fileID) {
+    const that = this
     wx.showLoading({
-      title: '加载视频中...',
+      title: '加载视频中...'
     })
-    
+
     wx.cloud.getTempFileURL({
       fileList: [fileID],
-      success: res => {
+      success: (res) => {
         wx.hideLoading()
         console.log('获取临时链接成功:', res)
-        
+
         if (res.fileList && res.fileList.length > 0 && res.fileList[0].tempFileURL) {
           that.setData({
             videoUrl: res.fileList[0].tempFileURL,
@@ -92,7 +92,7 @@ Page({
           that.handleVideoError('视频文件不存在或已删除')
         }
       },
-      fail: err => {
+      fail: (err) => {
         wx.hideLoading()
         console.error('获取临时链接失败:', err)
         that.handleNoVideo('视频加载失败，请检查网络')
@@ -100,7 +100,7 @@ Page({
     })
   },
 
-  handleNoVideo: function(message) {
+  handleNoVideo(message) {
     this.setData({
       sourceType: '',
       fileID: '',
@@ -116,7 +116,7 @@ Page({
   },
 
   // 处理视频错误
-  handleVideoError: function(message) {
+  handleVideoError(message) {
     this.setData({
       isLoading: false,
       hasVideo: false
@@ -129,7 +129,7 @@ Page({
   },
 
   // 视频播放器错误处理
-  onVideoError: function(e) {
+  onVideoError(e) {
     console.error('视频播放错误:', e.detail.errMsg)
     if (e.detail.errMsg.includes('MEDIA_ERR_NETWORK')) {
       this.handleVideoError('网络错误，请检查连接')
@@ -141,7 +141,7 @@ Page({
   },
 
   // 重新加载
-  reloadVideo: function() {
+  reloadVideo() {
     this.setData({
       isLoading: true,
       hasVideo: false
@@ -149,16 +149,16 @@ Page({
     this.loadVideoSource(this.data.sourceUrl)
   },
 
-  onVideoPlay: function() {},
+  onVideoPlay() {},
 
-  onVideoEnded: function() {},
+  onVideoEnded() {},
 
-  onVideoLoad: function() {},
+  onVideoLoad() {},
 
-  navigateBack: function() {
+  navigateBack() {
     wx.navigateBack({
       delta: 1,
-      fail: function() {
+      fail() {
         wx.switchTab({
           url: '/pages/index/index'
         })

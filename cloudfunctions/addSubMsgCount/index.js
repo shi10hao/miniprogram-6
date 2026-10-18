@@ -22,8 +22,8 @@ exports.main = async (event, context) => {
 
   const incCount = Math.max(1, Number(count) || 1)
 
-  const userRes = await db.collection("users").where({ _openid: OPENID }).limit(1).get()
-  console.log("userRes",userRes)
+  const userRes = await db.collection('users').where({ _openid: OPENID }).limit(1).get()
+  console.log('userRes', userRes)
   if (!userRes.data.length) {
     return { success: false, error: 'user not found' }
   }
@@ -40,7 +40,7 @@ exports.main = async (event, context) => {
 
   const newCount = currentCount + incCount
 
-  await db.collection("users").doc(user._id).update({
+  await db.collection('users').doc(user._id).update({
     data: {
       subMsg: {
         count: newCount,

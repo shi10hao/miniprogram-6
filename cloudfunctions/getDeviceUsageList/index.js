@@ -27,9 +27,9 @@ async function getUserDistinctDevice(userId, targetCount = 3) {
     let query = db.collection('device_usage')
       .where({
         user_id: userId,
-        status: "completed"
+        status: 'completed'
       })
-      .orderBy("start_time", "desc")
+      .orderBy('start_time', 'desc')
       .limit(100)
     if (cursor) {
       query = query.skip(cursor)
@@ -57,7 +57,6 @@ async function getUserDistinctDevice(userId, targetCount = 3) {
   return Array.from(nameMap.values())
 }
 
-
 /**
  * 搜索仪器：按device_name去重；最多读取MAX_SEARCH_ROUND*100条最近流水
  */
@@ -70,17 +69,17 @@ async function searchDistinctDevice(keyword) {
   for (let i = 0; i < MAX_SEARCH_ROUND; i++) {
     let query = db.collection('device_usage')
       .where({
-        status: "completed",
+        status: 'completed',
         device_name: reg
       })
-      .orderBy("start_time", "desc")
+      .orderBy('start_time', 'desc')
       .limit(100)
     if (cursor) query = query.skip(cursor)
     const res = await query.get()
-    console.log("res.data:",res.data)
-    console.log("1")
+    console.log('res.data:', res.data)
+    console.log('1')
     if (res.data.length === 0) break
-    console.log("2")
+    console.log('2')
     for (const row of res.data) {
       if (!nameMap.has(row.device_name)) {
         nameMap.set(row.device_name, {
@@ -96,26 +95,25 @@ async function searchDistinctDevice(keyword) {
   return Array.from(nameMap.values())
 }
 
-
 exports.main = async (event, context) => {
   const { mode, userId, keyword } = event
-  console.log("mode, userId, keyword:",mode, userId, keyword)
+  console.log('mode, userId, keyword:', mode, userId, keyword)
   try {
-    if (mode === "recent") {
-      if (!userId) return { code: -1, msg: "缺少userId", data: [] }
+    if (mode === 'recent') {
+      if (!userId) return { code: -1, msg: '缺少userId', data: [] }
       const list = await getUserDistinctDevice(userId, 3)
       return { code: 0, data: list }
-    } else if (mode === "search") {
-      const kw = (keyword || "").trim()
+    } else if (mode === 'search') {
+      const kw = (keyword || '').trim()
       if (!kw) return { code: 0, data: [] }
-      console.log("kw为不为空,kw:",kw)
+      console.log('kw为不为空,kw:', kw)
       const list = await searchDistinctDevice(kw)
       return { code: 0, data: list }
     } else {
-      return { code: -1, msg: "非法mode参数", data: [] }
+      return { code: -1, msg: '非法mode参数', data: [] }
     }
   } catch (err) {
-    console.error("[getDeviceUsageList]异常", err)
-    return { code: -99, msg: "服务器异常", data: [] }
+    console.error('[getDeviceUsageList]异常', err)
+    return { code: -99, msg: '服务器异常', data: [] }
   }
 }

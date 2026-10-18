@@ -33,7 +33,7 @@ Page({
 
   onLoad(options) {
     const reserveId = options.id
-    console.log("id:", reserveId)
+    console.log('id:', reserveId)
     if (!reserveId) return
 
     this.setData({
@@ -73,10 +73,10 @@ Page({
     const [reserveRes, usageRes] = await Promise.all([
       db.collection('reserves').doc(reserveId).get(),
       db.collection('device_usage')
-      .where({
-        reserve_id: reserveId
-      })
-      .get()
+        .where({
+          reserve_id: reserveId
+        })
+        .get()
     ])
     const reserve = reserveRes.data
     const usage = usageRes.data[0] || null
@@ -104,10 +104,10 @@ Page({
 
     // 3. 一次性转 URL
     const urlMap = await this.fetchTempURLs(fileIDs)
-    console.log("map:",urlMap)
+    console.log('map:', urlMap)
     // 4. 回填
     const photoUrls = this.applyPhotosToData(reserve, usage, urlMap)
-    console.log("photoUrls:",photoUrls)
+    console.log('photoUrls:', photoUrls)
     const allPhotos = [
       photoUrls.reservePageUrl,
       photoUrls.startPhotoUrl,
@@ -121,7 +121,7 @@ Page({
     const status = this.calcReserveStatus(reserve, usage)
     // 计算时间显示（支持跨天）
     let timeDisplay = ''
-    let dateDisplay = reserve.reserve_date || ''
+    const dateDisplay = reserve.reserve_date || ''
     if (reserve.start_time && reserve.end_time) {
       const startDateOnly = this.formatDateOnly(reserve.start_time)
       const endDateOnly = this.formatDateOnly(reserve.end_time)
@@ -153,7 +153,7 @@ Page({
         device_name: reserve.device_name || '',
         dateDisplay: dateDisplay,
         timeDisplay: timeDisplay,
-        ...photoUrls,
+        ...photoUrls
       },
       allPhotos,
       status,
@@ -187,7 +187,6 @@ Page({
 
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
   },
-
 
   // 计算预约状态
   calcReserveStatus(reserve, usage) {
@@ -251,7 +250,7 @@ Page({
       // 新增：反馈照片
       const fb = usage.feedback
       if (fb && Array.isArray(fb.photos)) {
-        fb.photos.forEach(pid => {
+        fb.photos.forEach((pid) => {
           if (pid) ids.push(pid)
         })
       }
@@ -265,11 +264,11 @@ Page({
     if (fileIDs.length === 0) return {}
 
     const fileList = await wx.cloud.callFunction({
-      name:'getBatchTempUrl',
-      data:{ fileList: fileIDs }
+      name: 'getBatchTempUrl',
+      data: { fileList: fileIDs }
     })
     const map = {}
-    fileList.result.forEach(f => {
+    fileList.result.forEach((f) => {
       map[f.fileID] = f.tempFileURL
     })
     return map
@@ -393,7 +392,6 @@ Page({
 
       // 5. 刷新页面数据
       this.loadReserveDetail(reserveId)
-
     } catch (err) {
       console.error('处理异常失败:', err)
       this.setData({
@@ -404,5 +402,5 @@ Page({
         icon: 'none'
       })
     }
-  },
+  }
 })

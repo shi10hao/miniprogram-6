@@ -71,7 +71,7 @@ Page({
       })
 
       this.setData({ messageList: all, isLoading: false })
-    }).catch(err => {
+    }).catch((err) => {
       console.error('加载消息失败:', err)
       this.setData({ isLoading: false, messageList: [] })
     })

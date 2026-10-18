@@ -5,22 +5,20 @@ cloud.init({
 const db = cloud.database()
 const _ = db.command
 
-
 // 云函数入口函数
 exports.main = async (event, context) => {
-
   // 1. 接收参数
   const {
     device_name = '',
-      lab_name = '',
-      device_room = '',
-      device_type = 'large',
-      lab_type = 'public',
-      device_ids = [],
-      picture = '',
-      operation_procedure = '',
-      precautions = '',
-      specifications = {}
+    lab_name = '',
+    device_room = '',
+    device_type = 'large',
+    lab_type = 'public',
+    device_ids = [],
+    picture = '',
+    operation_procedure = '',
+    precautions = '',
+    specifications = {}
   } = event
 
   try {
@@ -75,8 +73,8 @@ exports.main = async (event, context) => {
     const addRes = await db.collection('devices').add({
       data: deviceRecords
     })
-    console.log("deviceRecords:", deviceRecords)
-    console.log("addRes:", addRes)
+    console.log('deviceRecords:', deviceRecords)
+    console.log('addRes:', addRes)
 
     // 兼容返回值：新版SDK批量返回ids，旧版单条返回_id
     const addCount = addRes.ids ? addRes.ids.length : (addRes._id ? 1 : 0)
@@ -84,9 +82,6 @@ exports.main = async (event, context) => {
     return buildResult(0, '新增成功', {
       addCount
     })
-
-
-
   } catch (err) {
     console.error('新增仪器组失败:', err)
     return buildResult(9999, '系统错误：' + err.message)

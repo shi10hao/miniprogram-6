@@ -4,7 +4,6 @@ cloud.init({
 })
 const db = cloud.database()
 
-
 exports.main = async (event, context) => {
   const reserveId = event && event.reserveId ? String(event.reserveId).trim() : ''
   const feedbackTitle = event && event.feedbackTitle ? String(event.feedbackTitle).trim() : ''
@@ -22,12 +21,11 @@ exports.main = async (event, context) => {
   console.log(reserveId, feedbackTitle, feedbackContent, userInfo, userId, feedbackScene)
 
   try {
-
     // 1. 查询预约信息并校验
     const reserveRes = await transaction.collection('reserves').doc(reserveId).get()
     const reserve = reserveRes.data
 
-    console.log("reserve:", reserve)
+    console.log('reserve:', reserve)
 
     if (!reserve) {
       throw createBusinessError('RESERVE_NOT_FOUND', '预约不存在')
@@ -110,11 +108,11 @@ exports.main = async (event, context) => {
         create_time: nowText,
         _openid: reserve._openid || userInfo.openid || ''
       }
-      console.log("usageRecord:", usageRecord)
+      console.log('usageRecord:', usageRecord)
       addRes = await transaction.collection('device_usage').add({
         data: usageRecord
       })
-      console.log("addRes:", addRes)
+      console.log('addRes:', addRes)
       // 3. 更新预约状态，避免重复出现在待使用列表
       await transaction.collection('reserves')
         .doc(reserveId)
@@ -125,25 +123,24 @@ exports.main = async (event, context) => {
           }
         })
     }
-    console.log("1")
+    console.log('1')
     // 4. 提交事务
     await transaction.commit()
-    console.log("2")
+    console.log('2')
     // 根据不同场景返回不同的 usageId
     if (feedbackScene === 'using') {
-      console.log("using")
+      console.log('using')
       return {
         success: true,
         usageId: reserve.linked_usage_id // using场景返回已有的 usageId
       }
     } else {
-      console.log("start")
+      console.log('start')
       return {
         success: true,
         usageId: addRes._id // start场景返回新建的 usageId
       }
     }
-
   } catch (err) {
     await safeRollback(transaction)
     if (err && err.code) {
@@ -152,7 +149,6 @@ exports.main = async (event, context) => {
     console.error('submitAbnormalFeedback 执行失败:', err)
     return buildErrorResult('SUBMIT_FAILED', '提交失败，请重试')
   }
-
 }
 // ========== 工具函数（与startUsage云函数保持一致，保证时间解析统一）==========
 function parseReservationTime(value) {

@@ -8,10 +8,10 @@ const _ = db.command
 exports.main = async (event) => {
   const {
     device_name = '',
-      lab_name = '',
-      device_room = '',
-      device_type = '',
-      model = ''
+    lab_name = '',
+    device_room = '',
+    device_type = '',
+    model = ''
   } = event
 
   try {
@@ -28,15 +28,14 @@ exports.main = async (event) => {
       device_type
     }
 
-
     // 型号兼容：同时匹配 model 字段 和 specifications.型号
     if (model && model.trim()) {
       whereCondition._ = _.or([{
-          model: model.trim()
-        },
-        {
-          'specifications.型号': model.trim()
-        }
+        model: model.trim()
+      },
+      {
+        'specifications.型号': model.trim()
+      }
       ])
     }
 
@@ -66,7 +65,6 @@ exports.main = async (event) => {
     return buildResult(0, '删除成功', {
       deleteCount
     })
-
   } catch (err) {
     console.error('删除仪器组失败:', err)
     return buildResult(9999, '系统错误：' + err.message)

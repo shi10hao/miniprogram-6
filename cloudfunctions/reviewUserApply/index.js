@@ -22,8 +22,8 @@ async function sendReviewMsg(openid, title, content) {
       page: 'pages/auth/auth',
       data: {
         thing30: { value: title.slice(0, 20) },
-        time3:   { value: formatTime(new Date()) },
-        thing2:  { value: content.slice(0, 20) }
+        time3: { value: formatTime(new Date()) },
+        thing2: { value: content.slice(0, 20) }
       }
     })
     return true

@@ -102,15 +102,15 @@ Page({
       password
     } = this.data
     if (!studentId.trim() || !password.trim()) {
-      return this.showError("请填写学号和密码")
+      return this.showError('请填写学号和密码')
     }
     this.setData({
       isVerifying: true,
-      loginErrMsg: ""
+      loginErrMsg: ''
     })
     try {
       const res = await wx.cloud.callFunction({
-        name: "loginUser",
+        name: 'loginUser',
         data: {
           user_id: studentId.trim(),
           password: password.trim()
@@ -123,7 +123,7 @@ Page({
         })
         return
       }
-      //登录成功，存储本地userInfo，不再存phone
+      // 登录成功，存储本地userInfo，不再存phone
       const userPayload = ret.data
       wx.setStorageSync('userInfo', {
         userId: userPayload.userId,
@@ -132,7 +132,7 @@ Page({
         major: userPayload.major,
         role: userPayload.role
       })
-      //检测是否初始未改密码，弹出提示
+      // 检测是否初始未改密码，弹出提示
       if (userPayload.pwd_modified === false) {
         this.setData({
           tempLoginInfo: userPayload,
@@ -140,15 +140,15 @@ Page({
         })
       } else {
         wx.showToast({
-          title: "登录成功",
-          icon: "success"
+          title: '登录成功',
+          icon: 'success'
         })
         this.loginSuccessNavigate()
       }
     } catch (err) {
-      console.error("登录异常", err)
+      console.error('登录异常', err)
       this.setData({
-        loginErrMsg: "登录失败，请稍后重试"
+        loginErrMsg: '登录失败，请稍后重试'
       })
     } finally {
       this.setData({
@@ -249,9 +249,9 @@ Page({
     // 防重复点击
     if (this.data.submitting) return
     this.setData({ submitting: true })
-  
+
     const { regStudentId, regName, regPhone, regMajor } = this.data.registerForm
-  
+
     // ========== 前端校验（不变） ==========
     if (!regStudentId.trim()) {
       this.setData({ submitting: false })
@@ -274,9 +274,9 @@ Page({
       this.setData({ submitting: false })
       return this.showError('请填写专业')
     }
-  
+
     const studentId = regStudentId.trim()
-  
+
     // ========== 第一步：查重（先查重，再弹订阅框） ==========
     try {
       // 1.1 查 users 表：该学号是否已是正式用户
@@ -292,7 +292,7 @@ Page({
         this.setData({ submitting: false })
         return this.showError('该学号已通过审核，请直接登录')
       }
-  
+
       // 1.2 查 user_apply 表：该学号的申请记录
       const applyRes = await wx.cloud.callFunction({
         name: 'getCollectionData',
@@ -319,7 +319,7 @@ Page({
       this.setData({ submitting: false })
       return this.showError('提交失败，请稍后重试')
     }
-  
+
     // ========== 第二步：弹订阅框（查重通过后才弹） ==========
     let subscribeStatus = 'reject'
     try {
@@ -333,11 +333,11 @@ Page({
     } catch (err) {
       console.log('订阅消息弹窗结果', err)
     }
-  
+
     // ========== 第三步：写入 user_apply ==========
     try {
       const db = wx.cloud.database()
-  
+
       const addRes = await db.collection('user_apply').add({
         data: {
           user_id: studentId,
@@ -351,19 +351,19 @@ Page({
           create_time: db.serverDate()
         }
       })
-  
+
       // 通知管理员（异步，失败不影响用户端注册结果）
       if (addRes && addRes._id) {
         wx.cloud.callFunction({
           name: 'notifyAdminNewApply',
           data: { applyId: addRes._id }
-        }).then(res => {
+        }).then((res) => {
           console.log('通知管理员结果:', res.result)
-        }).catch(err => {
+        }).catch((err) => {
           console.error('通知管理员失败:', err)
         })
       }
-  
+
       wx.showToast({
         title: '提交成功，请等待管理员审核',
         icon: 'success',
@@ -387,7 +387,6 @@ Page({
     }
   },
 
-
   // ==================== 其他 ====================
   navigateToAdminLogin() {
     wx.navigateTo({
@@ -400,5 +399,5 @@ Page({
       title: msg,
       icon: 'none'
     })
-  },
+  }
 })

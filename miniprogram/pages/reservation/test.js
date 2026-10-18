@@ -10,7 +10,7 @@ Page({
       researchGroup: '', // 课题组
       phone: ''
     },
-    reservedDevices:[],
+    reservedDevices: [],
 
     // 默认选中第一个
     selectedIndex: 0,
@@ -153,8 +153,8 @@ Page({
   },
 
   // 注意！这是将       Object类型        的型号转为        String类型
-  getDeviceModel: function (device) {
-    var specs = device.specifications || {}
+  getDeviceModel(device) {
+    const specs = device.specifications || {}
     if (specs && typeof specs === 'object') {
       return String(specs['型号'] || specs.model || '').trim()
     }
@@ -181,15 +181,15 @@ Page({
 
       const devices = res.result || []
 
-      console.log("res:",res)
-      console.log("devices:",devices)
+      console.log('res:', res)
+      console.log('devices:', devices)
 
-      var groupedMap = {}
-      var that = this;
+      const groupedMap = {}
+      const that = this;
 
       (devices || []).forEach(function (device) {
-        var model = that.getDeviceModel(device)
-        var key = (device.device_name || '') + '::' + model
+        const model = that.getDeviceModel(device)
+        const key = (device.device_name || '') + '::' + model
         if (!groupedMap[key]) {
           groupedMap[key] = {
             device_name: device.device_name,
@@ -204,7 +204,7 @@ Page({
             picture: device.picture,
             conflictCount: 0,
             // 注意！在这里添加了所有同名设施的device_id
-            device_ids:[device.device_id]
+            device_ids: [device.device_id]
           }
         } else {
           groupedMap[key].totalCount++
@@ -212,11 +212,11 @@ Page({
           groupedMap[key].device_ids.push(device.device_id)
         }
       })
-      console.log("groupedMap:",groupedMap)
-      console.log("Object.values(groupedMap):",Object.values(groupedMap))
+      console.log('groupedMap:', groupedMap)
+      console.log('Object.values(groupedMap):', Object.values(groupedMap))
       const deviceIds = Object.values(groupedMap).map(d => d.primaryDeviceId)
 
-      console.log("deviceIds:",deviceIds)
+      console.log('deviceIds:', deviceIds)
       let conflictMap = {}
       try {
         const res = await wx.cloud.callFunction({
@@ -228,21 +228,21 @@ Page({
             endTime: this.data.endTime
           }
         })
-        console.log("res2:",res)
+        console.log('res2:', res)
         conflictMap = res.result.map || {}
-        let reservedDevices = res.result.reservedDevices 
+        const reservedDevices = res.result.reservedDevices
         this.setData({
-          reservedDevices:res.result.reservedDevices
+          reservedDevices: res.result.reservedDevices
         })
-        // 
-        console.log("conflictMap,reservedDevices:",conflictMap,this.data.reservedDevices)
+        //
+        console.log('conflictMap,reservedDevices:', conflictMap, this.data.reservedDevices)
       } catch (err) {
         console.error('批量检查冲突失败:', err)
       }
-      let devicesWithStatus = Object.values(groupedMap).map(device => {
+      let devicesWithStatus = Object.values(groupedMap).map((device) => {
         const conflictCount = conflictMap[device.primaryDeviceId] || 0
         const remaining = Math.max(device.totalCount - conflictCount, 0)
-      
+
         return {
           ...device,
           conflictCount,
@@ -252,7 +252,7 @@ Page({
       if (filters.searchKeyword) {
         const keyword = filters.searchKeyword.toLowerCase()
 
-        devicesWithStatus = devicesWithStatus.filter(device => {
+        devicesWithStatus = devicesWithStatus.filter((device) => {
           const deviceName = (device.device_name || '').toLowerCase()
           const model = (device.deviceModel || '').toLowerCase()
           const labName = (device.lab_name || '').toLowerCase()
@@ -260,11 +260,11 @@ Page({
           const description = (device.description || '').toLowerCase()
 
           return (
-            deviceName.includes(keyword) ||
-            model.includes(keyword) ||
-            labName.includes(keyword) ||
-            room.includes(keyword) ||
-            description.includes(keyword)
+            deviceName.includes(keyword)
+            || model.includes(keyword)
+            || labName.includes(keyword)
+            || room.includes(keyword)
+            || description.includes(keyword)
           )
         })
       }
@@ -299,29 +299,29 @@ Page({
       const startDT = `${reserveDate} ${startTime}`
       const endDT = `${reserveDate} ${endTime}`
       const whereConditions = [{
-          device_id: deviceId,
-          reserve_date: reserveDate
-        },
-        {
-          status: 'approved'
-        },
-        _.or([
-          _.and([{
-            start_time: _.lte(startDT)
-          }, {
-            end_time: _.gt(startDT)
-          }]),
-          _.and([{
-            start_time: _.lt(endDT)
-          }, {
-            end_time: _.gte(endDT)
-          }]),
-          _.and([{
-            start_time: _.gte(startDT)
-          }, {
-            end_time: _.lte(endDT)
-          }])
-        ])
+        device_id: deviceId,
+        reserve_date: reserveDate
+      },
+      {
+        status: 'approved'
+      },
+      _.or([
+        _.and([{
+          start_time: _.lte(startDT)
+        }, {
+          end_time: _.gt(startDT)
+        }]),
+        _.and([{
+          start_time: _.lt(endDT)
+        }, {
+          end_time: _.gte(endDT)
+        }]),
+        _.and([{
+          start_time: _.gte(startDT)
+        }, {
+          end_time: _.lte(endDT)
+        }])
+      ])
       ]
 
       const res = await db.collection('reserves')
@@ -338,14 +338,14 @@ Page({
   // 仪器类型筛选
   onDeviceTypeChange(e) {
     const type = e.currentTarget.dataset.type
-    console.log('type',type)
+    console.log('type', type)
     this.setData({
       'filters.deviceType': type,
       selectedDevice: null // 清空已选仪器
     }, () => {
       this.getAvailableDevices()
     })
-    console.log("filters",this.data.filters)
+    console.log('filters', this.data.filters)
   },
 
   onLabTypeChange(e) {
@@ -357,7 +357,7 @@ Page({
     }, () => {
       this.getAvailableDevices()
     })
-    console.log("filters",this.data.filters)
+    console.log('filters', this.data.filters)
   },
 
   // 选择仪器
@@ -416,7 +416,7 @@ Page({
       startTime,
       endTime
     } = this.data
-//暂时还没给device_id赋值
+    // 暂时还没给device_id赋值
     if (!selectedDevice || !reserveDate || !startTime || !endTime) return
 
     try {
@@ -424,29 +424,29 @@ Page({
       const startDT = `${reserveDate} ${startTime}`
       const endDT = `${reserveDate} ${endTime}`
       const whereConditions = [{
-          device_id: selectedDevice.device_id,
-          reserve_date: reserveDate
-        },
-        {
-          status: 'approved'
-        },
-        _.or([
-          _.and([{
-            start_time: _.lte(startDT)
-          }, {
-            end_time: _.gt(startDT)
-          }]),
-          _.and([{
-            start_time: _.lt(endDT)
-          }, {
-            end_time: _.gte(endDT)
-          }]),
-          _.and([{
-            start_time: _.gte(startDT)
-          }, {
-            end_time: _.lte(endDT)
-          }])
-        ])
+        device_id: selectedDevice.device_id,
+        reserve_date: reserveDate
+      },
+      {
+        status: 'approved'
+      },
+      _.or([
+        _.and([{
+          start_time: _.lte(startDT)
+        }, {
+          end_time: _.gt(startDT)
+        }]),
+        _.and([{
+          start_time: _.lt(endDT)
+        }, {
+          end_time: _.gte(endDT)
+        }]),
+        _.and([{
+          start_time: _.gte(startDT)
+        }, {
+          end_time: _.lte(endDT)
+        }])
+      ])
       ]
 
       const res = await db.collection('reserves')
@@ -514,242 +514,241 @@ Page({
   },
 
   // 提交预约
-// 提交预约表单的主方法（异步函数）
-async submitReservation() {
+  // 提交预约表单的主方法（异步函数）
+  async submitReservation() {
   // 防止重复提交：如果正在加载中，直接返回
-  if (this.data.isLoading) return
+    if (this.data.isLoading) return
 
-  // 1. 验证表单必填项是否完整
-  if (!this.validateForm()) return
+    // 1. 验证表单必填项是否完整
+    if (!this.validateForm()) return
 
-  // 2. 触发订阅消息授权（预约成功后给用户发服务通知）
-  this.requestSubscribeMessage()
+    // 2. 触发订阅消息授权（预约成功后给用户发服务通知）
+    this.requestSubscribeMessage()
 
-  // 3. 开启加载状态，禁用提交按钮
-  this.setData({
-    isLoading: true
-  })
-
-  // 4. 再次检查时间段是否冲突（双重校验，防止并发冲突）
-  const hasConflict = await this.checkTimeConflict(false)
-  if (hasConflict) {
-    wx.showToast({
-      title: '该时间段与其他人预约时间段重叠',
-      icon: 'none'
-    })
-    // 关闭加载状态
+    // 3. 开启加载状态，禁用提交按钮
     this.setData({
-      isLoading: false
+      isLoading: true
     })
-    return
-  }
 
-  // 5. 校验预约时间必须是【未来时间】，不能预约当前/过去时间
-  if (!this.isFutureReservationStart(this.data.reserveDate, this.data.startTime)) {
+    // 4. 再次检查时间段是否冲突（双重校验，防止并发冲突）
+    const hasConflict = await this.checkTimeConflict(false)
+    if (hasConflict) {
+      wx.showToast({
+        title: '该时间段与其他人预约时间段重叠',
+        icon: 'none'
+      })
+      // 关闭加载状态
+      this.setData({
+        isLoading: false
+      })
+      return
+    }
+
+    // 5. 校验预约时间必须是【未来时间】，不能预约当前/过去时间
+    if (!this.isFutureReservationStart(this.data.reserveDate, this.data.startTime)) {
+      this.setData({
+        isPastTime: true
+      })
+      wx.showToast({
+        title: '预约开始时间必须晚于当前时间',
+        icon: 'none'
+      })
+      this.setData({
+        isLoading: false
+      })
+      return
+    }
+    // 时间合法，清除过期时间标记
     this.setData({
-      isPastTime: true
+      isPastTime: false
     })
-    wx.showToast({
-      title: '预约开始时间必须晚于当前时间',
-      icon: 'none'
-    })
-    this.setData({
-      isLoading: false
-    })
-    return
-  }
-  // 时间合法，清除过期时间标记
-  this.setData({
-    isPastTime: false
-  })
 
-  // ==============================================
-  // 6. 构建提交到后端的预约数据
-  // ==============================================
-  const storedUserInfo = wx.getStorageSync('userInfo') || {}
-  const reserveData = {
-    device_id: this.data.selectedDevice.device_id,        // 设备ID
-    device_name: this.data.selectedDevice.device_name,    // 设备名称
-    device_type: this.data.selectedDevice.device_type,    // 设备类型
-    lab_type: this.data.selectedDevice.lab_type,          // 实验室类型
-    lab_name: this.data.selectedDevice.lab_name,          // 实验室名称
+    // ==============================================
+    // 6. 构建提交到后端的预约数据
+    // ==============================================
+    const storedUserInfo = wx.getStorageSync('userInfo') || {}
+    const reserveData = {
+      device_id: this.data.selectedDevice.device_id, // 设备ID
+      device_name: this.data.selectedDevice.device_name, // 设备名称
+      device_type: this.data.selectedDevice.device_type, // 设备类型
+      lab_type: this.data.selectedDevice.lab_type, // 实验室类型
+      lab_name: this.data.selectedDevice.lab_name, // 实验室名称
 
-    reserve_date: this.data.reserveDate,                  // 预约日期
-    start_time: `${this.data.reserveDate} ${this.data.startTime}`, // 开始时间
-    end_time: `${this.data.reserveDate} ${this.data.endTime}`,     // 结束时间
-    start_ts: this.getReservationTimeMs(this.data.reserveDate, this.data.startTime), // 开始时间戳
-    end_ts: this.getReservationTimeMs(this.data.reserveDate, this.data.endTime),     // 结束时间戳
+      reserve_date: this.data.reserveDate, // 预约日期
+      start_time: `${this.data.reserveDate} ${this.data.startTime}`, // 开始时间
+      end_time: `${this.data.reserveDate} ${this.data.endTime}`, // 结束时间
+      start_ts: this.getReservationTimeMs(this.data.reserveDate, this.data.startTime), // 开始时间戳
+      end_ts: this.getReservationTimeMs(this.data.reserveDate, this.data.endTime), // 结束时间戳
 
-    user_id: this.data.userInfo.userId,                   // 用户ID
-    student_name: this.data.userInfo.name,                // 姓名
-    research_group: this.data.userInfo.researchGroup,      // 课题组
-    phone: this.data.userInfo.phone,                      // 手机号
-    _openid: storedUserInfo.openid || '',                 // 用户openid（微信唯一标识）
+      user_id: this.data.userInfo.userId, // 用户ID
+      student_name: this.data.userInfo.name, // 姓名
+      research_group: this.data.userInfo.researchGroup, // 课题组
+      phone: this.data.userInfo.phone, // 手机号
+      _openid: storedUserInfo.openid || '', // 用户openid（微信唯一标识）
 
-    create_time: new Date().toISOString()                 // 提交时间
-  }
+      create_time: new Date().toISOString() // 提交时间
+    }
 
-  try {
+    try {
     // ==============================================
     // 7. 判断环境是否支持云函数
     // ==============================================
-    var useCloudFunction = false
-    try {
-      // 尝试调用云函数getOpenId判断云函数是否可用
-      var checkRes = await wx.cloud.callFunction({
-        name: 'getOpenId'
-      })
-      if (checkRes && checkRes.result) {
-        useCloudFunction = true
-      }
-    } catch (e) {
-      // 调用失败则不使用云函数
-      useCloudFunction = false
-    }
-
-    // ==============================================
-    // 8. 如果云函数可用 → 通过云函数创建预约
-    // ==============================================
-    if (useCloudFunction) {
+      let useCloudFunction = false
       try {
-        const cloudRes = await wx.cloud.callFunction({
-          name: 'createReservation', // 云函数名称
-          data: {
-            reserveData             // 传入预约数据
-          }
+      // 尝试调用云函数getOpenId判断云函数是否可用
+        const checkRes = await wx.cloud.callFunction({
+          name: 'getOpenId'
         })
-        const result = cloudRes && cloudRes.result ? cloudRes.result : {}
-
-        // 云函数返回失败
-        if (!result.success) {
-          // 时间冲突（后端再次校验）
-          if (result.code === 'TIME_CONFLICT') {
-            wx.showToast({
-              title: '该时间段与其他人预约时间段重叠',
-              icon: 'none'
-            })
-            this.setData({
-              timeConflict: true
-            })
-            return
-          }
-
-          // 时间无效
-          if (result.code === 'INVALID_TIME') {
-            wx.showToast({
-              title: result.error || '预约时间无效',
-              icon: 'none'
-            })
-            return
-          }
-
-          // 其他错误
-          throw new Error(result.error || '预约失败，请重试')
+        if (checkRes && checkRes.result) {
+          useCloudFunction = true
         }
-      } catch (cloudErr) {
+      } catch (e) {
+      // 调用失败则不使用云函数
+        useCloudFunction = false
+      }
+
+      // ==============================================
+      // 8. 如果云函数可用 → 通过云函数创建预约
+      // ==============================================
+      if (useCloudFunction) {
+        try {
+          const cloudRes = await wx.cloud.callFunction({
+            name: 'createReservation', // 云函数名称
+            data: {
+              reserveData // 传入预约数据
+            }
+          })
+          const result = cloudRes && cloudRes.result ? cloudRes.result : {}
+
+          // 云函数返回失败
+          if (!result.success) {
+          // 时间冲突（后端再次校验）
+            if (result.code === 'TIME_CONFLICT') {
+              wx.showToast({
+                title: '该时间段与其他人预约时间段重叠',
+                icon: 'none'
+              })
+              this.setData({
+                timeConflict: true
+              })
+              return
+            }
+
+            // 时间无效
+            if (result.code === 'INVALID_TIME') {
+              wx.showToast({
+                title: result.error || '预约时间无效',
+                icon: 'none'
+              })
+              return
+            }
+
+            // 其他错误
+            throw new Error(result.error || '预约失败，请重试')
+          }
+        } catch (cloudErr) {
         // 云函数异常 → 降级为前端直接写入数据库
-        console.warn('云函数调用失败，降级为前端直接写入:', cloudErr)
+          console.warn('云函数调用失败，降级为前端直接写入:', cloudErr)
+          await this.createReservationDirectly(reserveData)
+        }
+      } else {
+      // 不使用云函数 → 直接前端写入数据库
         await this.createReservationDirectly(reserveData)
       }
-    } else {
-      // 不使用云函数 → 直接前端写入数据库
-      await this.createReservationDirectly(reserveData)
-    }
 
-    // ==============================================
-    // 9. 预约成功！提示用户
-    // ==============================================
-    wx.showToast({
-      title: '预约成功！',
-      icon: 'success',
-      duration: 2000
-    })
-
-    // ==============================================
-    // 10. 更新设备剩余可预约次数（前端界面刷新）
-    // ==============================================
-    var currentDevices = this.data.availableDevices
-    var currentSelected = this.data.selectedDevice
-    if (currentSelected && currentDevices.length > 0) {
-      var updatedDevices = currentDevices.map(function (dev) {
-        if (dev.device_ids.includes(currentSelected.device_id)) {
-          var newConflict = (dev.conflictCount || 0) + 1        // 已预约次数+1
-          var newRemaining = (dev.totalCount || 0) - newConflict // 剩余次数-1
-          if (newRemaining < 0) newRemaining = 0
-          return Object.assign({}, dev, {
-            conflictCount: newConflict,
-            remainingCount: newRemaining
-          })
-        }
-        return dev
+      // ==============================================
+      // 9. 预约成功！提示用户
+      // ==============================================
+      wx.showToast({
+        title: '预约成功！',
+        icon: 'success',
+        duration: 2000
       })
-      // 更新页面设备列表
-      this.setData({
-        availableDevices: updatedDevices
-      })
-    }
 
-    // ==============================================
-    // 11. 延迟2秒后重置表单、刷新设备列表
-    // ==============================================
-    setTimeout(() => {
-      this.setData({
-        selectedDevice: null,    // 清空选中设备
-        timeConflict: false,     // 清除冲突状态
-        isPastTime: false        // 清除时间错误状态
-      })
-      this.getAvailableDevices() // 重新获取设备列表
-    }, 2000)
+      // ==============================================
+      // 10. 更新设备剩余可预约次数（前端界面刷新）
+      // ==============================================
+      const currentDevices = this.data.availableDevices
+      const currentSelected = this.data.selectedDevice
+      if (currentSelected && currentDevices.length > 0) {
+        const updatedDevices = currentDevices.map(function (dev) {
+          if (dev.device_ids.includes(currentSelected.device_id)) {
+            const newConflict = (dev.conflictCount || 0) + 1 // 已预约次数+1
+            let newRemaining = (dev.totalCount || 0) - newConflict // 剩余次数-1
+            if (newRemaining < 0) newRemaining = 0
+            return Object.assign({}, dev, {
+              conflictCount: newConflict,
+              remainingCount: newRemaining
+            })
+          }
+          return dev
+        })
+        // 更新页面设备列表
+        this.setData({
+          availableDevices: updatedDevices
+        })
+      }
 
-  } catch (err) {
+      // ==============================================
+      // 11. 延迟2秒后重置表单、刷新设备列表
+      // ==============================================
+      setTimeout(() => {
+        this.setData({
+          selectedDevice: null, // 清空选中设备
+          timeConflict: false, // 清除冲突状态
+          isPastTime: false // 清除时间错误状态
+        })
+        this.getAvailableDevices() // 重新获取设备列表
+      }, 2000)
+    } catch (err) {
     // ==============================================
     // 全局异常捕获：预约失败
     // ==============================================
-    console.error('提交预约失败:', err)
-    wx.showToast({
-      title: '预约失败，请重试',
-      icon: 'none'
-    })
-  } finally {
+      console.error('提交预约失败:', err)
+      wx.showToast({
+        title: '预约失败，请重试',
+        icon: 'none'
+      })
+    } finally {
     // ==============================================
     // 无论成功/失败，最终都会关闭加载状态
     // ==============================================
-    this.setData({
-      isLoading: false
-    })
-  }
-},
+      this.setData({
+        isLoading: false
+      })
+    }
+  },
 
   async createReservationDirectly(reserveData) {
-    var _ = db.command
-    var startDT = reserveData.start_time
-    var endDT = reserveData.end_time
+    const _ = db.command
+    const startDT = reserveData.start_time
+    const endDT = reserveData.end_time
 
-    var overlapRes = await db.collection('reserves')
+    const overlapRes = await db.collection('reserves')
       .where(_.and([{
-          device_id: reserveData.device_id,
-          reserve_date: reserveData.reserve_date
-        },
-        {
-          status: 'approved'
-        },
-        _.or([
-          _.and([{
-            start_time: _.lte(startDT)
-          }, {
-            end_time: _.gt(startDT)
-          }]),
-          _.and([{
-            start_time: _.lt(endDT)
-          }, {
-            end_time: _.gte(endDT)
-          }]),
-          _.and([{
-            start_time: _.gte(startDT)
-          }, {
-            end_time: _.lte(endDT)
-          }])
-        ])
+        device_id: reserveData.device_id,
+        reserve_date: reserveData.reserve_date
+      },
+      {
+        status: 'approved'
+      },
+      _.or([
+        _.and([{
+          start_time: _.lte(startDT)
+        }, {
+          end_time: _.gt(startDT)
+        }]),
+        _.and([{
+          start_time: _.lt(endDT)
+        }, {
+          end_time: _.gte(endDT)
+        }]),
+        _.and([{
+          start_time: _.gte(startDT)
+        }, {
+          end_time: _.lte(endDT)
+        }])
+      ])
       ]))
       .limit(1)
       .get()
@@ -761,7 +760,7 @@ async submitReservation() {
       throw new Error('该时间段与其他人预约时间段重叠')
     }
 
-    var record = Object.assign({}, reserveData, {
+    const record = Object.assign({}, reserveData, {
       status: 'approved',
       usage_status: 'not_started',
       start_reminder_sent: false,
@@ -771,7 +770,7 @@ async submitReservation() {
     })
     delete record._openid
 
-    var addRes = await db.collection('reserves').add({
+    const addRes = await db.collection('reserves').add({
       data: record
     })
 
@@ -920,37 +919,37 @@ async submitReservation() {
     return this.getReservationTimeMs(dateStr, timeStr) > Date.now()
   },
 
-// 订阅消息授权方法：用户预约成功后，允许接收服务通知
-requestSubscribeMessage() {
+  // 订阅消息授权方法：用户预约成功后，允许接收服务通知
+  requestSubscribeMessage() {
   // 判断模板ID是否配置（未配置/使用默认占位符时，不执行订阅）
-  if (!RESERVATION_TEMPLATE_ID || RESERVATION_TEMPLATE_ID === 'your_template_id_here') return
+    if (!RESERVATION_TEMPLATE_ID || RESERVATION_TEMPLATE_ID === 'your_template_id_here') return
 
-  // 调用微信小程序订阅消息接口
-  wx.requestSubscribeMessage({
+    // 调用微信小程序订阅消息接口
+    wx.requestSubscribeMessage({
     // 需要订阅的消息模板ID（数组格式，可传多个）
-    tmplIds: [RESERVATION_TEMPLATE_ID],
-    
-    // 授权成功回调（用户点击允许/取消都会进入success）
-    success(res) {
-      console.log('订阅消息授权结果:', res)
-    },
-    
-    // 接口调用失败回调（网络异常/参数错误等）
-    fail(err) {
-      console.log('订阅消息授权失败:', err)
-    }
-  })
-},
+      tmplIds: [RESERVATION_TEMPLATE_ID],
+
+      // 授权成功回调（用户点击允许/取消都会进入success）
+      success(res) {
+        console.log('订阅消息授权结果:', res)
+      },
+
+      // 接口调用失败回调（网络异常/参数错误等）
+      fail(err) {
+        console.log('订阅消息授权失败:', err)
+      }
+    })
+  },
 
   onSelectDevice(e) {
-    const index = e.currentTarget.dataset.index;
+    const index = e.currentTarget.dataset.index
     const device_id = e.currentTarget.dataset.id
     this.setData({
       selectedIndex: index,
       device_id
-    } ,() => {
+    }, () => {
       this.checkTimeConflict()
       this.checkPastTime()
-    });
+    })
   }
 })

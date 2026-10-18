@@ -16,7 +16,7 @@ exports.main = async (event, context) => {
   }
 
   try {
-    var isAdmin = false
+    let isAdmin = false
 
     if (adminUserId) {
       const userRes = await db.collection('users')

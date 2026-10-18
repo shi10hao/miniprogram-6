@@ -4,7 +4,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
 const db = cloud.database()
 
-exports.main = async event => {
+exports.main = async (event) => {
   const reserveId = event && event.reserveId ? String(event.reserveId).trim() : ''
   const startPhotoId = event && event.startPhotoId ? String(event.startPhotoId).trim() : ''
   const userInfo = event && event.userInfo ? event.userInfo : {}

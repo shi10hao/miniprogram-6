@@ -63,7 +63,7 @@ async function run() {
   console.log('deleteMessageCore tests passed')
 }
 
-run().catch(err => {
+run().catch((err) => {
   console.error(err)
   process.exit(1)
 })

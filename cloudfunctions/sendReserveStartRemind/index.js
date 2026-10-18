@@ -21,36 +21,36 @@ exports.main = async (event, context) => {
     let lastId = null
     const pageSize = 100
 
-    while(true) {
+    while (true) {
       let query = db.collection('reserves')
-      .where({
-        status: 'approved',
-        usage_status: _.in([null, 'not_started']),
-        start_ts: _.gte(startTsMin).and(_.lt(startTsMax)),
-        start_reminder_sent: _.neq(true)
-      }).limit(pageSize)
+        .where({
+          status: 'approved',
+          usage_status: _.in([null, 'not_started']),
+          start_ts: _.gte(startTsMin).and(_.lt(startTsMax)),
+          start_reminder_sent: _.neq(true)
+        }).limit(pageSize)
 
-      if(lastId) {
+      if (lastId) {
         query = query.where({
-          _id:db.command.gt(lastId)
+          _id: db.command.gt(lastId)
         })
       }
 
       const res = await query.get()
       const records = res.data || []
-      if(records.length === 0) break
+      if (records.length === 0) break
 
       allReserves = allReserves.concat(records)
       if (records.length < pageSize) break
 
-      lastId = records[records.length -1]._id
+      lastId = records[records.length - 1]._id
     }
     let sentCount = 0
     for (const r of allReserves) {
       try {
         const openid = r._openid
         if (!openid) {
-          console.warn("无openid，跳过")
+          console.warn('无openid，跳过')
           continue
         }
 
@@ -79,7 +79,7 @@ exports.main = async (event, context) => {
         })
 
         sentCount++
-        console.log("已发送提醒")
+        console.log('已发送提醒')
       } catch (e) {
         console.error(`发送预约开始提醒失败 reserveId=${r._id}`, e)
       }

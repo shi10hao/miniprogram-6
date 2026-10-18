@@ -57,33 +57,33 @@ exports.main = async (event = {}) => {
     .where({
       role: 'student'
     }) // 假设只发给学生
-    .count();
-  const total = countRes.total;
+    .count()
+  const total = countRes.total
 
   // 计算需要分几批
-  const batchTimes = Math.ceil(total / batchSize);
+  const batchTimes = Math.ceil(total / batchSize)
 
   // 保存所有批次的查询任务
-  const queryTasks = [];
+  const queryTasks = []
   for (let i = 0; i < batchTimes; i++) {
     queryTasks.push(
       db.collection('users')
-      .where({
-        role: 'student'
-      })
-      .skip(i * batchSize)
-      .limit(batchSize)
-      .field({
-        _openid: true,
-        _id: true
-      }) // 只取必要字段
-      .get()
-    );
+        .where({
+          role: 'student'
+        })
+        .skip(i * batchSize)
+        .limit(batchSize)
+        .field({
+          _openid: true,
+          _id: true
+        }) // 只取必要字段
+        .get()
+    )
   }
 
   // 并行执行所有查询（注意：查询本身通常不会触发限流）
-  const results = await Promise.all(queryTasks);
-  const allUsers = results.reduce((acc, cur) => acc.concat(cur.data), []);
+  const results = await Promise.all(queryTasks)
+  const allUsers = results.reduce((acc, cur) => acc.concat(cur.data), [])
 
   if (allUsers.length === 0) {
     return {
@@ -91,13 +91,13 @@ exports.main = async (event = {}) => {
       total: 0,
       sent: 0,
       results: []
-    };
+    }
   }
 
   // 分批并行发送（控制并发数）
-  const sendResults = [];
+  const sendResults = []
   for (let i = 0; i < allUsers.length; i += concurrency) {
-    const batch = allUsers.slice(i, i + concurrency);
+    const batch = allUsers.slice(i, i + concurrency)
     const batchPromises = batch.map(async (u) => {
       try {
         await cloud.openapi.subscribeMessage.send({
@@ -107,30 +107,29 @@ exports.main = async (event = {}) => {
           data,
           miniprogramState: 'developer',
           lang: 'zh_CN'
-        });
+        })
         return {
           openid: u._openid,
           ok: true
-        };
+        }
       } catch (err) {
-        console.error('发送失败', u._openid, err);
+        console.error('发送失败', u._openid, err)
         return {
           openid: u._openid,
           ok: false,
           errCode: err && err.errCode
-        };
+        }
       }
-    });
-    const batchResults = await Promise.all(batchPromises);
-    sendResults.push(...batchResults);
+    })
+    const batchResults = await Promise.all(batchPromises)
+    sendResults.push(...batchResults)
   }
 
-  const okCount = sendResults.filter(r => r.ok).length;
+  const okCount = sendResults.filter(r => r.ok).length
   return {
     success: true,
     total: allUsers.length,
     sent: okCount,
     results: sendResults
-  };
-
+  }
 }

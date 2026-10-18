@@ -6,7 +6,7 @@ cloud.init({
 exports.main = async (event) => {
   try {
     const { fileID } = event
-    
+
     if (!fileID) {
       return {
         success: false,
@@ -18,7 +18,7 @@ exports.main = async (event) => {
     const result = await cloud.getTempFileURL({
       fileList: [fileID]
     })
-    
+
     return {
       success: true,
       tempFileURL: result.fileList[0].tempFileURL,

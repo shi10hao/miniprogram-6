@@ -2,11 +2,11 @@
 const CLOUD_ENV = 'cloud1-d2g3kx3un05924a95'
 
 App({
-  onLaunch: function() {
+  onLaunch() {
     this.initCloud()
   },
 
-  initCloud: function() {
+  initCloud() {
     try {
       const cloudConfig = {
         traceUser: true
@@ -23,31 +23,31 @@ App({
   },
 
   // 消息红点：多个 tab 页 onShow 都会调用，加 60 秒节流，避免重复 count 查询
-  refreshMessageBadge: function() {
-    var now = Date.now()
+  refreshMessageBadge() {
+    const now = Date.now()
     if (this._badgeRefreshedAt && (now - this._badgeRefreshedAt) < 60000) {
       return
     }
     this._badgeRefreshedAt = now
 
-    var userInfo = wx.getStorageSync('userInfo')
+    const userInfo = wx.getStorageSync('userInfo')
     if (!userInfo || !userInfo.userId) {
       this._lastBadgeTotal = 0
       wx.removeTabBarBadge({ index: 2 })
       return
     }
 
-    var that = this
-    var db = wx.cloud.database()
-    var _ = db.command
+    const that = this
+    const db = wx.cloud.database()
+    const _ = db.command
     db.collection('messages')
       .where({
         user_id: userInfo.userId,
         is_read: _.neq(true)
       })
       .count()
-      .then(function(res) {
-        var total = res.total || 0
+      .then(function (res) {
+        const total = res.total || 0
         if (total === that._lastBadgeTotal) {
           return
         }
@@ -58,7 +58,7 @@ App({
           wx.removeTabBarBadge({ index: 2 })
         }
       })
-      .catch(function(err) {
+      .catch(function (err) {
         console.error('刷新消息红点失败:', err)
       })
   },

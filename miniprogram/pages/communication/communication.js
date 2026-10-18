@@ -1,6 +1,6 @@
 Page({
   data: {
-    keyword: "",
+    keyword: '',
     recentList: [],
     searchList: []
   },
@@ -20,9 +20,9 @@ Page({
     wx.showLoading({ title: '加载中...' })
     try {
       const res = await wx.cloud.callFunction({
-        name: "getDeviceUsageList",
+        name: 'getDeviceUsageList',
         data: {
-          mode: "recent",
+          mode: 'recent',
           userId: userInfo.userId
         }
       })
@@ -30,7 +30,7 @@ Page({
         recentList: res.result.data
       })
     } catch (err) {
-      console.error("加载最近仪器失败：", err)
+      console.error('加载最近仪器失败：', err)
       wx.showToast({ title: '加载失败', icon: 'none' })
     } finally {
       wx.hideLoading()
@@ -54,18 +54,18 @@ Page({
     wx.showLoading({ title: '搜索中...' })
     try {
       const res = await wx.cloud.callFunction({
-        name: "getDeviceUsageList",
+        name: 'getDeviceUsageList',
         data: {
-          mode: "search",
+          mode: 'search',
           keyword: kw
         }
       })
-      console.log("getDeviceUsageLIst的res:",res)
+      console.log('getDeviceUsageLIst的res:', res)
       this.setData({
         searchList: res.result.data
       })
     } catch (err) {
-      console.error("搜索仪器失败：", err)
+      console.error('搜索仪器失败：', err)
       wx.showToast({ title: '搜索失败', icon: 'none' })
     } finally {
       wx.hideLoading()

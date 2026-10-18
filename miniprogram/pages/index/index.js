@@ -115,119 +115,120 @@ Page({
     })
   },
 
-    // 加载用户剩余订阅消息次数
-    async loadSubMsgCount() {
-      if (!this.data.isAuthenticated) {
-        if (this.data.subMsgCount !== 0) {
-          this.setData({
-            subMsgCount: 0
-          })
-        }
-        this._subMsgCountLoadedAt = 0
-        return
-      }
-
-      // 60 秒内不重复请求（onLoad 与首次 onShow 会连续触发）
-      const now = Date.now()
-      if (this._subMsgCountLoadedAt && (now - this._subMsgCountLoadedAt) < 60000) {
-        return
-      }
-      this._subMsgCountLoadedAt = now
-
-      try {
-        const res = await wx.cloud.callFunction({
-          name: 'getSubMsgCount'
+  // 加载用户剩余订阅消息次数
+  async loadSubMsgCount() {
+    if (!this.data.isAuthenticated) {
+      if (this.data.subMsgCount !== 0) {
+        this.setData({
+          subMsgCount: 0
         })
-  
-        if (res.result && res.result.success) {
-          this.setData({
-            subMsgCount: res.result.count || 0
-          })
-        }
-      } catch (err) {
-        console.error('加载订阅消息次数失败', err)
       }
-    },
-  
-    // 点击订阅按钮
-    onSubscribeTap() {
-      if (!this.data.isAuthenticated) {
-        wx.showToast({
-          title: '请先登录',
-          icon: 'none'
+      this._subMsgCountLoadedAt = 0
+      return
+    }
+
+    // 60 秒内不重复请求（onLoad 与首次 onShow 会连续触发）
+    const now = Date.now()
+    if (this._subMsgCountLoadedAt && (now - this._subMsgCountLoadedAt) < 60000) {
+      return
+    }
+    this._subMsgCountLoadedAt = now
+
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'getSubMsgCount'
+      })
+
+      if (res.result && res.result.success) {
+        this.setData({
+          subMsgCount: res.result.count || 0
         })
-        return
       }
-  
-      wx.requestSubscribeMessage({
-        tmplIds: [NOTICE_TMPL_ID],
-        success: (res) => {
-          console.log('requestSubscribeMessage res', res)
-  
-          // 用户允许了这个模板才加计数
-          if (res[NOTICE_TMPL_ID] === 'accept' || res.errMsg === 'requestSubscribeMessage:ok') {
-            wx.cloud.callFunction({
-              name: 'addSubMsgCount',
-              data: {
-                tmplId: NOTICE_TMPL_ID,
-                count: 1
-              },
-              success: (r) => {
-                if (r.result && r.result.success) {
-                  // 订阅成功后刷新缓存时间戳，避免紧接着重新拉取
-                  this._subMsgCountLoadedAt = Date.now()
-                  this.setData({
-                    subMsgCount: r.result.count || 0
-                  })
-                  wx.showToast({
-                    title: `订阅成功，剩余${r.result.count || 0}次`,
-                    icon: 'success',
-                    duration: 2000
-                  })
-                } else {
-                  wx.showToast({
-                    title: '订阅记录失败',
-                    icon: 'none'
-                  })
-                }
-              },
-              fail: (err) => {
-                console.error('addSubMsgCount 失败', err)
+    } catch (err) {
+      console.error('加载订阅消息次数失败', err)
+    }
+  },
+
+  // 点击订阅按钮
+  onSubscribeTap() {
+    if (!this.data.isAuthenticated) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none'
+      })
+      return
+    }
+
+    wx.requestSubscribeMessage({
+      tmplIds: [NOTICE_TMPL_ID],
+      success: (res) => {
+        console.log('requestSubscribeMessage res', res)
+
+        // 用户允许了这个模板才加计数
+        if (res[NOTICE_TMPL_ID] === 'accept' || res.errMsg === 'requestSubscribeMessage:ok') {
+          wx.cloud.callFunction({
+            name: 'addSubMsgCount',
+            data: {
+              tmplId: NOTICE_TMPL_ID,
+              count: 1
+            },
+            success: (r) => {
+              if (r.result && r.result.success) {
+                // 订阅成功后刷新缓存时间戳，避免紧接着重新拉取
+                this._subMsgCountLoadedAt = Date.now()
+                this.setData({
+                  subMsgCount: r.result.count || 0
+                })
                 wx.showToast({
-                  title: '订阅失败',
+                  title: `订阅成功，剩余${r.result.count || 0}次`,
+                  icon: 'success',
+                  duration: 2000
+                })
+              } else {
+                wx.showToast({
+                  title: '订阅记录失败',
                   icon: 'none'
                 })
               }
-            })
-          } else {
-            wx.showToast({
-              title: '未授权订阅',
-              icon: 'none'
-            })
-          }
-        },
-        fail: (err) => {
-          console.error('requestSubscribeMessage 失败', err)
+            },
+            fail: (err) => {
+              console.error('addSubMsgCount 失败', err)
+              wx.showToast({
+                title: '订阅失败',
+                icon: 'none'
+              })
+            }
+          })
+        } else {
           wx.showToast({
-            title: '订阅调用失败',
+            title: '未授权订阅',
             icon: 'none'
           })
         }
-      })
-    },
+      },
+      fail: (err) => {
+        console.error('requestSubscribeMessage 失败', err)
+        wx.showToast({
+          title: '订阅调用失败',
+          icon: 'none'
+        })
+      }
+    })
+  },
   //
   getCommonDevices() {
     const userInfo = wx.getStorageSync('userInfo') || {}
     const groupName = String(userInfo.groupName || '').trim()
     const _ = db.command
-    const visibilityCondition = groupName ?
-      _.or([{
-        lab_type: 'public'
-      }, {
-        lab_name: groupName
-      }]) : {
-        lab_type: 'public'
-      }
+    const visibilityCondition = groupName
+      ? _.or([{
+          lab_type: 'public'
+        }, {
+          lab_name: groupName
+        }])
+      : {
+          lab_type: 'public'
+        }
 
     return db.collection('devices')
       .where(_.and([{
@@ -243,13 +244,13 @@ Page({
       })
       .orderBy('device_id', 'asc')
       .get()
-      .then(res => {
+      .then((res) => {
         const groupedDevices = {};
-        (res.data || []).forEach(device => {
+        (res.data || []).forEach((device) => {
           const specs = device.specifications || {}
-          const model = specs && typeof specs === 'object' ?
-            (specs['型号'] || specs.model || '') :
-            ''
+          const model = specs && typeof specs === 'object'
+            ? (specs['型号'] || specs.model || '')
+            : ''
           const key = `${device.device_name || ''}::${String(model || '').trim()}`
           if (!groupedDevices[key]) {
             groupedDevices[key] = {
@@ -273,17 +274,17 @@ Page({
         // 图片是 cloud:// fileID，必须换成临时链接再交给 <image>，
         // 否则渲染层会报 Failed to load local image resource ... 500
         return cloudFile.resolveListField(topDevices, 'picture')
-          .then(resolved => {
+          .then((resolved) => {
             if (resolved !== topDevices) {
               this.setData({ commonDevices: resolved })
             }
           })
-          .catch(err => {
+          .catch((err) => {
             // 图片解析失败不影响列表本身
             console.error('解析常用仪器图片失败:', err)
           })
       })
-      .catch(err => {
+      .catch((err) => {
         // console.error('获取常用仪器失败:', err)
         this.setData({
           isLoading: false,
@@ -314,7 +315,7 @@ Page({
       .orderBy('publish_date', 'desc')
       .limit(3)
       .get()
-      .then(res => {
+      .then((res) => {
         const formattedList = (res.data || []).map(item => ({
           ...item,
           publish_date: this.formatDate(item.publish_date)
@@ -323,7 +324,7 @@ Page({
           latestNotices: formattedList
         })
       })
-      .catch(err => {
+      .catch((err) => {
         // console.error('获取公告列表失败:', err)
         this.setData({
           latestNotices: []
@@ -350,14 +351,14 @@ Page({
       .orderBy('create_time', 'desc')
       .limit(1)
       .get()
-      .then(res => {
+      .then((res) => {
         const item = res.data && res.data.length > 0 ? res.data[0] : null
         this.setData({
           unreadReminder: item ? this.normalizeReminder(item) : null
         })
         return item
       })
-      .catch(err => {
+      .catch((err) => {
         // console.error('获取首页未读提醒失败:', err)
         this.setData({
           unreadReminder: null
@@ -421,9 +422,9 @@ Page({
   },
 
   gotoDeviceList(e) {
-    const deviceId = e && e.currentTarget && e.currentTarget.dataset ?
-      e.currentTarget.dataset.deviceid :
-      ''
+    const deviceId = e && e.currentTarget && e.currentTarget.dataset
+      ? e.currentTarget.dataset.deviceid
+      : ''
     let url = '/pages/device/list/devicelist'
     if (deviceId) {
       url += `?deviceId=${encodeURIComponent(deviceId)}`
@@ -502,7 +503,7 @@ Page({
       showCancel: true,
       confirmText: '去登录',
       cancelText: '取消',
-      success: res => {
+      success: (res) => {
         if (res.confirm) {
           wx.navigateTo({
             url: '/pages/auth/auth'

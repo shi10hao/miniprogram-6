@@ -44,9 +44,9 @@ exports.main = async () => {
       const cyclesPassed = Math.floor(elapsed / REMINDER_INTERVAL_MS)
 
       // 计算已提醒的次数
-      const remindedCycles = usage.last_reminder_time ?
-        Math.floor((new Date(usage.last_reminder_time).getTime() - startTime.getTime()) / REMINDER_INTERVAL_MS) :
-        0
+      const remindedCycles = usage.last_reminder_time
+        ? Math.floor((new Date(usage.last_reminder_time).getTime() - startTime.getTime()) / REMINDER_INTERVAL_MS)
+        : 0
 
       if (cyclesPassed === remindedCycles) {
         results.push({
@@ -196,9 +196,9 @@ async function fetchAllByWhere(collectionName, whereCondition) {
 }
 
 function buildUsageReminderMessage(usage, now, messageKey) {
-  const usageStart = usage.start_time ?
-    formatTime(new Date(usage.start_time)) :
-    '当前使用时段'
+  const usageStart = usage.start_time
+    ? formatTime(new Date(usage.start_time))
+    : '当前使用时段'
 
   return {
     user_id: usage.user_id,
@@ -227,9 +227,9 @@ async function resolveUsageOpenId(usage) {
 
   try {
     const reserveRes = await db.collection('reserves').doc(usage.reserve_id).get()
-    return reserveRes.data && reserveRes.data._openid ?
-      reserveRes.data._openid :
-      ''
+    return reserveRes.data && reserveRes.data._openid
+      ? reserveRes.data._openid
+      : ''
   } catch (err) {
     if (err && err.errCode !== -1) {
       console.error('查询预约 openid 失败:', usage.reserve_id, err)

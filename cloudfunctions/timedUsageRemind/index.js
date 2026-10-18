@@ -14,13 +14,13 @@ exports.main = async (event, context) => {
     const now = new Date()
     const nowTs = now.getTime()
     const nowISO = now.toISOString()
-    console.log("OK")
+    console.log('OK')
     // 1. 查询所有正在使用中的仪器记录
     const usageRes = await db.collection('device_usage')
       .where({ status: 'using' })
       .get()
     const usingList = usageRes.data
-    console.log("usingList:",usingList)
+    console.log('usingList:', usingList)
     for (const usage of usingList) {
       const userId = usage.user_id
       const usageId = usage._id
@@ -49,7 +49,7 @@ exports.main = async (event, context) => {
           needSend = false
         }
       }
-      console.log("needSend:",needSend)
+      console.log('needSend:', needSend)
       if (needSend) {
         // ① 必执行：写入站内消息（打开小程序顶部横幅可见，永久兜底）
         await db.collection('messages').add({

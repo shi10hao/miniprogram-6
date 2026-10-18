@@ -71,7 +71,10 @@ module.exports = [
       'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none' }],
       eqeqeq: ['warn', 'smart'],
       'no-console': 'off',
-      'no-empty': ['error', { allowEmptyCatch: true }]
+      'no-empty': ['error', { allowEmptyCatch: true }],
+
+      // preset 自带、但纯属主观的规则，不纳入本仓规范
+      '@stylistic/max-statements-per-line': 'off'
     }
   }
 ]

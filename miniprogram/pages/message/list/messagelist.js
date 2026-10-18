@@ -115,7 +115,7 @@ Page({
       .then(res => res.total || 0)
 
     return Promise.allSettled([messagePromise, noticePromise, totalCountPromise, unreadCountPromise])
-      .then(results => {
+      .then((results) => {
         const messageRows = results[0].status === 'fulfilled' ? (results[0].value?.data || []) : []
         const noticeRows = results[1].status === 'fulfilled' ? (results[1].value?.data || []) : []
         const messageHasMore = results[0].status === 'fulfilled' ? (results[0].value?.hasMore || false) : false
@@ -127,9 +127,9 @@ Page({
         const normalizedNotices = noticeRows.map(item => this.normalizeNoticeItem(item))
         const newItems = normalizedMessages.concat(normalizedNotices)
         // ===== 新代码 =====
-        const mergedList = isFirstLoad ?
-          newItems.sort((a, b) => b.sortTime - a.sortTime) :
-          this.data.messageList.concat(newItems).sort((a, b) => b.sortTime - a.sortTime)
+        const mergedList = isFirstLoad
+          ? newItems.sort((a, b) => b.sortTime - a.sortTime)
+          : this.data.messageList.concat(newItems).sort((a, b) => b.sortTime - a.sortTime)
         const hasMore = messageHasMore || noticeHasMore
         this.setData({
           messageList: mergedList,
@@ -145,7 +145,7 @@ Page({
 
         return mergedList
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('加载消息列表失败:', err)
         if (silent) {
           // 静默刷新失败时保留已有列表，不清空
@@ -344,10 +344,10 @@ Page({
           is_read: true
         }
       })
-      .then(res => {
+      .then((res) => {
         console.log('标记已读成功:', messageId)
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('标记已读失败:', err)
         // 如果数据库更新失败，下次加载时会恢复正确状态
       })
@@ -361,19 +361,19 @@ Page({
     })
 
     wx.cloud.callFunction({
-        name: 'batchMarkRead',
-        data: {
-          userId: userInfo.userId
-        }
-      })
-      .then(res => {
+      name: 'batchMarkRead',
+      data: {
+        userId: userInfo.userId
+      }
+    })
+      .then((res) => {
         wx.hideLoading()
         const result = res.result || {}
-        console.log("res:", res)
-        console.log("result:", result)
+        console.log('res:', res)
+        console.log('result:', result)
         console.log('批量标记已读完成，共更新', result.updated, '条')
         // 直接更新本地数据
-        const updatedList = this.data.messageList.map(item => {
+        const updatedList = this.data.messageList.map((item) => {
           if (item.source === 'message' && !item.is_read) {
             return {
               ...item,
@@ -393,7 +393,7 @@ Page({
           icon: 'success'
         })
       })
-      .catch(err => {
+      .catch((err) => {
         wx.hideLoading()
         console.error('批量标记已读失败:', err)
         wx.showToast({
@@ -426,14 +426,14 @@ Page({
     wx.showModal({
       title: '删除消息',
       content: '确定要删除这条消息吗？',
-      success: res => {
+      success: (res) => {
         if (!res.confirm) return
 
         wx.showLoading({
           title: '删除中...'
         })
         this.removeMessageRecord(messageId, userInfo.userId)
-          .then(removeRes => {
+          .then((removeRes) => {
             wx.hideLoading()
             if (this.getRemovedCount(removeRes) < 1) {
               wx.showToast({
@@ -449,7 +449,7 @@ Page({
             })
             this.getMessageList(true)
           })
-          .catch(err => {
+          .catch((err) => {
             wx.hideLoading()
             console.error('删除消息失败:', err)
             wx.showToast({
@@ -463,7 +463,7 @@ Page({
 
   removeMessageRecord(messageId, userId) {
     return this.deleteMessageByCloudFunction(messageId, userId)
-      .catch(err => {
+      .catch((err) => {
         if (this.isDeleteCloudFunctionUnavailable(err)) {
           console.warn('deleteMessage cloud function unavailable, fallback to client delete:', err)
           return this.deleteMessageDirectly(messageId, userId)
@@ -479,7 +479,7 @@ Page({
         messageId,
         userId
       }
-    }).then(res => {
+    }).then((res) => {
       const result = res && res.result ? res.result : {}
       if (result.success) {
         return result
@@ -502,11 +502,11 @@ Page({
 
   isDeleteCloudFunctionUnavailable(err) {
     const text = String((err && (err.errMsg || err.message || err.code)) || '')
-    return text.indexOf('deleteMessage') !== -1 &&
-      (text.indexOf('FunctionName') !== -1 ||
-        text.indexOf('FUNCTION_NOT_FOUND') !== -1 ||
-        text.indexOf('not found') !== -1 ||
-        text.indexOf('not exist') !== -1)
+    return text.indexOf('deleteMessage') !== -1
+      && (text.indexOf('FunctionName') !== -1
+        || text.indexOf('FUNCTION_NOT_FOUND') !== -1
+        || text.indexOf('not found') !== -1
+        || text.indexOf('not exist') !== -1)
   },
 
   getRemovedCount(removeRes) {
@@ -525,7 +525,7 @@ Page({
 
   updateTabBarBadge(unreadCount) {
     // 同步给 app 的节流缓存，避免切回其他 tab 时被旧的未读数覆盖
-    var app = getApp()
+    const app = getApp()
     if (app) {
       app._lastBadgeTotal = unreadCount
       app._badgeRefreshedAt = Date.now()
@@ -566,7 +566,7 @@ Page({
     wx.showModal({
       title: '删除已读消息',
       content: '确定要删除所有已读消息吗？此操作不可恢复。',
-      success: res => {
+      success: (res) => {
         if (!res.confirm) return
 
         wx.showLoading({
@@ -574,12 +574,12 @@ Page({
         })
 
         wx.cloud.callFunction({
-            name: 'batchDeleteReadMessages',
-            data: {
-              userId: userInfo.userId
-            }
-          })
-          .then(res => {
+          name: 'batchDeleteReadMessages',
+          data: {
+            userId: userInfo.userId
+          }
+        })
+          .then((res) => {
             wx.hideLoading()
             const result = res.result || {}
             const deletedCount = result.deleted || 0
@@ -590,7 +590,7 @@ Page({
             })
             this.getMessageList(true) // 重新加载
           })
-          .catch(err => {
+          .catch((err) => {
             wx.hideLoading()
             console.error('删除已读消息失败:', err)
             wx.showToast({

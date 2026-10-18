@@ -3,7 +3,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 
-exports.main = async event => {
+exports.main = async (event) => {
   const usageId = event.usageId || ''
   const feedbackType = event.feedbackType || 'other'
   const feedbackTitle = event.feedbackTitle || ''
@@ -85,9 +85,8 @@ exports.main = async event => {
 
     await transaction.commit()
     return { success: true, feedbackId: addRes._id }
-
   } catch (err) {
-    try { await transaction.rollback() } catch(e) {}
+    try { await transaction.rollback() } catch (e) {}
     if (err && err.code) {
       return { success: false, code: err.code, error: err.message }
     }

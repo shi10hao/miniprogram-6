@@ -4,7 +4,7 @@ const db = cloud.database()
 
 exports.main = async (event) => {
   const { deviceIds, updateData } = event
-  
+
   if (!deviceIds || !Array.isArray(deviceIds) || deviceIds.length === 0) {
     return { code: 1, message: '缺少 deviceIds' }
   }

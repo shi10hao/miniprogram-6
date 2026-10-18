@@ -76,7 +76,7 @@ exports.main = async (event = {}) => {
       await cloud.openapi.subscribeMessage.send({
         touser: u.wx_openid,
         templateId: NOTICE_TMPL_ID,
-        page: 'pages/admin/apply-review/applyreview', 
+        page: 'pages/admin/apply-review/applyreview',
         data,
         miniprogramState: 'developer',
         lang: 'zh_CN'

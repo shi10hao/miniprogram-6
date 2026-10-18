@@ -15,17 +15,17 @@ Page({
     currentPage: 0,
     currentSession: null,
     pageSize: 20,
-    totalLoaded: 0,
+    totalLoaded: 0
   },
 
   onLoad(options) {
     this.bootstrapPage()
-    console.log("options.status:", options.status)
+    console.log('options.status:', options.status)
     if (options.status) {
       this.setData({
         filterStatus: options.status
       })
-      console.log("filterStatus:", this.data.filterStatus)
+      console.log('filterStatus:', this.data.filterStatus)
       this.applyFilter()
     }
   },
@@ -49,7 +49,7 @@ Page({
   async bootstrapPage() {
     const session = await this.validateAdminSession()
     if (!session) return
-    console.log("session:", session)
+    console.log('session:', session)
     this.currentSession = session
     this._ready = true
     this.refreshData()
@@ -116,11 +116,11 @@ Page({
         lab_type: 'public'
       }
       return _.or([{
-          lab_type: 'public'
-        },
-        {
-          lab_name: groupName
-        }
+        lab_type: 'public'
+      },
+      {
+        lab_name: groupName
+      }
       ])
     }
 
@@ -175,7 +175,7 @@ Page({
     const pageSize = this.data.pageSize
     const page = isRefresh ? 0 : this.data.currentPage
     try {
-      const visibleCondition = this.buildVisibleDeviceIdsCondition(this.currentSession) //admin返回null
+      const visibleCondition = this.buildVisibleDeviceIdsCondition(this.currentSession) // admin返回null
 
       //
       // console.log("visibleCondition:", visibleCondition)
@@ -197,11 +197,11 @@ Page({
           return
         }
       }
-      console.log("visibleDeviceIds:", visibleDeviceIds)
+      console.log('visibleDeviceIds:', visibleDeviceIds)
       // 根据 filterStatus 构建查询条件
-      var filterStatus = this.data.filterStatus
-      var now = new Date()
-      var reserveCondition = {}
+      const filterStatus = this.data.filterStatus
+      let now = new Date()
+      const reserveCondition = {}
 
       if (filterStatus === 'all') {
         reserveCondition.status = 'approved'
@@ -221,7 +221,7 @@ Page({
         reserveCondition.device_id = _.in(visibleDeviceIds)
       }
       //
-      console.log("reserveCondition:", reserveCondition)
+      console.log('reserveCondition:', reserveCondition)
 
       // var allReserves = await this.fetchAllByWhere('reserves', reserveCondition)
       const reserveRes = await db.collection('reserves')
@@ -249,40 +249,40 @@ Page({
         totalLoaded: mergedReserves.length,
         hasMore
       })
-      var activeUsages = await this.fetchAllByWhere('device_usage', {
+      const activeUsages = await this.fetchAllByWhere('device_usage', {
         status: 'using'
       })
-      var usingReserveIdMap = {};
+      const usingReserveIdMap = {};
       (activeUsages || []).forEach(function (u) {
         if (u.reserve_id) usingReserveIdMap[u.reserve_id] = true
       })
 
-      var now = new Date()
-      console.log("前20条记录的usage_status:", mergedReserves.slice(0, 20).map(function (item) {
+      now = new Date()
+      console.log('前20条记录的usage_status:', mergedReserves.slice(0, 20).map(function (item) {
         return {
           _id: item._id,
           usage_status: item.usage_status
         }
       }))
-      var processed = mergedReserves.map(function (item) {
-        var statusInfo = getReserveDisplayStatus(item, usingReserveIdMap, now)
+      const processed = mergedReserves.map(function (item) {
+        const statusInfo = getReserveDisplayStatus(item, usingReserveIdMap, now)
         // 计算时间显示（支持跨天）
-        var timeDisplay = ''
+        let timeDisplay = ''
         if (item.start_time && item.end_time) {
-          var startDateOnly = formatDateOnly(item.start_time)
-          var endDateOnly = formatDateOnly(item.end_time)
-          var isCrossDay = startDateOnly && endDateOnly && startDateOnly !== endDateOnly
+          const startDateOnly = formatDateOnly(item.start_time)
+          const endDateOnly = formatDateOnly(item.end_time)
+          const isCrossDay = startDateOnly && endDateOnly && startDateOnly !== endDateOnly
 
           if (isCrossDay) {
             // 跨天：2026-07-10 19:00 - 07-18 19:30
-            var pad = function (n) {
+            const pad = function (n) {
               return String(n).padStart(2, '0')
             }
-            var startD = parseDateTime(item.start_time)
-            var endD = parseDateTime(item.end_time)
+            const startD = parseDateTime(item.start_time)
+            const endD = parseDateTime(item.end_time)
             if (startD && endD) {
-              var startTime = pad(startD.getHours()) + ':' + pad(startD.getMinutes())
-              var endDisplay = pad(endD.getMonth() + 1) + '-' + pad(endD.getDate()) + ' ' + pad(endD.getHours()) + ':' + pad(endD.getMinutes())
+              const startTime = pad(startD.getHours()) + ':' + pad(startD.getMinutes())
+              const endDisplay = pad(endD.getMonth() + 1) + '-' + pad(endD.getDate()) + ' ' + pad(endD.getHours()) + ':' + pad(endD.getMinutes())
               timeDisplay = item.reserve_date + ' ' + startTime + ' - ' + endDisplay
             } else {
               timeDisplay = item.reserve_date + ' ' + getTimePart(item.start_time) + '-' + getTimePart(item.end_time)
@@ -322,7 +322,7 @@ Page({
   },
 
   onFilterChange(e) {
-    var status = e.currentTarget.dataset.status
+    const status = e.currentTarget.dataset.status
     this.setData({
       filterStatus: status,
       currentPage: 0,
@@ -362,8 +362,8 @@ Page({
   },
 
   applyFilter() {
-    var allReserves = this.data.allReserves
-    var searchKeyword = String(this.data.searchKeyword || '').trim().toLowerCase()
+    const allReserves = this.data.allReserves
+    const searchKeyword = String(this.data.searchKeyword || '').trim().toLowerCase()
 
     if (!searchKeyword) {
       this.setData({
@@ -372,15 +372,15 @@ Page({
       return
     }
 
-    var filtered = allReserves.filter(function (item) {
-      var name = String(item.device_name || '').toLowerCase()
-      var person = String(item.student_name || '').toLowerCase()
-      var userId = String(item.user_id || '').toLowerCase()
-      var deviceId = String(item.device_id || '').toLowerCase()
-      return name.indexOf(searchKeyword) !== -1 ||
-        person.indexOf(searchKeyword) !== -1 ||
-        userId.indexOf(searchKeyword) !== -1 ||
-        deviceId.indexOf(searchKeyword) !== -1
+    const filtered = allReserves.filter(function (item) {
+      const name = String(item.device_name || '').toLowerCase()
+      const person = String(item.student_name || '').toLowerCase()
+      const userId = String(item.user_id || '').toLowerCase()
+      const deviceId = String(item.device_id || '').toLowerCase()
+      return name.indexOf(searchKeyword) !== -1
+        || person.indexOf(searchKeyword) !== -1
+        || userId.indexOf(searchKeyword) !== -1
+        || deviceId.indexOf(searchKeyword) !== -1
     })
 
     this.setData({
@@ -415,37 +415,37 @@ function parseDateTime(dtStr) {
   if (!dtStr) return null
   if (dtStr instanceof Date) return isNaN(dtStr.getTime()) ? null : dtStr
   if (typeof dtStr === 'number') {
-    var numericDate = new Date(dtStr)
+    const numericDate = new Date(dtStr)
     return isNaN(numericDate.getTime()) ? null : numericDate
   }
 
-  var text = String(dtStr).trim().replace(/\//g, '-')
-  var match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T-](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/)
+  const text = String(dtStr).trim().replace(/\//g, '-')
+  const match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T-](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/)
   if (match) {
-    var year = Number(match[1])
-    var month = Number(match[2])
-    var day = Number(match[3])
-    var hour = Number(match[4] || 0)
-    var minute = Number(match[5] || 0)
-    var second = Number(match[6] || 0)
-    var beijingDate = new Date(Date.UTC(year, month - 1, day, hour - 8, minute, second, 0))
+    const year = Number(match[1])
+    const month = Number(match[2])
+    const day = Number(match[3])
+    const hour = Number(match[4] || 0)
+    const minute = Number(match[5] || 0)
+    const second = Number(match[6] || 0)
+    const beijingDate = new Date(Date.UTC(year, month - 1, day, hour - 8, minute, second, 0))
     return isNaN(beijingDate.getTime()) ? null : beijingDate
   }
 
-  var d = new Date(text.replace(' ', 'T'))
+  const d = new Date(text.replace(' ', 'T'))
   if (isNaN(d.getTime())) return null
   return d
 }
 
 function resolveReserveTimestamp(reserve, field) {
-  var tsKey = field + '_ts'
-  var timeKey = field + '_time'
-  var timestamp = Number(reserve && reserve[tsKey])
+  const tsKey = field + '_ts'
+  const timeKey = field + '_time'
+  const timestamp = Number(reserve && reserve[tsKey])
   if (isFinite(timestamp) && timestamp > 0) {
     return timestamp
   }
 
-  var d = parseDateTime(reserve && reserve[timeKey])
+  const d = parseDateTime(reserve && reserve[timeKey])
   return d ? d.getTime() : 0
 }
 
@@ -479,9 +479,9 @@ function getReserveDisplayStatus(item, usingReserveIdMap, now) {
     }
   }
 
-  var startTs = resolveReserveTimestamp(item, 'start')
-  var endTs = resolveReserveTimestamp(item, 'end')
-  var nowTs = (now || new Date()).getTime()
+  const startTs = resolveReserveTimestamp(item, 'start')
+  const endTs = resolveReserveTimestamp(item, 'end')
+  const nowTs = (now || new Date()).getTime()
   if (!startTs || !endTs) {
     return {
       displayStatus: 'past',
@@ -513,7 +513,7 @@ function getTimePart(dtStr) {
   if (!dtStr) return '--:--'
   if (dtStr.indexOf(' ') !== -1) return dtStr.split(' ')[1]
   if (dtStr.indexOf('T') !== -1) {
-    var timePart = dtStr.split('T')[1]
+    const timePart = dtStr.split('T')[1]
     if (timePart) return timePart.substring(0, 5)
   }
   return dtStr
@@ -521,14 +521,14 @@ function getTimePart(dtStr) {
 
 function getTimeValue(dtStr) {
   if (!dtStr) return 0
-  var d = parseDateTime(dtStr)
+  const d = parseDateTime(dtStr)
   return d ? d.getTime() : 0
 }
 
 function formatDateOnly(isoStr) {
   if (!isoStr) return ''
-  var d = parseDateTime(isoStr)
+  const d = parseDateTime(isoStr)
   if (!d) return ''
-  var pad = function(n) { return String(n).padStart(2, '0') }
+  const pad = function (n) { return String(n).padStart(2, '0') }
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
 }

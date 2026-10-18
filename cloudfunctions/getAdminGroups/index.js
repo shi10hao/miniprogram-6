@@ -32,7 +32,7 @@ exports.main = async (event) => {
   // 3) 关键词过滤
   if (keyword) {
     const kw = keyword.toLowerCase().trim()
-    allDevices = allDevices.filter(d => {
+    allDevices = allDevices.filter((d) => {
       const specs = d.specifications || {}
       const model = String(specs['型号'] || specs.model || d.model || '').toLowerCase()
       const name = (d.device_name || '').toLowerCase()
@@ -52,7 +52,7 @@ exports.main = async (event) => {
       const usageRes = await db.collection('device_usage')
         .where({ status: 'using', device_id: _.in(chunk) })
         .get()
-      ;(usageRes.data || []).forEach(u => {
+      ;(usageRes.data || []).forEach((u) => {
         if (u.device_id) usingDeviceIdSet.add(u.device_id)
       })
     }
@@ -60,7 +60,7 @@ exports.main = async (event) => {
 
   // 5) 分组
   const groupMap = {}
-  allDevices.forEach(d => {
+  allDevices.forEach((d) => {
     const specs = d.specifications || {}
     const model = String(specs['型号'] || specs.model || d.model || '').trim()
     const key = [d.device_name, d.lab_name, d.device_room, d.device_type, model].join('||')
@@ -91,13 +91,13 @@ exports.main = async (event) => {
   })
 
   // 6) 排序
-  let groups = Object.values(groupMap)
+  const groups = Object.values(groupMap)
   groups.sort((a, b) => {
-    return a.device_name?.localeCompare(b.device_name || '') ||
-           a.lab_name?.localeCompare(b.lab_name || '') ||
-           a.device_room?.localeCompare(b.device_room || '') ||
-           a.device_type?.localeCompare(b.device_type || '') ||
-           a.model?.localeCompare(b.model || '')
+    return a.device_name?.localeCompare(b.device_name || '')
+      || a.lab_name?.localeCompare(b.lab_name || '')
+      || a.device_room?.localeCompare(b.device_room || '')
+      || a.device_type?.localeCompare(b.device_type || '')
+      || a.model?.localeCompare(b.model || '')
   })
 
   // 7) 分页

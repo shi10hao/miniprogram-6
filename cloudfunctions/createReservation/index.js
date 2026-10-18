@@ -6,7 +6,7 @@ const db = cloud.database()
 const _ = db.command
 const SLOT_LOCK_COLLECTION = 'reservation_slot_locks'
 
-exports.main = async event => {
+exports.main = async (event) => {
   const rawReserveData = event && event.reserveData ? event.reserveData : null
   const reserveData = rawReserveData ? normalizeReserveData(rawReserveData) : null
   if (!reserveData) {
@@ -314,9 +314,9 @@ async function isSlotLockCollectionAvailable() {
 
 function isCollectionMissingError(err) {
   const message = `${err && err.message ? err.message : ''} ${err && err.errMsg ? err.errMsg : ''}`
-  return message.indexOf('DATABASE_COLLECTION_NOT_EXIST') !== -1 ||
-    message.indexOf('collection not exists') !== -1 ||
-    message.indexOf('Db or Table not exist') !== -1
+  return message.indexOf('DATABASE_COLLECTION_NOT_EXIST') !== -1
+    || message.indexOf('collection not exists') !== -1
+    || message.indexOf('Db or Table not exist') !== -1
 }
 
 function formatSlot(date) {

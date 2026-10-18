@@ -1,63 +1,63 @@
 Page({
-  data:{
-    deviceName:"",
-    isLoading:false,
-    btnLoading:false,
-    userList:[],
-    lastCursor:null,   //传给云函数的游标
-    hasMore:true
+  data: {
+    deviceName: '',
+    isLoading: false,
+    btnLoading: false,
+    userList: [],
+    lastCursor: null, // 传给云函数的游标
+    hasMore: true
   },
 
-  onLoad(options){
-    const name = decodeURIComponent(options.deviceName || "")
+  onLoad(options) {
+    const name = decodeURIComponent(options.deviceName || '')
     this.setData({
       deviceName: name,
-      userList:[],
-      lastCursor:null,
-      hasMore:true
+      userList: [],
+      lastCursor: null,
+      hasMore: true
     })
     this.loadFirstPage()
   },
 
-  //下拉刷新：重置全部状态，加载第一页
-  onPullDownRefresh(){
+  // 下拉刷新：重置全部状态，加载第一页
+  onPullDownRefresh() {
     this.setData({
-      userList:[],
-      lastCursor:null,
-      hasMore:true
+      userList: [],
+      lastCursor: null,
+      hasMore: true
     })
-    this.loadFirstPage().finally(()=>{
+    this.loadFirstPage().finally(() => {
       wx.stopPullDownRefresh()
     })
   },
 
-  //时间格式化 ISO -> YYYY‑MM‑DD HH:mm
-  formatIsoTime(isoStr){
-    if(!isoStr) return ""
+  // 时间格式化 ISO -> YYYY‑MM‑DD HH:mm
+  formatIsoTime(isoStr) {
+    if (!isoStr) return ''
     const d = new Date(isoStr)
     const y = d.getFullYear()
-    const m = String(d.getMonth()+1).padStart(2,"0")
-    const day = String(d.getDate()).padStart(2,"0")
-    const h = String(d.getHours()).padStart(2,"0")
-    const mi = String(d.getMinutes()).padStart(2,"0")
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const h = String(d.getHours()).padStart(2, '0')
+    const mi = String(d.getMinutes()).padStart(2, '0')
     return `${y}-${m}-${day} ${h}:${mi}`
   },
 
-  //首次加载第一页
-  loadFirstPage(){
+  // 首次加载第一页
+  loadFirstPage() {
     const { deviceName } = this.data
-    if(!deviceName) return Promise.resolve()
-    this.setData({ isLoading:true })
+    if (!deviceName) return Promise.resolve()
+    this.setData({ isLoading: true })
     return wx.cloud.callFunction({
-      name:"getDeviceUserList",
-      data:{
+      name: 'getDeviceUserList',
+      data: {
         deviceName,
-        cursor:null,
-        pageSize:10
+        cursor: null,
+        pageSize: 10
       }
-    }).then(res=>{
+    }).then((res) => {
       const { data, nextCursor, finished } = res.result
-      const list = data.map(item=>{
+      const list = data.map((item) => {
         return {
           ...item,
           fmtTime: this.formatIsoTime(item.start_time)
@@ -68,29 +68,29 @@ Page({
         lastCursor: nextCursor,
         hasMore: !finished
       })
-    }).catch(err=>{
-      console.error("加载使用者列表失败",err)
-      wx.showToast({ title:"加载使用者列表失败", icon:"none" })
-    }).finally(()=>{
-      this.setData({ isLoading:false })
+    }).catch((err) => {
+      console.error('加载使用者列表失败', err)
+      wx.showToast({ title: '加载使用者列表失败', icon: 'none' })
+    }).finally(() => {
+      this.setData({ isLoading: false })
     })
   },
 
-  //点击加载更多
-  loadMore(){
+  // 点击加载更多
+  loadMore() {
     const { deviceName, lastCursor, hasMore } = this.data
-    if(!hasMore || !lastCursor) return
-    this.setData({ btnLoading:true })
+    if (!hasMore || !lastCursor) return
+    this.setData({ btnLoading: true })
     wx.cloud.callFunction({
-      name:"getDeviceUserList",
-      data:{
+      name: 'getDeviceUserList',
+      data: {
         deviceName,
-        cursor:lastCursor,
-        pageSize:10
+        cursor: lastCursor,
+        pageSize: 10
       }
-    }).then(res=>{
+    }).then((res) => {
       const { data, nextCursor, finished } = res.result
-      const appendList = data.map(item=>{
+      const appendList = data.map((item) => {
         return {
           ...item,
           fmtTime: this.formatIsoTime(item.start_time)
@@ -101,11 +101,11 @@ Page({
         lastCursor: nextCursor,
         hasMore: !finished
       })
-    }).catch(err=>{
-      console.error("加载更多失败",err)
-      wx.showToast({ title:"加载更多失败", icon:"none" })
-    }).finally(()=>{
-      this.setData({ btnLoading:false })
+    }).catch((err) => {
+      console.error('加载更多失败', err)
+      wx.showToast({ title: '加载更多失败', icon: 'none' })
+    }).finally(() => {
+      this.setData({ btnLoading: false })
     })
   }
 })

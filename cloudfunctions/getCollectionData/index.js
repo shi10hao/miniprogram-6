@@ -13,7 +13,7 @@ exports.main = async (event) => {
     startSkip = 0,
     labCondition,
     deviceType,
-    sortField = ''   // 新增：排序字段，默认空=不排序
+    sortField = '' // 新增：排序字段，默认空=不排序
   } = event
 
   if (!collectionName) {
@@ -57,11 +57,10 @@ exports.main = async (event) => {
   const MAX_LIMIT = 1000 // ✅ 修复：加上限，防止死循环
 
   while (true) {
-    const res = await baseQuery   // 改用 baseQuery
-    .skip(skip)
-    .limit(pageSize)
-    .get()
-
+    const res = await baseQuery // 改用 baseQuery
+      .skip(skip)
+      .limit(pageSize)
+      .get()
 
     all.push(...res.data)
 

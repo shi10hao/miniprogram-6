@@ -1,6 +1,6 @@
 Page({
   data: {
-    activeTab: 0,        // 0 待审批 / 1 已通过 / 2 已拒绝
+    activeTab: 0, // 0 待审批 / 1 已通过 / 2 已拒绝
     list: [],
     isLoading: false,
     emptyText: '暂无待审批的申请',

@@ -1,12 +1,12 @@
-var threejsModule = require('./lib/threejs-miniprogram/index')
-var createScopedThreejs = threejsModule.createScopedThreejs
-var registerGLTFLoader = require('./lib/registerGLTFLoader')
-var createPanelData = require('./lib/devicePanelBinding').createPanelData
-var createAssetPathCandidates = require('./lib/assetPathCandidates').createAssetPathCandidates
+const threejsModule = require('./lib/threejs-miniprogram/index')
+const createScopedThreejs = threejsModule.createScopedThreejs
+const registerGLTFLoader = require('./lib/registerGLTFLoader')
+const createPanelData = require('./lib/devicePanelBinding').createPanelData
+const createAssetPathCandidates = require('./lib/assetPathCandidates').createAssetPathCandidates
 
-var db = wx.cloud.database()
+const db = wx.cloud.database()
 
-var INSTRUMENT_CONFIG = {
+const INSTRUMENT_CONFIG = {
   smallIncubator: {
     name: '智能生化培养箱',
     description: '用于细胞培养和微生物培养的精密设备，提供稳定的温度、湿度和气体环境。',
@@ -51,30 +51,30 @@ var INSTRUMENT_CONFIG = {
   }
 }
 
-var DEVICE_3D_MAP = {
-  'INCUBATOR_SMALL_1': { name: '智能生化培养箱', configKey: 'smallIncubator', pos: [2.65, 0, -4.65], rotation: 0 },
-  'INCUBATOR_SMALL_2': { name: '智能生化培养箱', configKey: 'smallIncubator', pos: [1.75, 0, -4.65], rotation: 0 },
-  'INCUBATOR_SMALL_3': { name: '智能生化培养箱', configKey: 'smallIncubator', pos: [0.85, 0, -4.65], rotation: 0 },
-  'INCUBATOR_SMALL_4': { name: '智能生化培养箱', configKey: 'smallIncubator', pos: [-0.05, 0, -4.65], rotation: 0 },
-  'INCUBATOR_LARGE_1': { name: '大型智能生化培养箱', configKey: 'largeIncubator', dbDeviceId: 'PUBLIC_LAB1_LARGE_001', pos: [-2.15, 0, -4.55], rotation: 0 },
-  'INCUBATOR_LARGE_2': { name: '大型智能生化培养箱', configKey: 'largeIncubator', dbDeviceId: 'PUBLIC_LAB1_LARGE_002', pos: [-3.35, 0, -4.55], rotation: 0 },
-  'INCUBATOR_LARGE_3': { name: '大型智能生化培养箱', configKey: 'largeIncubator', dbDeviceId: 'PUBLIC_LAB1_LARGE_003', pos: [-4.55, 0, 4.55], rotation: Math.PI / 2 },
-  'INCUBATOR_LARGE_4': { name: '大型智能生化培养箱', configKey: 'largeIncubator', dbDeviceId: 'PUBLIC_LAB1_LARGE_004', pos: [-4.55, 0, 2.55], rotation: Math.PI / 2 },
-  'INCUBATOR_LARGE_5': { name: '大型智能生化培养箱', configKey: 'largeIncubator', dbDeviceId: 'PUBLIC_LAB1_LARGE_005', pos: [-4.55, 0, 0.55], rotation: Math.PI / 2 },
-  'INCUBATOR_LARGE_6': { name: '大型智能生化培养箱', configKey: 'largeIncubator', dbDeviceId: 'PUBLIC_LAB1_LARGE_006', pos: [-4.55, 0, -1.45], rotation: Math.PI / 2 },
-  'TOC_ELEMENTAR_001': { name: 'Elementar TOC分析仪', configKey: 'elementarTOC', dbDeviceId: 'PUBLIC_LAB1_LARGE_010', pos: [-2.6, 0.7, -1.3], rotation: 0, frontColor: 0x003366 },
-  'TOC_ELEMENTAR_002': { name: 'Elementar TOC分析仪', configKey: 'elementarTOC', dbDeviceId: 'PUBLIC_LAB1_LARGE_011', pos: [2.6, 0.7, -1.3], rotation: 0, frontColor: 0x808080 },
-  'TOC_ELEMENTAR_003': { name: 'Elementar TOC分析仪', configKey: 'elementarTOC', dbDeviceId: 'PUBLIC_LAB1_LARGE_012', pos: [-0.5, 0.7, 2.6], rotation: 0, frontColor: 0x660000 },
-  'PUBLIC_LAB1_LARGE_007': { name: '落地式高速冷冻离心机', configKey: 'floorCentrifuge', pos: [3.9, 0.0125, 0], rotation: 0 },
-  'PUBLIC_LAB1_LARGE_008': { name: 'TOC-VCPH总有机碳分析仪', configKey: 'tocvAnalyzer', pos: [-1.5, 0.7, -2.9], rotation: -Math.PI / 2 },
-  'PUBLIC_LAB1_LARGE_009': { name: 'TOC-VCPH总有机碳分析仪', configKey: 'tocvAnalyzer', pos: [0.1, 0.7, -2.9], rotation: -Math.PI / 2 },
-  'PUBLIC_LAB1_LARGE_013': { name: 'LS 13 320激光粒度分析仪', configKey: 'ls13320', pos: [-0.5, 0.7, 1.2], rotation: -Math.PI / 2 }
+const DEVICE_3D_MAP = {
+  INCUBATOR_SMALL_1: { name: '智能生化培养箱', configKey: 'smallIncubator', pos: [2.65, 0, -4.65], rotation: 0 },
+  INCUBATOR_SMALL_2: { name: '智能生化培养箱', configKey: 'smallIncubator', pos: [1.75, 0, -4.65], rotation: 0 },
+  INCUBATOR_SMALL_3: { name: '智能生化培养箱', configKey: 'smallIncubator', pos: [0.85, 0, -4.65], rotation: 0 },
+  INCUBATOR_SMALL_4: { name: '智能生化培养箱', configKey: 'smallIncubator', pos: [-0.05, 0, -4.65], rotation: 0 },
+  INCUBATOR_LARGE_1: { name: '大型智能生化培养箱', configKey: 'largeIncubator', dbDeviceId: 'PUBLIC_LAB1_LARGE_001', pos: [-2.15, 0, -4.55], rotation: 0 },
+  INCUBATOR_LARGE_2: { name: '大型智能生化培养箱', configKey: 'largeIncubator', dbDeviceId: 'PUBLIC_LAB1_LARGE_002', pos: [-3.35, 0, -4.55], rotation: 0 },
+  INCUBATOR_LARGE_3: { name: '大型智能生化培养箱', configKey: 'largeIncubator', dbDeviceId: 'PUBLIC_LAB1_LARGE_003', pos: [-4.55, 0, 4.55], rotation: Math.PI / 2 },
+  INCUBATOR_LARGE_4: { name: '大型智能生化培养箱', configKey: 'largeIncubator', dbDeviceId: 'PUBLIC_LAB1_LARGE_004', pos: [-4.55, 0, 2.55], rotation: Math.PI / 2 },
+  INCUBATOR_LARGE_5: { name: '大型智能生化培养箱', configKey: 'largeIncubator', dbDeviceId: 'PUBLIC_LAB1_LARGE_005', pos: [-4.55, 0, 0.55], rotation: Math.PI / 2 },
+  INCUBATOR_LARGE_6: { name: '大型智能生化培养箱', configKey: 'largeIncubator', dbDeviceId: 'PUBLIC_LAB1_LARGE_006', pos: [-4.55, 0, -1.45], rotation: Math.PI / 2 },
+  TOC_ELEMENTAR_001: { name: 'Elementar TOC分析仪', configKey: 'elementarTOC', dbDeviceId: 'PUBLIC_LAB1_LARGE_010', pos: [-2.6, 0.7, -1.3], rotation: 0, frontColor: 0x003366 },
+  TOC_ELEMENTAR_002: { name: 'Elementar TOC分析仪', configKey: 'elementarTOC', dbDeviceId: 'PUBLIC_LAB1_LARGE_011', pos: [2.6, 0.7, -1.3], rotation: 0, frontColor: 0x808080 },
+  TOC_ELEMENTAR_003: { name: 'Elementar TOC分析仪', configKey: 'elementarTOC', dbDeviceId: 'PUBLIC_LAB1_LARGE_012', pos: [-0.5, 0.7, 2.6], rotation: 0, frontColor: 0x660000 },
+  PUBLIC_LAB1_LARGE_007: { name: '落地式高速冷冻离心机', configKey: 'floorCentrifuge', pos: [3.9, 0.0125, 0], rotation: 0 },
+  PUBLIC_LAB1_LARGE_008: { name: 'TOC-VCPH总有机碳分析仪', configKey: 'tocvAnalyzer', pos: [-1.5, 0.7, -2.9], rotation: -Math.PI / 2 },
+  PUBLIC_LAB1_LARGE_009: { name: 'TOC-VCPH总有机碳分析仪', configKey: 'tocvAnalyzer', pos: [0.1, 0.7, -2.9], rotation: -Math.PI / 2 },
+  PUBLIC_LAB1_LARGE_013: { name: 'LS 13 320激光粒度分析仪', configKey: 'ls13320', pos: [-0.5, 0.7, 1.2], rotation: -Math.PI / 2 }
 }
 
-var ROOM_SIZE = { WIDTH: 10, HEIGHT: 3, DEPTH: 10 }
-var TABLE_SIZE = { LENGTH: 6, HEIGHT: 0.7, WIDTH: 2 }
+const ROOM_SIZE = { WIDTH: 10, HEIGHT: 3, DEPTH: 10 }
+const TABLE_SIZE = { LENGTH: 6, HEIGHT: 0.7, WIDTH: 2 }
 
-var COLORS = {
+const COLORS = {
   FLOOR: 0x888888,
   WALL: 0xFFFFFF,
   CEILING: 0xFAFAFA,
@@ -95,7 +95,7 @@ var COLORS = {
   BACKGROUND: 0x0A192F
 }
 
-var EXTERNAL_MODEL_ASSETS = {
+const EXTERNAL_MODEL_ASSETS = {
   floorCentrifuge: '/pages/webview/3dscene/assets/models/Centrifuge.glb',
   tocvAnalyzer: '/pages/webview/3dscene/assets/models/ShimadzuTOC.glb',
   ls13320: '/pages/webview/3dscene/assets/models/LS13320.glb'
@@ -121,7 +121,7 @@ Page({
     }
   },
 
-  onLoad: function(options) {
+  onLoad(options) {
     this.targetDeviceId = options.device_id || ''
     this.role = options.role || 'student'
     this.setData({ role: this.role })
@@ -134,18 +134,18 @@ Page({
     this.lastPinchDist = 0
   },
 
-  onReady: function() {
+  onReady() {
     this.initScene()
   },
 
-  requestNextFrame: function(callback) {
+  requestNextFrame(callback) {
     if (this.canvas && typeof this.canvas.requestAnimationFrame === 'function') {
       return this.canvas.requestAnimationFrame(callback)
     }
     return setTimeout(callback, 16)
   },
 
-  cancelNextFrame: function(frameId) {
+  cancelNextFrame(frameId) {
     if (!frameId) return
 
     if (this.canvas && typeof this.canvas.cancelAnimationFrame === 'function') {
@@ -156,17 +156,17 @@ Page({
     clearTimeout(frameId)
   },
 
-  createLabelMesh: function(THREE, text, y) {
+  createLabelMesh(THREE, text, y) {
     if (!text || typeof wx === 'undefined' || typeof wx.createOffscreenCanvas !== 'function') {
       return null
     }
 
-    var labelCanvas = wx.createOffscreenCanvas({ type: '2d', width: 256, height: 64 })
+    const labelCanvas = wx.createOffscreenCanvas({ type: '2d', width: 256, height: 64 })
     if (!labelCanvas || typeof labelCanvas.getContext !== 'function') {
       return null
     }
 
-    var ctx = labelCanvas.getContext('2d')
+    const ctx = labelCanvas.getContext('2d')
     if (!ctx) {
       return null
     }
@@ -179,8 +179,8 @@ Page({
     ctx.textBaseline = 'middle'
     ctx.fillText(text, 128, 32)
 
-    var labelTexture = new THREE.CanvasTexture(labelCanvas)
-    var label = new THREE.Mesh(
+    const labelTexture = new THREE.CanvasTexture(labelCanvas)
+    const label = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 0.25),
       new THREE.MeshBasicMaterial({ map: labelTexture, transparent: true })
     )
@@ -188,7 +188,7 @@ Page({
     return label
   },
 
-  getWindowMetrics: function() {
+  getWindowMetrics() {
     if (typeof wx !== 'undefined') {
       if (typeof wx.getWindowInfo === 'function') {
         return wx.getWindowInfo()
@@ -205,12 +205,12 @@ Page({
     }
   },
 
-  getCanvasMetrics: function() {
-    var windowInfo = this.getWindowMetrics()
-    var rect = this.canvasRect || {}
-    var pixelRatio = windowInfo.pixelRatio || 1
-    var width = rect.width || (this.canvas && this.canvas.width ? this.canvas.width / pixelRatio : 0) || windowInfo.windowWidth || 1
-    var height = rect.height || (this.canvas && this.canvas.height ? this.canvas.height / pixelRatio : 0) || windowInfo.windowHeight || 1
+  getCanvasMetrics() {
+    const windowInfo = this.getWindowMetrics()
+    const rect = this.canvasRect || {}
+    const pixelRatio = windowInfo.pixelRatio || 1
+    const width = rect.width || (this.canvas && this.canvas.width ? this.canvas.width / pixelRatio : 0) || windowInfo.windowWidth || 1
+    const height = rect.height || (this.canvas && this.canvas.height ? this.canvas.height / pixelRatio : 0) || windowInfo.windowHeight || 1
 
     return {
       left: rect.left || 0,
@@ -221,7 +221,7 @@ Page({
     }
   },
 
-  getTouchPoint: function(touch) {
+  getTouchPoint(touch) {
     if (!touch) return null
 
     return {
@@ -230,17 +230,17 @@ Page({
     }
   },
 
-  getTouchDistance: function(firstTouch, secondTouch) {
-    var first = this.getTouchPoint(firstTouch)
-    var second = this.getTouchPoint(secondTouch)
+  getTouchDistance(firstTouch, secondTouch) {
+    const first = this.getTouchPoint(firstTouch)
+    const second = this.getTouchPoint(secondTouch)
     if (!first || !second) return 0
 
-    var dx = first.x - second.x
-    var dy = first.y - second.y
+    const dx = first.x - second.x
+    const dy = first.y - second.y
     return Math.sqrt(dx * dx + dy * dy)
   },
 
-  onUnload: function() {
+  onUnload() {
     if (this.renderer && typeof this.renderer.dispose === 'function') {
       this.renderer.dispose()
     }
@@ -250,17 +250,17 @@ Page({
     }
   },
 
-  initScene: function() {
-    var self = this
-    var query = wx.createSelectorQuery()
-    query.select('#webgl-canvas').fields({ node: true, size: true }).exec(function(res) {
+  initScene() {
+    const self = this
+    const query = wx.createSelectorQuery()
+    query.select('#webgl-canvas').fields({ node: true, size: true }).exec(function (res) {
       if (!res || !res[0] || !res[0].node) {
         wx.showToast({ title: 'Canvas 初始化失败', icon: 'none' })
         return
       }
 
-      var canvas = res[0].node
-      var THREE = createScopedThreejs(canvas)
+      const canvas = res[0].node
+      const THREE = createScopedThreejs(canvas)
       self.ensureGLTFLoader(THREE)
       self.THREE = THREE
       self.canvas = canvas
@@ -272,23 +272,23 @@ Page({
         height: res[0].height
       }
 
-      var windowInfo = self.getWindowMetrics()
-      var dpr = windowInfo.pixelRatio || 1
-      var width = res[0].width || windowInfo.windowWidth || 1
-      var height = res[0].height || windowInfo.windowHeight || 1
+      const windowInfo = self.getWindowMetrics()
+      const dpr = windowInfo.pixelRatio || 1
+      const width = res[0].width || windowInfo.windowWidth || 1
+      const height = res[0].height || windowInfo.windowHeight || 1
       canvas.width = width * dpr
       canvas.height = height * dpr
 
-      var scene = new THREE.Scene()
+      const scene = new THREE.Scene()
       scene.background = new THREE.Color(COLORS.BACKGROUND)
       self.scene = scene
 
-      var camera = new THREE.PerspectiveCamera(55, width / height, 0.01, 1000)
+      const camera = new THREE.PerspectiveCamera(55, width / height, 0.01, 1000)
       camera.position.set(0, 2, 10)
       self.camera = camera
       self.cameraTarget = new THREE.Vector3(0, 0, 0)
 
-      var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true })
+      const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true })
       renderer.setSize(width, height)
       renderer.setPixelRatio(Math.min(dpr, 2))
       renderer.shadowMap.enabled = true
@@ -306,12 +306,12 @@ Page({
       self.buildFurniture(THREE, scene)
       self.setData({ loadingProgress: 50 })
 
-      self.loadDevicesFromDb(function() {
-        var completeSceneReady = function() {
+      self.loadDevicesFromDb(function () {
+        const completeSceneReady = function () {
           self.setData({ loadingProgress: 90, isLoading: false })
 
           if (self.targetDeviceId) {
-            setTimeout(function() {
+            setTimeout(function () {
               self.focusOnDevice(self.targetDeviceId)
             }, 500)
           }
@@ -321,7 +321,7 @@ Page({
 
         self.buildAllInstruments(THREE, scene)
           .then(completeSceneReady)
-          .catch(function(error) {
+          .catch(function (error) {
             console.error('3D仪器加载失败:', error)
             completeSceneReady()
           })
@@ -329,11 +329,11 @@ Page({
     })
   },
 
-  initLights: function(THREE, scene) {
-    var ambient = new THREE.AmbientLight(0xffffff, 0.5)
+  initLights(THREE, scene) {
+    const ambient = new THREE.AmbientLight(0xffffff, 0.5)
     scene.add(ambient)
 
-    var dirLight = new THREE.DirectionalLight(0xffffff, 0.6)
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6)
     dirLight.position.set(3, 8, 5)
     dirLight.castShadow = true
     dirLight.shadow.mapSize.width = 2048
@@ -346,74 +346,74 @@ Page({
     dirLight.shadow.camera.bottom = -8
     scene.add(dirLight)
 
-    var backLight = new THREE.DirectionalLight(0xccddff, 0.4)
+    const backLight = new THREE.DirectionalLight(0xccddff, 0.4)
     backLight.position.set(-2, 5, -6)
     scene.add(backLight)
 
-    var fillLight = new THREE.DirectionalLight(0xccddff, 0.3)
+    const fillLight = new THREE.DirectionalLight(0xccddff, 0.3)
     fillLight.position.set(-4, 3, -2)
     scene.add(fillLight)
 
-    var ceilingPositions = [
+    const ceilingPositions = [
       [-3.64, 2.9, -3.64], [0, 2.9, -3.64], [3.64, 2.9, -3.64],
       [-3.64, 2.9, 0], [0, 2.9, 0], [3.64, 2.9, 0],
       [-3.64, 2.9, 3.64], [0, 2.9, 3.64], [3.64, 2.9, 3.64]
     ]
-    var self = this
-    ceilingPositions.forEach(function(pos) {
-      var pointLight = new THREE.PointLight(0xFFFFFF, 0.4, 8)
+    const self = this
+    ceilingPositions.forEach(function (pos) {
+      const pointLight = new THREE.PointLight(0xFFFFFF, 0.4, 8)
       pointLight.position.set(pos[0], pos[1] - 0.1, pos[2])
       scene.add(pointLight)
 
-      var lightGeo = new THREE.PlaneGeometry(0.9, 0.9)
-      var lightMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.8 })
-      var lightMesh = new THREE.Mesh(lightGeo, lightMat)
+      const lightGeo = new THREE.PlaneGeometry(0.9, 0.9)
+      const lightMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.8 })
+      const lightMesh = new THREE.Mesh(lightGeo, lightMat)
       lightMesh.position.set(pos[0], pos[1], pos[2])
       lightMesh.rotation.x = -Math.PI / 2
       scene.add(lightMesh)
     })
   },
 
-  buildRoom: function(THREE, scene) {
-    var W = ROOM_SIZE.WIDTH, H = ROOM_SIZE.HEIGHT, D = ROOM_SIZE.DEPTH
+  buildRoom(THREE, scene) {
+    const W = ROOM_SIZE.WIDTH, H = ROOM_SIZE.HEIGHT, D = ROOM_SIZE.DEPTH
 
-    var floorMat = new THREE.MeshStandardMaterial({ color: COLORS.FLOOR, roughness: 0.8 })
-    var floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), floorMat)
+    const floorMat = new THREE.MeshStandardMaterial({ color: COLORS.FLOOR, roughness: 0.8 })
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), floorMat)
     floor.rotation.x = -Math.PI / 2
     floor.receiveShadow = true
     scene.add(floor)
 
-    var gridHelper = new THREE.GridHelper(W, 10, 0x444444, 0x444444)
+    const gridHelper = new THREE.GridHelper(W, 10, 0x444444, 0x444444)
     gridHelper.position.y = 0.01
     scene.add(gridHelper)
 
-    var wallMat = new THREE.MeshStandardMaterial({ color: COLORS.WALL, roughness: 0.7 })
+    const wallMat = new THREE.MeshStandardMaterial({ color: COLORS.WALL, roughness: 0.7 })
 
-    var backWall = new THREE.Mesh(new THREE.PlaneGeometry(W, H), wallMat)
+    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(W, H), wallMat)
     backWall.position.set(0, H / 2, -D / 2)
     backWall.receiveShadow = true
     scene.add(backWall)
 
-    var leftWall = new THREE.Mesh(new THREE.PlaneGeometry(D, H), wallMat)
+    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(D, H), wallMat)
     leftWall.position.set(-W / 2, H / 2, 0)
     leftWall.rotation.y = Math.PI / 2
     leftWall.receiveShadow = true
     scene.add(leftWall)
 
-    var rightWall = new THREE.Mesh(new THREE.PlaneGeometry(D, H), wallMat)
+    const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(D, H), wallMat)
     rightWall.position.set(W / 2, H / 2, 0)
     rightWall.rotation.y = -Math.PI / 2
     rightWall.receiveShadow = true
     scene.add(rightWall)
 
-    var ceilingMat = new THREE.MeshStandardMaterial({ color: COLORS.CEILING, roughness: 0.9 })
-    var ceiling = new THREE.Mesh(new THREE.PlaneGeometry(W, D), ceilingMat)
+    const ceilingMat = new THREE.MeshStandardMaterial({ color: COLORS.CEILING, roughness: 0.9 })
+    const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(W, D), ceilingMat)
     ceiling.position.set(0, H, 0)
     ceiling.rotation.x = Math.PI / 2
     ceiling.receiveShadow = true
     scene.add(ceiling)
 
-    var ceilingGrid = new THREE.GridHelper(W, 11, 0xCCCCCC, 0xCCCCCC)
+    const ceilingGrid = new THREE.GridHelper(W, 11, 0xCCCCCC, 0xCCCCCC)
     ceilingGrid.position.y = H - 0.01
     scene.add(ceilingGrid)
 
@@ -421,54 +421,54 @@ Page({
     this.buildDoor(THREE, scene)
   },
 
-  buildWindows: function(THREE, scene) {
-    var windowMat = new THREE.MeshStandardMaterial({ color: COLORS.WINDOW_GLASS, transparent: true, opacity: 0.3 })
-    var frameMat = new THREE.MeshStandardMaterial({ color: COLORS.WINDOW_FRAME })
+  buildWindows(THREE, scene) {
+    const windowMat = new THREE.MeshStandardMaterial({ color: COLORS.WINDOW_GLASS, transparent: true, opacity: 0.3 })
+    const frameMat = new THREE.MeshStandardMaterial({ color: COLORS.WINDOW_FRAME })
 
-    for (var i = 0; i < 4; i++) {
-      var windowMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.6), windowMat)
+    for (let i = 0; i < 4; i++) {
+      const windowMesh = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.6), windowMat)
       windowMesh.position.set(-4.99, 1.8, -3 + i * 2)
       windowMesh.rotation.y = Math.PI / 2
       scene.add(windowMesh)
 
-      var frame = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.8), frameMat)
+      const frame = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.8), frameMat)
       frame.position.set(-4.98, 1.8, -3 + i * 2)
       frame.rotation.y = Math.PI / 2
       scene.add(frame)
     }
   },
 
-  buildDoor: function(THREE, scene) {
-    var doorFrameMat = new THREE.MeshStandardMaterial({ color: COLORS.DOOR_FRAME })
-    var doorMat = new THREE.MeshStandardMaterial({ color: COLORS.DOOR })
+  buildDoor(THREE, scene) {
+    const doorFrameMat = new THREE.MeshStandardMaterial({ color: COLORS.DOOR_FRAME })
+    const doorMat = new THREE.MeshStandardMaterial({ color: COLORS.DOOR })
 
-    var doorFrame = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.1, 0.1), doorFrameMat)
+    const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.1, 0.1), doorFrameMat)
     doorFrame.position.set(4.95, 1.05, -4.4)
     doorFrame.rotation.y = -Math.PI / 2
     scene.add(doorFrame)
 
-    var door = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.0, 0.04), doorMat)
+    const door = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.0, 0.04), doorMat)
     door.position.set(4.95, 1.0, -4.4)
     door.rotation.y = -Math.PI / 2
     scene.add(door)
 
-    var handleMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC, metalness: 0.8 })
-    var handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.1, 16), handleMat)
+    const handleMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC, metalness: 0.8 })
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.1, 16), handleMat)
     handle.position.set(4.92, 1.2, -4.0)
     handle.rotation.z = Math.PI / 2
     scene.add(handle)
   },
 
-  buildFurniture: function(THREE, scene) {
-    var tableMat = new THREE.MeshStandardMaterial({ color: COLORS.TABLE, roughness: 0.9 })
+  buildFurniture(THREE, scene) {
+    const tableMat = new THREE.MeshStandardMaterial({ color: COLORS.TABLE, roughness: 0.9 })
 
-    var frontTable = new THREE.Mesh(new THREE.BoxGeometry(TABLE_SIZE.LENGTH, TABLE_SIZE.HEIGHT, TABLE_SIZE.WIDTH), tableMat)
+    const frontTable = new THREE.Mesh(new THREE.BoxGeometry(TABLE_SIZE.LENGTH, TABLE_SIZE.HEIGHT, TABLE_SIZE.WIDTH), tableMat)
     frontTable.position.set(0, TABLE_SIZE.HEIGHT / 2, -2)
     frontTable.castShadow = true
     frontTable.receiveShadow = true
     scene.add(frontTable)
 
-    var backTable = new THREE.Mesh(new THREE.BoxGeometry(TABLE_SIZE.LENGTH, TABLE_SIZE.HEIGHT, TABLE_SIZE.WIDTH), tableMat)
+    const backTable = new THREE.Mesh(new THREE.BoxGeometry(TABLE_SIZE.LENGTH, TABLE_SIZE.HEIGHT, TABLE_SIZE.WIDTH), tableMat)
     backTable.position.set(0, TABLE_SIZE.HEIGHT / 2, 2)
     backTable.castShadow = true
     backTable.receiveShadow = true
@@ -477,43 +477,43 @@ Page({
     this.buildReagentShelves(THREE, scene)
   },
 
-  buildReagentShelves: function(THREE, scene) {
-    var self = this
-    var zPositions = [-2, 2]
-    zPositions.forEach(function(zPos) {
+  buildReagentShelves(THREE, scene) {
+    const self = this
+    const zPositions = [-2, 2]
+    zPositions.forEach(function (zPos) {
       self.buildSingleShelf(THREE, scene, zPos)
     })
   },
 
-  buildSingleShelf: function(THREE, scene, zPosition) {
-    var shelfGroup = new THREE.Group()
-    var material = new THREE.MeshStandardMaterial({ color: COLORS.SHELF_METAL, roughness: 0.7, metalness: 0.8 })
+  buildSingleShelf(THREE, scene, zPosition) {
+    const shelfGroup = new THREE.Group()
+    const material = new THREE.MeshStandardMaterial({ color: COLORS.SHELF_METAL, roughness: 0.7, metalness: 0.8 })
 
-    var totalLength = 5.2
-    var totalHeight = 1.0
-    var pillarSize = 0.1
+    const totalLength = 5.2
+    const totalHeight = 1.0
+    const pillarSize = 0.1
 
-    var pillarGeo = new THREE.BoxGeometry(pillarSize, totalHeight, pillarSize)
-    var leftPillar = new THREE.Mesh(pillarGeo, material)
-    var rightPillar = new THREE.Mesh(pillarGeo, material)
+    const pillarGeo = new THREE.BoxGeometry(pillarSize, totalHeight, pillarSize)
+    const leftPillar = new THREE.Mesh(pillarGeo, material)
+    const rightPillar = new THREE.Mesh(pillarGeo, material)
     leftPillar.position.set(-totalLength / 2 + pillarSize / 2, totalHeight / 2, 0)
     rightPillar.position.set(totalLength / 2 - pillarSize / 2, totalHeight / 2, 0)
     shelfGroup.add(leftPillar)
     shelfGroup.add(rightPillar)
 
-    var shelfHeights = [totalHeight * 0.3, totalHeight * 0.7]
-    var shelfDepth = 0.2
-    var shelfThickness = 0.02
-    var tiltAngle = Math.PI / 12
+    const shelfHeights = [totalHeight * 0.3, totalHeight * 0.7]
+    const shelfDepth = 0.2
+    const shelfThickness = 0.02
+    const tiltAngle = Math.PI / 12
 
-    var self = this
-    shelfHeights.forEach(function(height) {
+    const self = this
+    shelfHeights.forEach(function (height) {
       self.buildShelfWithBar(THREE, shelfGroup, totalLength, shelfDepth, shelfThickness, height, tiltAngle, material, shelfDepth / 2)
       self.buildShelfWithBar(THREE, shelfGroup, totalLength, shelfDepth, shelfThickness, height, -tiltAngle, material, -shelfDepth / 2)
     })
 
     shelfGroup.position.set(0.4, TABLE_SIZE.HEIGHT, zPosition)
-    shelfGroup.traverse(function(child) {
+    shelfGroup.traverse(function (child) {
       if (child.isMesh) {
         child.castShadow = true
         child.receiveShadow = true
@@ -523,46 +523,46 @@ Page({
     scene.add(shelfGroup)
   },
 
-  buildShelfWithBar: function(THREE, group, length, depth, thickness, height, tiltAngle, material, zPos) {
-    var shelf = new THREE.Mesh(new THREE.BoxGeometry(length - 0.1, thickness, depth), material)
+  buildShelfWithBar(THREE, group, length, depth, thickness, height, tiltAngle, material, zPos) {
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(length - 0.1, thickness, depth), material)
     shelf.rotation.x = tiltAngle
     shelf.position.set(0, height, zPos)
     group.add(shelf)
 
-    var bar = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, length - 0.1, 8), material)
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, length - 0.1, 8), material)
     bar.rotation.z = Math.PI / 2
-    var barY = height + Math.abs((depth / 2 + 0.01) * Math.sin(tiltAngle))
-    var barZ = zPos > 0
+    const barY = height + Math.abs((depth / 2 + 0.01) * Math.sin(tiltAngle))
+    const barZ = zPos > 0
       ? zPos + (depth / 2 + 0.01) * Math.cos(tiltAngle)
       : zPos - (depth / 2 + 0.01) * Math.cos(tiltAngle)
     bar.position.set(0, barY, barZ)
     group.add(bar)
   },
 
-  loadDevicesFromDb: function(callback) {
-    var self = this
+  loadDevicesFromDb(callback) {
+    const self = this
     db.collection('devices')
       .where({ lab_type: 'public', lab_name: '公共实验室1' })
       .limit(50)
       .get()
-      .then(function(res) {
+      .then(function (res) {
         self.devicesFromDb = res.data || []
         callback()
       })
-      .catch(function() {
+      .catch(function () {
         callback()
       })
   },
 
-  resolveDbDeviceId: function(deviceId) {
-    var sceneDeviceId = String(deviceId || '').trim()
-    var mapInfo = DEVICE_3D_MAP[sceneDeviceId]
+  resolveDbDeviceId(deviceId) {
+    const sceneDeviceId = String(deviceId || '').trim()
+    const mapInfo = DEVICE_3D_MAP[sceneDeviceId]
     return mapInfo && mapInfo.dbDeviceId ? mapInfo.dbDeviceId : sceneDeviceId
   },
 
-  getDeviceStatus: function(deviceId) {
-    var dbDeviceId = this.resolveDbDeviceId(deviceId)
-    for (var i = 0; i < this.devicesFromDb.length; i++) {
+  getDeviceStatus(deviceId) {
+    const dbDeviceId = this.resolveDbDeviceId(deviceId)
+    for (let i = 0; i < this.devicesFromDb.length; i++) {
       if (this.devicesFromDb[i].device_id === dbDeviceId) {
         return this.devicesFromDb[i].status || 'available'
       }
@@ -570,9 +570,9 @@ Page({
     return 'available'
   },
 
-  getDeviceInfo: function(deviceId) {
-    var dbDeviceId = this.resolveDbDeviceId(deviceId)
-    for (var i = 0; i < this.devicesFromDb.length; i++) {
+  getDeviceInfo(deviceId) {
+    const dbDeviceId = this.resolveDbDeviceId(deviceId)
+    for (let i = 0; i < this.devicesFromDb.length; i++) {
       if (this.devicesFromDb[i].device_id === dbDeviceId) {
         return this.devicesFromDb[i]
       }
@@ -580,15 +580,15 @@ Page({
     return null
   },
 
-  getDeviceModel: function(deviceInfo) {
-    var specs = (deviceInfo && deviceInfo.specifications) || {}
+  getDeviceModel(deviceInfo) {
+    const specs = (deviceInfo && deviceInfo.specifications) || {}
     if (specs && typeof specs === 'object') {
       return String(specs['型号'] || specs['鍨嬪彿'] || specs.model || (deviceInfo && deviceInfo.model) || '').trim()
     }
     return String((deviceInfo && deviceInfo.model) || '').trim()
   },
 
-  buildGroupKey: function(deviceInfo) {
+  buildGroupKey(deviceInfo) {
     if (!deviceInfo) return ''
     return [
       String(deviceInfo.device_name || ''),
@@ -598,17 +598,17 @@ Page({
     ].join('||')
   },
 
-  summarizeText: function(text, maxLength) {
-    var value = String(text || '').trim()
+  summarizeText(text, maxLength) {
+    const value = String(text || '').trim()
     if (!value) return ''
     if (value.length <= maxLength) return value
     return value.slice(0, maxLength) + '...'
   },
 
-  getHitObjectDisplayName: function(hitObject) {
-    var current = hitObject
+  getHitObjectDisplayName(hitObject) {
+    let current = hitObject
     while (current && !(current.userData && current.userData.clickable)) {
-      var name = String((current.userData && current.userData.name) || current.name || '').trim()
+      const name = String((current.userData && current.userData.name) || current.name || '').trim()
       if (name) {
         return name
       }
@@ -617,20 +617,20 @@ Page({
     return ''
   },
 
-  buildStudentDetailUrl: function(deviceId) {
-    var dbDeviceId = this.resolveDbDeviceId(deviceId)
+  buildStudentDetailUrl(deviceId) {
+    const dbDeviceId = this.resolveDbDeviceId(deviceId)
     if (!dbDeviceId) return ''
     return '/pages/device/detail/devicedetail?deviceId=' + encodeURIComponent(dbDeviceId)
   },
 
-  buildAdminDetailUrl: function(deviceInfo) {
+  buildAdminDetailUrl(deviceInfo) {
     if (!deviceInfo) return ''
 
-    var deviceName = String(deviceInfo.device_name || '').trim()
-    var labName = String(deviceInfo.lab_name || '').trim()
-    var deviceType = String(deviceInfo.device_type || '').trim()
-    var model = this.getDeviceModel(deviceInfo)
-    var groupKey = this.buildGroupKey(deviceInfo)
+    const deviceName = String(deviceInfo.device_name || '').trim()
+    const labName = String(deviceInfo.lab_name || '').trim()
+    const deviceType = String(deviceInfo.device_type || '').trim()
+    const model = this.getDeviceModel(deviceInfo)
+    const groupKey = this.buildGroupKey(deviceInfo)
 
     if (!deviceName || !labName || !deviceType) {
       return ''
@@ -643,7 +643,7 @@ Page({
       + '&groupKey=' + encodeURIComponent(groupKey)
   },
 
-  ensureGLTFLoader: function(THREE) {
+  ensureGLTFLoader(THREE) {
     if (!THREE || typeof THREE.GLTFLoader === 'function') {
       return
     }
@@ -651,21 +651,21 @@ Page({
     registerGLTFLoader(THREE)
   },
 
-  getExternalModelAssetPath: function(configKey) {
+  getExternalModelAssetPath(configKey) {
     return EXTERNAL_MODEL_ASSETS[configKey] || ''
   },
 
-  getExternalModelAssetCandidates: function(configKey) {
-    var assetPath = this.getExternalModelAssetPath(configKey)
+  getExternalModelAssetCandidates(configKey) {
+    const assetPath = this.getExternalModelAssetPath(configKey)
     return createAssetPathCandidates(assetPath)
   },
 
-  prepareLoadedInstrumentModel: function(model) {
+  prepareLoadedInstrumentModel(model) {
     if (!model || typeof model.traverse !== 'function') {
       return model
     }
 
-    model.traverse(function(child) {
+    model.traverse(function (child) {
       if (!child.isMesh) return
 
       child.castShadow = true
@@ -685,9 +685,9 @@ Page({
     return model
   },
 
-  loadExternalInstrumentModel: function(THREE, configKey) {
-    var self = this
-    var assetCandidates = this.getExternalModelAssetCandidates(configKey)
+  loadExternalInstrumentModel(THREE, configKey) {
+    const self = this
+    const assetCandidates = this.getExternalModelAssetCandidates(configKey)
 
     if (!assetCandidates.length) {
       return Promise.reject(new Error('Missing external model asset path for ' + configKey))
@@ -698,26 +698,26 @@ Page({
       return Promise.reject(new Error('GLTFLoader is unavailable in mini program scope'))
     }
 
-    return new Promise(function(resolve, reject) {
-      var loader = new THREE.GLTFLoader()
+    return new Promise(function (resolve, reject) {
+      const loader = new THREE.GLTFLoader()
 
-      var tryLoad = function(index, lastError) {
+      const tryLoad = function (index, lastError) {
         if (index >= assetCandidates.length) {
           reject(lastError || new Error('Failed to load model: ' + configKey))
           return
         }
 
-        var assetPath = assetCandidates[index]
-        var resourcePath = assetPath.slice(0, assetPath.lastIndexOf('/') + 1)
+        const assetPath = assetCandidates[index]
+        const resourcePath = assetPath.slice(0, assetPath.lastIndexOf('/') + 1)
 
         wx.getFileSystemManager().readFile({
           filePath: assetPath,
-          success: function(result) {
+          success(result) {
             loader.parse(
               result.data,
               resourcePath,
-              function(gltf) {
-                var model = (gltf && (gltf.scene || (gltf.scenes && gltf.scenes[0]))) || null
+              function (gltf) {
+                const model = (gltf && (gltf.scene || (gltf.scenes && gltf.scenes[0]))) || null
                 if (!model) {
                   tryLoad(index + 1, new Error('Loaded glTF does not contain a scene: ' + assetPath))
                   return
@@ -725,12 +725,12 @@ Page({
 
                 resolve(self.prepareLoadedInstrumentModel(model))
               },
-              function(error) {
+              function (error) {
                 tryLoad(index + 1, error || new Error('Failed to parse model: ' + assetPath))
               }
             )
           },
-          fail: function(error) {
+          fail(error) {
             tryLoad(index + 1, error || new Error('Failed to read model file: ' + assetPath))
           }
         })
@@ -740,7 +740,7 @@ Page({
     })
   },
 
-  createFallbackInstrument: function(THREE, deviceId, configKey) {
+  createFallbackInstrument(THREE, deviceId, configKey) {
     if (configKey === 'floorCentrifuge') {
       return this.createFloorCentrifuge(THREE, deviceId)
     }
@@ -753,8 +753,8 @@ Page({
     return null
   },
 
-  createInstrumentGroup: function(THREE, deviceId, mapInfo) {
-    var self = this
+  createInstrumentGroup(THREE, deviceId, mapInfo) {
+    const self = this
 
     if (!mapInfo) {
       return Promise.resolve(null)
@@ -771,7 +771,7 @@ Page({
     }
     if (mapInfo.configKey === 'floorCentrifuge' || mapInfo.configKey === 'tocvAnalyzer' || mapInfo.configKey === 'ls13320') {
       return self.loadExternalInstrumentModel(THREE, mapInfo.configKey)
-        .catch(function(error) {
+        .catch(function (error) {
           console.warn('外部模型加载失败，回退到简化模型:', mapInfo.configKey, error)
           return self.createFallbackInstrument(THREE, deviceId, mapInfo.configKey)
         })
@@ -780,14 +780,14 @@ Page({
     return Promise.resolve(null)
   },
 
-  buildAllInstruments: function(THREE, scene) {
-    var self = this
-    var keys = Object.keys(DEVICE_3D_MAP)
-    var tasks = keys.map(function(id) {
-      var mapInfo = DEVICE_3D_MAP[id]
+  buildAllInstruments(THREE, scene) {
+    const self = this
+    const keys = Object.keys(DEVICE_3D_MAP)
+    const tasks = keys.map(function (id) {
+      const mapInfo = DEVICE_3D_MAP[id]
 
       return self.createInstrumentGroup(THREE, id, mapInfo)
-        .then(function(group) {
+        .then(function (group) {
           if (!group) return
 
           group.position.set(mapInfo.pos[0], mapInfo.pos[1], mapInfo.pos[2])
@@ -795,7 +795,7 @@ Page({
             group.rotation.y = mapInfo.rotation
           }
 
-          var status = self.getDeviceStatus(id)
+          const status = self.getDeviceStatus(id)
           self.addStatusBorder(THREE, group, status)
 
           group.userData = Object.assign({}, group.userData, { deviceId: id, clickable: true })
@@ -807,8 +807,8 @@ Page({
     return Promise.all(tasks)
   },
 
-  getLabelHeight: function(configKey) {
-    var heights = {
+  getLabelHeight(configKey) {
+    const heights = {
       smallIncubator: 1.45,
       largeIncubator: 1.75,
       elementarTOC: 0.85,
@@ -819,8 +819,8 @@ Page({
     return heights[configKey] || 1.0
   },
 
-  getInverseMatrix: function(THREE, matrix) {
-    var inverseMatrix = new THREE.Matrix4()
+  getInverseMatrix(THREE, matrix) {
+    const inverseMatrix = new THREE.Matrix4()
     if (typeof inverseMatrix.copy === 'function') {
       inverseMatrix.copy(matrix)
     }
@@ -835,7 +835,7 @@ Page({
     return inverseMatrix
   },
 
-  getGroupLocalBoundingBox: function(THREE, group) {
+  getGroupLocalBoundingBox(THREE, group) {
     if (!group || typeof group.traverse !== 'function') {
       return null
     }
@@ -844,16 +844,16 @@ Page({
       group.updateMatrixWorld(true)
     }
 
-    var inverseMatrix = this.getInverseMatrix(THREE, group.matrixWorld)
-    var localBox = new THREE.Box3()
-    var hasBox = false
+    const inverseMatrix = this.getInverseMatrix(THREE, group.matrixWorld)
+    const localBox = new THREE.Box3()
+    let hasBox = false
 
-    group.traverse(function(child) {
+    group.traverse(function (child) {
       if (!child || !child.isMesh || (child.userData && child.userData.isStatusBorder)) {
         return
       }
 
-      var childBox = new THREE.Box3().setFromObject(child)
+      const childBox = new THREE.Box3().setFromObject(child)
       childBox.applyMatrix4(inverseMatrix)
       if (hasBox) {
         localBox.union(childBox)
@@ -869,36 +869,36 @@ Page({
     return hasBox ? localBox : null
   },
 
-  addStatusBorder: function(THREE, group, status) {
-    var colorMap = {
+  addStatusBorder(THREE, group, status) {
+    const colorMap = {
       available: 0x00ff00,
       using: 0xff9800,
       maintenance: 0xf44336
     }
-    var borderColor = colorMap[status] || 0xffffff
+    const borderColor = colorMap[status] || 0xffffff
 
-    var bbox = this.getGroupLocalBoundingBox(THREE, group)
+    const bbox = this.getGroupLocalBoundingBox(THREE, group)
     if (!bbox) return
 
-    var size = new THREE.Vector3()
+    const size = new THREE.Vector3()
     bbox.getSize(size)
-    var center = new THREE.Vector3()
+    const center = new THREE.Vector3()
     bbox.getCenter(center)
     if (!size.x || !size.y || !size.z) return
 
-    var wireGeo = new THREE.BoxGeometry(size.x + 0.05, size.y + 0.05, size.z + 0.05)
-    var wireMat = new THREE.MeshBasicMaterial({ color: borderColor, wireframe: true, transparent: true, opacity: 0.6 })
-    var wireframe = new THREE.Mesh(wireGeo, wireMat)
+    const wireGeo = new THREE.BoxGeometry(size.x + 0.05, size.y + 0.05, size.z + 0.05)
+    const wireMat = new THREE.MeshBasicMaterial({ color: borderColor, wireframe: true, transparent: true, opacity: 0.6 })
+    const wireframe = new THREE.Mesh(wireGeo, wireMat)
     wireframe.position.copy(center)
     wireframe.userData.isStatusBorder = true
     group.add(wireframe)
   },
 
-  createSmallIncubator: function(THREE, deviceId) {
-    var group = new THREE.Group()
-    var width = 0.7, depth = 0.7, height = 1.2
+  createSmallIncubator(THREE, deviceId) {
+    const group = new THREE.Group()
+    const width = 0.7, depth = 0.7, height = 1.2
 
-    var mainBody = new THREE.Mesh(
+    const mainBody = new THREE.Mesh(
       new THREE.BoxGeometry(width, height, depth),
       new THREE.MeshStandardMaterial({ color: COLORS.INCUBATOR_BODY, roughness: 0.5, metalness: 0.1 })
     )
@@ -907,21 +907,21 @@ Page({
     mainBody.receiveShadow = true
     group.add(mainBody)
 
-    var door = new THREE.Mesh(
+    const door = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.8, height * 0.8, depth * 0.05),
       new THREE.MeshStandardMaterial({ color: COLORS.INCUBATOR_DOOR, roughness: 0.5, metalness: 0.1 })
     )
     door.position.set(0, height * 0.5, depth / 2 + 0.025)
     group.add(door)
 
-    var controlPanel = new THREE.Mesh(
+    const controlPanel = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.6, height * 0.08, depth * 0.1),
       new THREE.MeshStandardMaterial({ color: COLORS.INCUBATOR_PANEL, roughness: 0.5, metalness: 0.1 })
     )
     controlPanel.position.set(0, height * 0.9, depth / 2 + 0.05)
     group.add(controlPanel)
 
-    var windowPanel = new THREE.Mesh(
+    const windowPanel = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.5, height * 0.4, depth * 0.08),
       new THREE.MeshStandardMaterial({ color: COLORS.INCUBATOR_WINDOW, transparent: true, opacity: 0.7, roughness: 0.3 })
     )
@@ -931,11 +931,11 @@ Page({
     return group
   },
 
-  createLargeIncubator: function(THREE, deviceId) {
-    var group = new THREE.Group()
-    var width = 0.9, depth = 0.9, height = 1.5
+  createLargeIncubator(THREE, deviceId) {
+    const group = new THREE.Group()
+    const width = 0.9, depth = 0.9, height = 1.5
 
-    var mainBody = new THREE.Mesh(
+    const mainBody = new THREE.Mesh(
       new THREE.BoxGeometry(width, height, depth),
       new THREE.MeshStandardMaterial({ color: COLORS.INCUBATOR_BODY, roughness: 0.5, metalness: 0.1 })
     )
@@ -944,28 +944,28 @@ Page({
     mainBody.receiveShadow = true
     group.add(mainBody)
 
-    var door = new THREE.Mesh(
+    const door = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.8, height * 0.8, depth * 0.05),
       new THREE.MeshStandardMaterial({ color: COLORS.INCUBATOR_DOOR, roughness: 0.5, metalness: 0.1 })
     )
     door.position.set(0, height * 0.5, depth / 2 + 0.025)
     group.add(door)
 
-    var controlPanel = new THREE.Mesh(
+    const controlPanel = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.6, height * 0.08, depth * 0.1),
       new THREE.MeshStandardMaterial({ color: COLORS.INCUBATOR_PANEL, roughness: 0.5, metalness: 0.1 })
     )
     controlPanel.position.set(0, height * 0.9, depth / 2 + 0.05)
     group.add(controlPanel)
 
-    var windowPanel = new THREE.Mesh(
+    const windowPanel = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.5, height * 0.4, depth * 0.08),
       new THREE.MeshStandardMaterial({ color: COLORS.INCUBATOR_WINDOW, transparent: true, opacity: 0.7, roughness: 0.3 })
     )
     windowPanel.position.set(0, height * 0.5, depth / 2 + 0.04)
     group.add(windowPanel)
 
-    var vent = new THREE.Mesh(
+    const vent = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.7, height * 0.05, depth * 0.06),
       new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.1 })
     )
@@ -975,11 +975,11 @@ Page({
     return group
   },
 
-  createElementarTOC: function(THREE, deviceId, frontColor) {
-    var group = new THREE.Group()
-    var width = 0.65, height = 0.6, depth = 0.6
+  createElementarTOC(THREE, deviceId, frontColor) {
+    const group = new THREE.Group()
+    const width = 0.65, height = 0.6, depth = 0.6
 
-    var mainBody = new THREE.Mesh(
+    const mainBody = new THREE.Mesh(
       new THREE.BoxGeometry(width, height, depth),
       new THREE.MeshStandardMaterial({ color: 0xE8E8E8, roughness: 0.5, metalness: 0.1 })
     )
@@ -988,35 +988,35 @@ Page({
     mainBody.receiveShadow = true
     group.add(mainBody)
 
-    var frontPanel = new THREE.Mesh(
+    const frontPanel = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.95, height * 0.9, depth * 0.05),
       new THREE.MeshStandardMaterial({ color: frontColor, roughness: 0.5, metalness: 0.1 })
     )
     frontPanel.position.set(0, height * 0.45, depth / 2 + 0.015)
     group.add(frontPanel)
 
-    var blackStrip = new THREE.Mesh(
+    const blackStrip = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.9, height * 0.1, depth * 0.02),
       new THREE.MeshStandardMaterial({ color: 0x101010, roughness: 0.5, metalness: 0.1 })
     )
     blackStrip.position.set(0, height * 0.85, depth / 2 + 0.036)
     group.add(blackStrip)
 
-    var logo = new THREE.Mesh(
+    const logo = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.2, height * 0.04, depth * 0.02),
       new THREE.MeshStandardMaterial({ color: 0xFFFFFF, roughness: 0.5, metalness: 0.1 })
     )
     logo.position.set(0, height * 0.85, depth / 2 + 0.048)
     group.add(logo)
 
-    var leftSide = new THREE.Mesh(
+    const leftSide = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.05, height * 0.3, depth * 0.4),
       new THREE.MeshStandardMaterial({ color: 0x909090, roughness: 0.5, metalness: 0.1 })
     )
     leftSide.position.set(-width * 0.475, height * 0.15, 0)
     group.add(leftSide)
 
-    var rightSide = new THREE.Mesh(
+    const rightSide = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.05, height * 0.3, depth * 0.4),
       new THREE.MeshStandardMaterial({ color: 0x909090, roughness: 0.5, metalness: 0.1 })
     )
@@ -1026,11 +1026,11 @@ Page({
     return group
   },
 
-  createFloorCentrifuge: function(THREE, deviceId) {
-    var group = new THREE.Group()
+  createFloorCentrifuge(THREE, deviceId) {
+    const group = new THREE.Group()
 
-    var baseWidth = 0.8, baseDepth = 0.8, baseHeight = 0.15
-    var base = new THREE.Mesh(
+    const baseWidth = 0.8, baseDepth = 0.8, baseHeight = 0.15
+    const base = new THREE.Mesh(
       new THREE.BoxGeometry(baseWidth, baseHeight, baseDepth),
       new THREE.MeshStandardMaterial({ color: COLORS.CENTRIFUGE_BODY, roughness: 0.5, metalness: 0.1 })
     )
@@ -1039,8 +1039,8 @@ Page({
     base.receiveShadow = true
     group.add(base)
 
-    var bodyWidth = 0.7, bodyDepth = 0.7, bodyHeight = 1.0
-    var body = new THREE.Mesh(
+    const bodyWidth = 0.7, bodyDepth = 0.7, bodyHeight = 1.0
+    const body = new THREE.Mesh(
       new THREE.BoxGeometry(bodyWidth, bodyHeight, bodyDepth),
       new THREE.MeshStandardMaterial({ color: COLORS.CENTRIFUGE_BODY, roughness: 0.5, metalness: 0.1 })
     )
@@ -1049,25 +1049,25 @@ Page({
     body.receiveShadow = true
     group.add(body)
 
-    var lidRadius = 0.3, lidHeight = 0.08
-    var lid = new THREE.Mesh(
+    const lidRadius = 0.3, lidHeight = 0.08
+    const lid = new THREE.Mesh(
       new THREE.CylinderGeometry(lidRadius, lidRadius, lidHeight, 32),
       new THREE.MeshStandardMaterial({ color: COLORS.CENTRIFUGE_PANEL, roughness: 0.5, metalness: 0.2 })
     )
     lid.position.y = baseHeight + bodyHeight + lidHeight / 2
     group.add(lid)
 
-    var panelWidth = 0.3, panelHeight = 0.2, panelDepth = 0.05
-    var panel = new THREE.Mesh(
+    const panelWidth = 0.3, panelHeight = 0.2, panelDepth = 0.05
+    const panel = new THREE.Mesh(
       new THREE.BoxGeometry(panelWidth, panelHeight, panelDepth),
       new THREE.MeshStandardMaterial({ color: 0x003366, emissive: 0x001a33, emissiveIntensity: 0.3, roughness: 0.3 })
     )
     panel.position.set(0, baseHeight + bodyHeight * 0.7, bodyDepth / 2 + panelDepth / 2)
     group.add(panel)
 
-    var handleGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.12, 8)
-    var handleMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC, metalness: 0.8 })
-    var handle = new THREE.Mesh(handleGeo, handleMat)
+    const handleGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.12, 8)
+    const handleMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC, metalness: 0.8 })
+    const handle = new THREE.Mesh(handleGeo, handleMat)
     handle.position.set(0, baseHeight + bodyHeight + lidHeight / 2 + 0.02, lidRadius + 0.02)
     handle.rotation.x = Math.PI / 2
     group.add(handle)
@@ -1075,11 +1075,11 @@ Page({
     return group
   },
 
-  createShimadzuTOC: function(THREE, deviceId) {
-    var group = new THREE.Group()
-    var width = 0.7, height = 0.55, depth = 0.55
+  createShimadzuTOC(THREE, deviceId) {
+    const group = new THREE.Group()
+    const width = 0.7, height = 0.55, depth = 0.55
 
-    var mainBody = new THREE.Mesh(
+    const mainBody = new THREE.Mesh(
       new THREE.BoxGeometry(width, height, depth),
       new THREE.MeshStandardMaterial({ color: COLORS.TOC_BODY, roughness: 0.5, metalness: 0.1 })
     )
@@ -1088,7 +1088,7 @@ Page({
     mainBody.receiveShadow = true
     group.add(mainBody)
 
-    var topUnit = new THREE.Mesh(
+    const topUnit = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.8, height * 0.3, depth * 0.8),
       new THREE.MeshStandardMaterial({ color: 0xE0E0E0, roughness: 0.5, metalness: 0.1 })
     )
@@ -1096,21 +1096,21 @@ Page({
     topUnit.castShadow = true
     group.add(topUnit)
 
-    var screen = new THREE.Mesh(
+    const screen = new THREE.Mesh(
       new THREE.PlaneGeometry(width * 0.5, height * 0.35),
       new THREE.MeshStandardMaterial({ color: 0x004488, emissive: 0x002244, emissiveIntensity: 0.3, roughness: 0.3 })
     )
     screen.position.set(0, height * 0.65, depth / 2 + 0.01)
     group.add(screen)
 
-    var panel = new THREE.Mesh(
+    const panel = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.8, height * 0.1, depth * 0.03),
       new THREE.MeshStandardMaterial({ color: COLORS.TOC_PANEL, roughness: 0.5, metalness: 0.1 })
     )
     panel.position.set(0, height * 0.25, depth / 2 + 0.015)
     group.add(panel)
 
-    var samplePort = new THREE.Mesh(
+    const samplePort = new THREE.Mesh(
       new THREE.CylinderGeometry(0.02, 0.02, 0.03, 16),
       new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8 })
     )
@@ -1120,11 +1120,11 @@ Page({
     return group
   },
 
-  createLS13320: function(THREE, deviceId) {
-    var group = new THREE.Group()
-    var width = 0.8, height = 0.5, depth = 0.6
+  createLS13320(THREE, deviceId) {
+    const group = new THREE.Group()
+    const width = 0.8, height = 0.5, depth = 0.6
 
-    var mainBody = new THREE.Mesh(
+    const mainBody = new THREE.Mesh(
       new THREE.BoxGeometry(width, height, depth),
       new THREE.MeshStandardMaterial({ color: 0xF0F0F0, roughness: 0.5, metalness: 0.1 })
     )
@@ -1133,7 +1133,7 @@ Page({
     mainBody.receiveShadow = true
     group.add(mainBody)
 
-    var laserUnit = new THREE.Mesh(
+    const laserUnit = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.4, height * 0.5, depth * 0.9),
       new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5, metalness: 0.2 })
     )
@@ -1141,21 +1141,21 @@ Page({
     laserUnit.castShadow = true
     group.add(laserUnit)
 
-    var screen = new THREE.Mesh(
+    const screen = new THREE.Mesh(
       new THREE.PlaneGeometry(width * 0.45, height * 0.35),
       new THREE.MeshStandardMaterial({ color: 0x003366, emissive: 0x001a33, emissiveIntensity: 0.3, roughness: 0.3 })
     )
     screen.position.set(width * 0.15, height * 0.65, depth / 2 + 0.01)
     group.add(screen)
 
-    var sampleChamber = new THREE.Mesh(
+    const sampleChamber = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.25, height * 0.3, depth * 0.3),
       new THREE.MeshStandardMaterial({ color: 0xAAAAAA, transparent: true, opacity: 0.6, roughness: 0.3 })
     )
     sampleChamber.position.set(width * 0.2, height + height * 0.15, depth * 0.2)
     group.add(sampleChamber)
 
-    var vent = new THREE.Mesh(
+    const vent = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.3, height * 0.05, depth * 0.03),
       new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5 })
     )
@@ -1165,8 +1165,8 @@ Page({
     return group
   },
 
-  startRenderLoop: function() {
-    var self = this
+  startRenderLoop() {
+    const self = this
     function loop() {
       self.rafId = self.requestNextFrame(loop)
       self.updateCamera()
@@ -1175,40 +1175,40 @@ Page({
     loop()
   },
 
-  updateCamera: function() {
+  updateCamera() {
     if (this.cameraAnimating && this.cameraAnimTarget) {
-      var t = 0.08
+      const t = 0.08
       this.camera.position.lerp(this.cameraAnimTarget, t)
       this.cameraTarget.lerp(this.cameraAnimLookAt, t)
       this.camera.lookAt(this.cameraTarget)
 
-      var dist = this.camera.position.distanceTo(this.cameraAnimTarget)
+      const dist = this.camera.position.distanceTo(this.cameraAnimTarget)
       if (dist < 0.05) {
         this.cameraAnimating = false
       }
     }
   },
 
-  focusOnDevice: function(deviceId, displayName) {
-    var mesh = this.deviceMeshes[deviceId]
+  focusOnDevice(deviceId, displayName) {
+    const mesh = this.deviceMeshes[deviceId]
     if (!mesh) return
 
-    var THREE = this.THREE
-    var pos = mesh.position
+    const THREE = this.THREE
+    const pos = mesh.position
     this.cameraAnimTarget = new THREE.Vector3(pos.x + 2, pos.y + 1.5, pos.z + 2)
     this.cameraAnimLookAt = new THREE.Vector3(pos.x, pos.y, pos.z)
     this.cameraAnimating = true
 
-    var mapInfo = DEVICE_3D_MAP[deviceId]
-    var focusName = String(displayName || (mapInfo && mapInfo.name) || '').trim()
+    const mapInfo = DEVICE_3D_MAP[deviceId]
+    const focusName = String(displayName || (mapInfo && mapInfo.name) || '').trim()
     if (focusName) {
       this.setData({ focusHint: '已聚焦：' + focusName })
-      var self = this
-      setTimeout(function() { self.setData({ focusHint: '' }) }, 2500)
+      const self = this
+      setTimeout(function () { self.setData({ focusHint: '' }) }, 2500)
     }
   },
 
-  onTouchStart: function(e) {
+  onTouchStart(e) {
     if (!e.touches || e.touches.length === 0) return
 
     if (e.touches.length === 2) {
@@ -1217,7 +1217,7 @@ Page({
       return
     }
 
-    var touch = this.getTouchPoint(e.touches[0])
+    const touch = this.getTouchPoint(e.touches[0])
     if (!touch) return
 
     this.touchStartPos = touch
@@ -1229,19 +1229,19 @@ Page({
     }
   },
 
-  onTouchMove: function(e) {
+  onTouchMove(e) {
     if (!e.touches || e.touches.length === 0) return
 
     if (this.pinching && e.touches.length === 2) {
-      var dist = this.getTouchDistance(e.touches[0], e.touches[1])
+      const dist = this.getTouchDistance(e.touches[0], e.touches[1])
       if (this.lastPinchDist > 0) {
-        var scale = dist / this.lastPinchDist
-        var radius = Math.sqrt(
-          Math.pow(this.camera.position.x - this.cameraTarget.x, 2) +
-          Math.pow(this.camera.position.z - this.cameraTarget.z, 2)
+        const scale = dist / this.lastPinchDist
+        let radius = Math.sqrt(
+          Math.pow(this.camera.position.x - this.cameraTarget.x, 2)
+          + Math.pow(this.camera.position.z - this.cameraTarget.z, 2)
         )
         radius = Math.max(3, Math.min(25, radius / scale))
-        var angle = Math.atan2(this.camera.position.z - this.cameraTarget.z, this.camera.position.x - this.cameraTarget.x)
+        const angle = Math.atan2(this.camera.position.z - this.cameraTarget.z, this.camera.position.x - this.cameraTarget.x)
         this.camera.position.x = this.cameraTarget.x + radius * Math.cos(angle)
         this.camera.position.z = this.cameraTarget.z + radius * Math.sin(angle)
         this.camera.lookAt(this.cameraTarget)
@@ -1250,27 +1250,27 @@ Page({
       return
     }
 
-    var touch = this.getTouchPoint(e.touches[0])
+    const touch = this.getTouchPoint(e.touches[0])
     if (!touch) return
 
     if (this.touchStartPos) {
-      var ddx = touch.x - this.touchStartPos.x
-      var ddy = touch.y - this.touchStartPos.y
+      const ddx = touch.x - this.touchStartPos.x
+      const ddy = touch.y - this.touchStartPos.y
       if (Math.abs(ddx) > 5 || Math.abs(ddy) > 5) {
         this.isDragging = true
       }
     }
 
     if (e.touches.length === 1 && this.lastTouch) {
-      var deltaX = (touch.x - this.lastTouch.x) * 0.01
-      var deltaY = (touch.y - this.lastTouch.y) * 0.01
+      const deltaX = (touch.x - this.lastTouch.x) * 0.01
+      const deltaY = (touch.y - this.lastTouch.y) * 0.01
 
-      var angle = Math.atan2(this.camera.position.z - this.cameraTarget.z, this.camera.position.x - this.cameraTarget.x)
+      let angle = Math.atan2(this.camera.position.z - this.cameraTarget.z, this.camera.position.x - this.cameraTarget.x)
       angle -= deltaX
 
-      var radius = Math.sqrt(
-        Math.pow(this.camera.position.x - this.cameraTarget.x, 2) +
-        Math.pow(this.camera.position.z - this.cameraTarget.z, 2)
+      const radius = Math.sqrt(
+        Math.pow(this.camera.position.x - this.cameraTarget.x, 2)
+        + Math.pow(this.camera.position.z - this.cameraTarget.z, 2)
       )
 
       this.camera.position.x = this.cameraTarget.x + radius * Math.cos(angle)
@@ -1282,7 +1282,7 @@ Page({
     }
   },
 
-  onTouchEnd: function(e) {
+  onTouchEnd(e) {
     if (this.pinching) {
       this.pinching = false
       this.lastPinchDist = 0
@@ -1290,7 +1290,7 @@ Page({
     }
 
     if (!this.isDragging && this.touchStartPos) {
-      var elapsed = Date.now() - this.touchStartTime
+      const elapsed = Date.now() - this.touchStartTime
       if (elapsed < 300) {
         this.handleTap(this.touchStartPos.x, this.touchStartPos.y)
       }
@@ -1299,36 +1299,36 @@ Page({
     this.lastTouch = null
   },
 
-  handleTap: function(x, y) {
-    var THREE = this.THREE
+  handleTap(x, y) {
+    const THREE = this.THREE
     if (!THREE) return
 
-    var canvasMetrics = this.getCanvasMetrics()
+    const canvasMetrics = this.getCanvasMetrics()
     if (canvasMetrics.width <= 0 || canvasMetrics.height <= 0) return
 
-    var localX = x - canvasMetrics.left
-    var localY = y - canvasMetrics.top
-    var mouse = new THREE.Vector2(
+    const localX = x - canvasMetrics.left
+    const localY = y - canvasMetrics.top
+    const mouse = new THREE.Vector2(
       (localX / canvasMetrics.width) * 2 - 1,
       -(localY / canvasMetrics.height) * 2 + 1
     )
 
-    var raycaster = new THREE.Raycaster()
+    const raycaster = new THREE.Raycaster()
     raycaster.setFromCamera(mouse, this.camera)
 
-    var allMeshes = []
-    var self = this
-    Object.keys(this.deviceMeshes).forEach(function(id) {
-      var group = self.deviceMeshes[id]
-      group.traverse(function(child) {
+    const allMeshes = []
+    const self = this
+    Object.keys(this.deviceMeshes).forEach(function (id) {
+      const group = self.deviceMeshes[id]
+      group.traverse(function (child) {
         if (child.isMesh && !child.userData.isStatusBorder) allMeshes.push(child)
       })
     })
 
-    var intersects = raycaster.intersectObjects(allMeshes, false)
+    const intersects = raycaster.intersectObjects(allMeshes, false)
     if (intersects.length > 0) {
-      var obj = intersects[0].object
-      var group = obj.parent
+      const obj = intersects[0].object
+      let group = obj.parent
       while (group && !group.userData.clickable) {
         group = group.parent
       }
@@ -1342,30 +1342,30 @@ Page({
     }
   },
 
-  onDeviceClick: function(deviceId, hitObject) {
+  onDeviceClick(deviceId, hitObject) {
     this.selectedDeviceId = deviceId
     this.selectedHitObjectName = this.getHitObjectDisplayName(hitObject)
     this.showDeviceInfo(deviceId, hitObject)
     this.focusOnDevice(deviceId, this.selectedHitObjectName)
   },
 
-  showDeviceInfo: function(deviceId, hitObject) {
-    var self = this
-    var mapInfo = DEVICE_3D_MAP[deviceId]
-    var configKey = mapInfo ? mapInfo.configKey : ''
-    var config = INSTRUMENT_CONFIG[configKey] || {}
-    var dbDeviceId = this.resolveDbDeviceId(deviceId)
-    var dbInfo = this.getDeviceInfo(deviceId)
-    var status = this.getDeviceStatus(deviceId)
-    var statusText = status === 'using' ? '使用中' : (status === 'maintenance' ? '维修中' : '可用')
-    var model = this.getDeviceModel(dbInfo)
-    var detailUrl = this.role === 'student'
+  showDeviceInfo(deviceId, hitObject) {
+    const self = this
+    const mapInfo = DEVICE_3D_MAP[deviceId]
+    const configKey = mapInfo ? mapInfo.configKey : ''
+    const config = INSTRUMENT_CONFIG[configKey] || {}
+    const dbDeviceId = this.resolveDbDeviceId(deviceId)
+    const dbInfo = this.getDeviceInfo(deviceId)
+    const status = this.getDeviceStatus(deviceId)
+    const statusText = status === 'using' ? '使用中' : (status === 'maintenance' ? '维修中' : '可用')
+    const model = this.getDeviceModel(dbInfo)
+    const detailUrl = this.role === 'student'
       ? this.buildStudentDetailUrl(deviceId)
       : this.buildAdminDetailUrl(dbInfo)
-    var hitObjectName = typeof hitObject === 'string'
+    const hitObjectName = typeof hitObject === 'string'
       ? String(hitObject || '').trim()
       : this.getHitObjectDisplayName(hitObject)
-    var panelData = createPanelData({
+    const panelData = createPanelData({
       hitObjectName: hitObjectName,
       dbInfo: dbInfo,
       dbDeviceId: dbDeviceId,
@@ -1380,7 +1380,7 @@ Page({
       fallbackDescription: '暂无描述',
       fallbackLabText: '公共实验室1',
       unknownName: '未知仪器',
-      summarizeText: function(text) {
+      summarizeText(text) {
         return self.summarizeText(text, 44)
       }
     })
@@ -1391,14 +1391,14 @@ Page({
     })
   },
 
-  closePanel: function() {
+  closePanel() {
     this.setData({ panelOpen: false })
   },
 
-  goToDeviceDetail: function() {
+  goToDeviceDetail() {
     if (!this.selectedDeviceId) return
 
-    var url = ''
+    let url = ''
     if (this.role === 'student') {
       url = this.buildStudentDetailUrl(this.selectedDeviceId)
     } else {
@@ -1415,7 +1415,7 @@ Page({
 
     wx.navigateTo({
       url: url,
-      fail: function(err) {
+      fail(err) {
         console.error('跳转仪器详情失败:', err)
         wx.showToast({
           title: '加载失败',
@@ -1425,14 +1425,14 @@ Page({
     })
   },
 
-  goToReserve: function() {
+  goToReserve() {
     if (!this.selectedDeviceId) return
     wx.navigateTo({
       url: '/pages/reservation/reservation?device_id=' + this.selectedDeviceId
     })
   },
 
-  goBack: function() {
+  goBack() {
     wx.navigateBack()
   }
 })

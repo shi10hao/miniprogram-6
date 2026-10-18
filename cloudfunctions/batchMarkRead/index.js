@@ -15,14 +15,14 @@ exports.main = async (event) => {
         user_id: userId,
         is_read: _.neq(true)
       })
-      .limit(100)  // 云函数内 limit 可以到 100
+      .limit(100) // 云函数内 limit 可以到 100
       .get()
 
     const records = res.data || []
     if (records.length === 0) break
-    console.log("records:",records)
+    console.log('records:', records)
     const ids = records.map(item => item._id)
-    
+
     await db.collection('messages')
       .where({
         _id: _.in(ids)

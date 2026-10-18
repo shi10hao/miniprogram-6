@@ -7,7 +7,7 @@ const db = cloud.database()
 
 const deleteMessage = createDeleteMessageHandler({
   db,
-  getOpenId: function() {
+  getOpenId() {
     const wxContext = cloud.getWXContext ? cloud.getWXContext() : {}
     return wxContext.OPENID || ''
   }

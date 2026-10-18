@@ -171,11 +171,11 @@ Page({
         lab_type: 'public'
       }
       return _.or([{
-          lab_type: 'public'
-        },
-        {
-          lab_name: groupName
-        }
+        lab_type: 'public'
+      },
+      {
+        lab_name: groupName
+      }
       ])
     }
 
@@ -289,11 +289,11 @@ Page({
     const nowIso = this.buildNowIsoString()
     // 预约未结束：只要还没到结束时间且未开始使用，都纳入列表
     const notEndedCondition = _.or([{
-        end_time: _.gt(nowText)
-      },
-      {
-        end_time: _.gt(nowIso)
-      }
+      end_time: _.gt(nowText)
+    },
+    {
+      end_time: _.gt(nowIso)
+    }
     ])
 
     const chunks = this.chunkArray(deviceIds, DEVICE_ID_CHUNK_SIZE)
@@ -301,19 +301,19 @@ Page({
     for (let i = 0; i < chunks.length; i += 1) {
       const chunk = chunks[i]
       const baseCondition = _.and([{
-          status: 'approved'
-        },
-        {
-          device_id: _.in(chunk)
-        },
-        notEndedCondition,
-        _.or([{
-            usage_status: _.exists(false)
-          },
-          {
-            usage_status: 'not_started'
-          }
-        ])
+        status: 'approved'
+      },
+      {
+        device_id: _.in(chunk)
+      },
+      notEndedCondition,
+      _.or([{
+        usage_status: _.exists(false)
+      },
+      {
+        usage_status: 'not_started'
+      }
+      ])
       ])
 
       try {
@@ -367,7 +367,7 @@ Page({
 
   uniqueById(rows) {
     const map = {};
-    (rows || []).forEach(item => {
+    (rows || []).forEach((item) => {
       const key = String((item && item._id) || '')
       if (!key) return
       if (!map[key]) map[key] = item
@@ -447,12 +447,12 @@ Page({
         (a, b) => this.getTimeValue(b.start_time) - this.getTimeValue(a.start_time)
       )
       const usingMap = {}
-      usingUsagesSorted.forEach(item => {
+      usingUsagesSorted.forEach((item) => {
         if (item && item.device_id && !usingMap[item.device_id]) usingMap[item.device_id] = item
       })
 
       const devicesForView = devices
-        .map(item => {
+        .map((item) => {
           const usingRecord = usingMap[item.device_id]
           const displayStatus = usingRecord ? 'using' : item.status
           return {
@@ -468,7 +468,7 @@ Page({
 
       const nowTimestamp = Date.now()
       const reserves = this.uniqueById(futureReservesRaw)
-        .map(item => {
+        .map((item) => {
           const startTimeVal = this.getTimeValue(item.start_time)
           let displayStatus = 'upcoming'
           let statusText = '即将到来'
@@ -505,7 +505,6 @@ Page({
       const allPhotoFileIds = this.collectCloudFileIds(usageForTemp)
       const tempUrlMap = await this.getTempUrlMap(allPhotoFileIds)
 
-
       // C
       const usages = usagesRawSorted
         .map(item => this.decorateUsageRecord(item, tempUrlMap))
@@ -515,7 +514,7 @@ Page({
         }))
       // D
       const usagePhotos = usagePhotoRaw
-        .map(item => {
+        .map((item) => {
           const decorated = this.decorateUsageRecord(item, tempUrlMap)
           // 添加 abnormal_time_display：将 ISO 格式转换为可读格式
           let abnormalTimeDisplay = ''
@@ -552,15 +551,15 @@ Page({
       // console.log('OUT IF finalDevices:',finalDevices)
       const kw = this.data.filterKeyword?.toLowerCase().trim()
       if (kw && !this.data.showAllFiltered) {
-        finalDevices = devicesForView.filter(item => {
+        finalDevices = devicesForView.filter((item) => {
           const room = (item.device_room || '').toLowerCase()
           const name = (item.device_name || '').toLowerCase()
           const model = (item.model || '').toLowerCase()
           const lab = (item.lab_name || '').toLowerCase()
           const desc = (item.description || '').toLowerCase()
           const id = (item.device_id || '').toLowerCase()
-          return room.includes(kw) || name.includes(kw) || model.includes(kw) ||
-            lab.includes(kw) || desc.includes(kw) || id.includes(kw)
+          return room.includes(kw) || name.includes(kw) || model.includes(kw)
+            || lab.includes(kw) || desc.includes(kw) || id.includes(kw)
         })
 
         // 用过滤后的设备 ID 同步过滤其他区域
@@ -577,7 +576,7 @@ Page({
         }
       }
 
-      // E   
+      // E
       let deviceInfo = null
       if (finalDevices.length > 0) {
         const picUrl = await this.getTempFileURL(finalDevices[0].picture)
@@ -592,9 +591,9 @@ Page({
         }
       }
 
-      const renderDevices = this.data.showAllDevices ?
-        finalDevices :
-        finalDevices.slice(0, this.data.deviceDisplayLimit)
+      const renderDevices = this.data.showAllDevices
+        ? finalDevices
+        : finalDevices.slice(0, this.data.deviceDisplayLimit)
 
       this.setData({
         devices: finalDevices,
@@ -626,7 +625,7 @@ Page({
 
       wx.cloud.getTempFileURL({
         fileList: [fileID],
-        success: res => {
+        success: (res) => {
           resolve(res.fileList[0]?.tempFileURL || '')
         },
         fail: () => resolve('')
@@ -652,7 +651,7 @@ Page({
   },
 
   confirmAction(content) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       wx.showModal({
         title: '确认操作',
         content,
@@ -800,12 +799,12 @@ Page({
 
   collectCloudFileIds(usages) {
     const ids = []
-    const pushIfCloud = value => {
+    const pushIfCloud = (value) => {
       if (this.isCloudFileId(value)) ids.push(value.trim())
     }
 
     ;
-    (usages || []).forEach(item => {
+    (usages || []).forEach((item) => {
       pushIfCloud(item.start_photo)
       this.normalizeImageList(item.usage_images).forEach(pushIfCloud)
       // 新增：结束信息中的图片（总的预约单、补充预约单）
@@ -824,22 +823,22 @@ Page({
     if (!uniqueIds.length) return Promise.resolve({})
 
     const chunks = this.chunkArray(uniqueIds, DEVICE_ID_CHUNK_SIZE)
-    const tasks = chunks.map(chunk => new Promise(resolve => {
+    const tasks = chunks.map(chunk => new Promise((resolve) => {
       wx.cloud.getTempFileURL({
         fileList: chunk,
         success: res => resolve(res.fileList || []),
-        fail: err => {
+        fail: (err) => {
           console.error('获取临时图片链接失败:', err)
           resolve([])
         }
       })
     }))
 
-    return Promise.all(tasks).then(results => {
+    return Promise.all(tasks).then((results) => {
       const map = {}
-      results.forEach(list => {
+      results.forEach((list) => {
         ;
-        (list || []).forEach(item => {
+        (list || []).forEach((item) => {
           if (item && item.fileID && item.tempFileURL) map[item.fileID] = item.tempFileURL
         })
       })
@@ -890,7 +889,7 @@ Page({
       usageImageUrls,
       allPhotoUrls,
       hasAnyPhoto: allPhotoUrls.length > 0,
-      endChecklistDisplay  // 新增
+      endChecklistDisplay // 新增
     }
   },
 
@@ -984,10 +983,12 @@ Page({
           picture: info.picture || '',
           description: info.description || '',
           video_url: info.video_url || '',
-          operation_procedure: typeof info.operation_procedure === 'object' ?
-            JSON.stringify(info.operation_procedure) : (info.operation_procedure || ''),
-          precautions: typeof info.precautions === 'object' ?
-            JSON.stringify(info.precautions) : (info.precautions || ''),
+          operation_procedure: typeof info.operation_procedure === 'object'
+            ? JSON.stringify(info.operation_procedure)
+            : (info.operation_procedure || ''),
+          precautions: typeof info.precautions === 'object'
+            ? JSON.stringify(info.precautions)
+            : (info.precautions || ''),
           specifications: specsText
         },
         newPictureUrl: '',
@@ -1018,13 +1019,13 @@ Page({
       showAllDevices: true
     }, () => {
       // 此时showAllDevices已经更新完成
-      const renderDevices = this.data.showAllDevices ?
-        this.data.devices :
-        this.data.devices.slice(0, this.data.deviceDisplayLimit)
+      const renderDevices = this.data.showAllDevices
+        ? this.data.devices
+        : this.data.devices.slice(0, this.data.deviceDisplayLimit)
       this.setData({
         renderDevices
-      });
-    });
+      })
+    })
   },
 
   foldDevices() {
@@ -1032,13 +1033,13 @@ Page({
       showAllDevices: false
     }, () => {
       // 此时showAllDevices已经更新完成
-      const renderDevices = this.data.showAllDevices ?
-        this.data.devices :
-        this.data.devices.slice(0, this.data.deviceDisplayLimit)
+      const renderDevices = this.data.showAllDevices
+        ? this.data.devices
+        : this.data.devices.slice(0, this.data.deviceDisplayLimit)
       this.setData({
         renderDevices
-      });
-    });
+      })
+    })
   },
 
   // 表单输入
@@ -1111,10 +1112,12 @@ Page({
       const updateData = {}
 
       // 0) 记录旧文件的 fileID（上传前记下，等保存成功后删除）
-      const oldPictureId = hasNewPicture && editForm.picture && this.isCloudFileId(editForm.picture) ?
-        editForm.picture : null
-      const oldVideoId = hasNewVideo && editForm.video_url && this.isCloudFileId(editForm.video_url) ?
-        editForm.video_url : null
+      const oldPictureId = hasNewPicture && editForm.picture && this.isCloudFileId(editForm.picture)
+        ? editForm.picture
+        : null
+      const oldVideoId = hasNewVideo && editForm.video_url && this.isCloudFileId(editForm.video_url)
+        ? editForm.video_url
+        : null
       // 1) 上传新图片（如果有）
       if (hasNewPicture) {
         wx.showLoading({
@@ -1164,7 +1167,7 @@ Page({
         const specsText = editForm.specifications.trim()
         if (specsText) {
           const specsObj = {}
-          specsText.split('\n').forEach(line => {
+          specsText.split('\n').forEach((line) => {
             const sep = line.indexOf('：') > -1 ? '：' : (line.indexOf(':') > -1 ? ':' : null)
             if (sep) {
               const key = line.substring(0, line.indexOf(sep)).trim()
@@ -1263,7 +1266,7 @@ Page({
       })
       this.loadDeviceDetail()
 
-      console.log("updateData:", updateData)
+      console.log('updateData:', updateData)
     } catch (err) {
       wx.hideLoading()
       console.error('保存仪器信息失败:', err)
@@ -1436,17 +1439,17 @@ Page({
     const end = format(endTime)
     if (!start) return ''
     if (!end) return start
-    
+
     // 如果日期相同，只显示一次日期
     const startDate = start.split(' ')[0]
     const endDate = end.split(' ')[0]
     const startTimeOnly = start.split(' ')[1]
     const endTimeOnly = end.split(' ')[1]
-    
+
     if (startDate === endDate) {
       return `${startDate} ${startTimeOnly} - ${endTimeOnly}`
     }
-    
+
     return `${start} - ${end}`
   }
 })
