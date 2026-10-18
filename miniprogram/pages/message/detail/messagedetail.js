@@ -1,59 +1,84 @@
 const db = wx.cloud.database()
+const {
+  normalizeMessage,
+  normalizeNotice,
+  getEmptyState
+} = require('./detailModel')
 
-const TYPE_LABELS = {
-  reservation_success: '预约成功',
-  reservation_remind: '预约提醒',
-  usage_photo_remind: '照片提醒',
-  usage_end_remind: '结束提醒',
-  admin_notice: '系统通知'
-}
+// 公告里的「协作文档」是腾讯文档链接，点按钮跳到腾讯文档小程序；
+// 跳不过去就复制链接兜底（与合并前的 noticedetail 行为一致）
+const TENCENT_DOC_APPID = 'wxd45c635d754dbf59'
+const TENCENT_DOC_PAGE = 'pages/detail/detail?url='
 
 Page({
   data: {
-    message: null,
-    isLoading: true
+    detail: null,
+    isLoading: true,
+    source: 'message',
+    emptyTitle: '消息不存在',
+    emptyDesc: '该消息可能已被删除或无法访问'
   },
 
   onLoad(options) {
-    const messageId = options.messageId
-    const source = options.source || 'message'
+    // 消息与公告共用本页：列表统一传 messageId + source；
+    // 旧公告入口的 noticeId 也认，避免历史跳转失效
+    const source = options.source === 'notice' || options.noticeId ? 'notice' : 'message'
+    const detailId = options.messageId || options.noticeId || ''
+    const emptyState = getEmptyState(source)
 
-    if (!messageId) {
+    this.setData({
+      source,
+      emptyTitle: emptyState.title,
+      emptyDesc: emptyState.desc
+    })
+
+    wx.setNavigationBarTitle({
+      title: source === 'notice' ? '公告详情' : '消息详情'
+    })
+
+    if (!detailId) {
       this.setData({ isLoading: false })
       wx.showToast({
-        title: '参数错误',
+        title: source === 'notice' ? '缺少公告ID' : '参数错误',
         icon: 'none'
       })
       return
     }
 
-    this.getMessageDetail(messageId, source)
+    this.getDetail(detailId, source)
   },
 
-  getMessageDetail(messageId, source) {
+  getDetail(detailId, source) {
     this.setData({ isLoading: true })
 
     const request = source === 'notice'
-      ? this.getNoticeDetail(messageId)
-      : this.getUserMessageDetail(messageId)
+      ? this.getNoticeDetail(detailId)
+      : this.getUserMessageDetail(detailId)
 
-    request
-      .then(message => {
+    return request
+      .then(detail => {
         this.setData({
-          message,
+          detail,
           isLoading: false
         })
+        return detail
       })
       .catch(err => {
         console.error('获取消息详情失败:', err)
         this.setData({
-          message: null,
+          detail: null,
           isLoading: false
         })
-        wx.showToast({
-          title: '消息不存在',
-          icon: 'none'
-        })
+
+        const reason = err && err.message
+        if (reason === 'missing_user') {
+          wx.showToast({ title: '请先完成登录', icon: 'none' })
+        } else if (reason === 'message_not_found' || reason === 'notice_not_found') {
+          wx.showToast({ title: this.data.emptyTitle, icon: 'none' })
+        } else {
+          wx.showToast({ title: '加载失败，请重试', icon: 'none' })
+        }
+        return null
       })
   },
 
@@ -76,32 +101,33 @@ Page({
           throw new Error('message_not_found')
         }
 
-        const message = this.normalizeMessage(item)
+        const detail = normalizeMessage(item)
         return this.markMessageAsRead(messageId, userInfo.userId).then(marked => {
           if (marked) {
-            message.is_read = true
+            detail.is_read = true
           }
-          return message
+          return detail
         })
       })
   },
 
-  getNoticeDetail(messageId) {
+  // 公告按唯一标识取即可，不再附加 type 过滤：
+  // 合并前的 noticedetail 就没有这个限制，避免历史公告数据查不到
+  getNoticeDetail(noticeId) {
     return db.collection('notice')
       .where({
-        notice_id: messageId,
-        type: 'admin'
+        notice_id: noticeId
       })
       .limit(1)
       .get()
       .then(res => {
         if (res.data && res.data.length > 0) {
-          return this.normalizeNotice(res.data[0])
+          return normalizeNotice(res.data[0])
         }
+
         return db.collection('notice')
           .where({
-            _id: messageId,
-            type: 'admin'
+            _id: noticeId
           })
           .limit(1)
           .get()
@@ -110,40 +136,9 @@ Page({
             if (!item) {
               throw new Error('notice_not_found')
             }
-            return this.normalizeNotice(item)
+            return normalizeNotice(item)
           })
       })
-  },
-
-  normalizeMessage(item) {
-    return {
-      _id: item._id,
-      source: 'message',
-      title: item.title || this.getTypeLabel(item.type),
-      content: item.content || '',
-      type: item.type,
-      typeLabel: this.getTypeLabel(item.type),
-      create_time: this.formatTime(item.create_time),
-      is_read: !!item.is_read
-    }
-  },
-
-  normalizeNotice(item) {
-    return {
-      _id: item.notice_id || item._id,
-      source: 'notice',
-      title: item.title || '管理员公告',
-      content: item.content || '',
-      type: 'admin_notice',
-      // notice 表是全员广播的公告，固定「管理员公告」，别复用 admin_notice 的标签
-      typeLabel: '管理员公告',
-      create_time: this.formatTime(item.publish_date || item.create_time),
-      is_read: true
-    }
-  },
-
-  getTypeLabel(type) {
-    return TYPE_LABELS[type] || '系统消息'
   },
 
   markMessageAsRead(messageId, userId) {
@@ -167,16 +162,32 @@ Page({
       })
   },
 
-  formatTime(value) {
-    if (!value) return '未知时间'
-    const text = String(value)
-    const normalized = text.replace(/^(\d{4}-\d{2}-\d{2})-(\d{2}:\d{2})$/, '$1 $2').replace(' ', 'T')
-    const date = new Date(normalized)
-    if (Number.isNaN(date.getTime())) {
-      return text
-    }
+  // 打开协作文档（跳腾讯文档小程序，失败则复制链接）
+  openDoc() {
+    const url = this.data.detail && this.data.detail.doc_url
+    if (!url) return
 
-    const pad = n => String(n).padStart(2, '0')
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+    wx.navigateToMiniProgram({
+      appId: TENCENT_DOC_APPID,
+      path: TENCENT_DOC_PAGE + encodeURIComponent(url),
+      fail: () => {
+        // 兜底：复制链接到剪贴板
+        wx.setClipboardData({
+          data: url,
+          success: () => {
+            wx.showToast({
+              title: '链接已复制，去微信粘贴打开',
+              icon: 'none'
+            })
+          },
+          fail: () => {
+            wx.showToast({
+              title: '打开失败，请重试',
+              icon: 'none'
+            })
+          }
+        })
+      }
+    })
   }
 })

@@ -1,0 +1,1231 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>reservation 预览</title>
+<style>
+view { display: block; }
+text { display: inline; }
+page { display: block; }
+body { margin: 0; }
+</style>
+<style>/* ==========================================================================
+   全局设计系统（app.wxss）
+   --------------------------------------------------------------------------
+   以前这里是空文件，导致每个页面各写一套颜色/圆角/阴影：
+     · #62BCC4 被硬编码了 124 处
+     · 7 个页面各自重复写同一段浅灰渐变背景
+     · 卡片阴影在同一项目里出现 6 种以上的不同数值
+   这里统一收敛为「设计变量 + 通用组件类」，页面只引用变量和类名。
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. 设计变量
+   同时定义在 :root 和 page 上：page 覆盖普通页面，
+   :root 保证自定义组件内部也能拿到变量。
+   -------------------------------------------------------------------------- */
+:root,
+page {
+  /* 品牌色：主色取自原有导航栏 #62BCC4，往下补全梯度 */
+  --ds-primary: #62bcc4;
+  --ds-primary-dark: #4aa8b0;
+  --ds-primary-deep: #2d6a6e;
+  --ds-primary-light: #e8f8f9;
+  --ds-primary-soft: #f2fbfc;
+  --ds-primary-shadow: rgba(98, 188, 196, 0.28);
+
+  /* 语义色 */
+  --ds-success: #10b981;
+  --ds-success-light: #e7f8f1;
+  --ds-warning: #f59e0b;
+  --ds-warning-light: #fff7e8;
+  --ds-danger: #ef4444;
+  --ds-danger-light: #fef2f2;
+
+  /* 中性色：统一文字层级 */
+  --ds-text: #1f2733;
+  --ds-text-secondary: #5f6b7a;
+  --ds-text-muted: #9aa4b2;
+  --ds-text-disabled: #c4ccd6;
+
+  /* 背景与分隔线 */
+  --ds-bg: #f4f6f8;
+  --ds-surface: #ffffff;
+  --ds-fill: #f7f9fa;
+  --ds-divider: #eef1f4;
+  --ds-border: #e4e9ee;
+
+  /* 圆角 */
+  --ds-radius-sm: 12px;
+  --ds-radius: 20px;
+  --ds-radius-lg: 28px;
+  --ds-radius-pill: 999px;
+
+  /* 间距 */
+  --ds-gap-xs: 8px;
+  --ds-gap-sm: 16px;
+  --ds-gap: 24px;
+  --ds-gap-lg: 32px;
+  --ds-gap-xl: 48px;
+
+  /* 阴影：只保留两档，卡片用 sm，浮层用 md */
+  --ds-shadow-sm: 0 2px 12px rgba(31, 39, 51, 0.05);
+  --ds-shadow: 0 6px 24px rgba(31, 39, 51, 0.07);
+  --ds-shadow-md: 0 12px 36px rgba(31, 39, 51, 0.1);
+}
+
+/* --------------------------------------------------------------------------
+   2. 页面基线
+   -------------------------------------------------------------------------- */
+page {
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-size: 28px;
+  line-height: 1.55;
+  /* 系统字体栈，中文优先用系统黑体，比默认更清爽 */
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 去掉 button 组件的默认边框与背景，便于自定义 */
+button::after {
+  border: none;
+}
+
+/* --------------------------------------------------------------------------
+   3. 布局容器
+   -------------------------------------------------------------------------- */
+.ds-page {
+  min-height: 100vh;
+  padding: var(--ds-gap);
+  box-sizing: border-box;
+  background: var(--ds-bg);
+}
+
+/* 带品牌色头部时，内容区向上叠压，形成层次 */
+.ds-page-overlap {
+  padding-top: 0;
+}
+
+/* --------------------------------------------------------------------------
+   4. 卡片
+   -------------------------------------------------------------------------- */
+.ds-card {
+  background: var(--ds-surface);
+  border-radius: var(--ds-radius);
+  padding: var(--ds-gap-lg);
+  margin-bottom: var(--ds-gap);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+/* 卡片内直接放列表行时用这个小内边距版本 */
+.ds-card-tight {
+  padding: var(--ds-gap-sm) 0;
+}
+
+.ds-card-flat {
+  box-shadow: none;
+  border: 1px solid var(--ds-border);
+}
+
+/* --------------------------------------------------------------------------
+   5. 区块标题
+   -------------------------------------------------------------------------- */
+.ds-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--ds-gap);
+}
+
+/* 带竖线色块的标题，比纯文字更像成熟产品 */
+.ds-section-title {
+  position: relative;
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--ds-text);
+  padding-left: 20px;
+}
+
+.ds-section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 26px;
+  border-radius: 3px;
+  background: var(--ds-primary);
+}
+
+.ds-section-more {
+  font-size: 24px;
+  color: var(--ds-primary);
+}
+
+/* --------------------------------------------------------------------------
+   6. 按钮
+   -------------------------------------------------------------------------- */
+.ds-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 88px;
+  padding: 0 40px;
+  border-radius: var(--ds-radius-pill);
+  font-size: 30px;
+  font-weight: 500;
+  background: var(--ds-primary);
+  color: #fff;
+  transition: opacity 0.2s ease;
+}
+
+.ds-btn:active {
+  opacity: 0.85;
+}
+
+.ds-btn-block {
+  width: 100%;
+}
+
+.ds-btn-ghost {
+  background: transparent;
+  color: var(--ds-primary);
+  border: 1px solid var(--ds-primary);
+}
+
+.ds-btn-danger {
+  background: transparent;
+  color: var(--ds-danger);
+  border: 1px solid var(--ds-danger);
+}
+
+/* --------------------------------------------------------------------------
+   7. 列表行（右侧箭头）
+   -------------------------------------------------------------------------- */
+.ds-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-gap-sm);
+  padding: 28px var(--ds-gap-lg);
+  position: relative;
+}
+
+.ds-cell:active {
+  background: var(--ds-fill);
+}
+
+/* 分隔线从左内边距开始，不顶到卡片边缘 */
+.ds-cell::after {
+  content: '';
+  position: absolute;
+  left: var(--ds-gap-lg);
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--ds-divider);
+  transform: scaleY(0.5);
+}
+
+.ds-cell:last-child::after {
+  display: none;
+}
+
+.ds-cell-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--ds-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  background: var(--ds-primary-light);
+  flex-shrink: 0;
+}
+
+.ds-cell-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ds-cell-title {
+  display: block;
+  font-size: 30px;
+  color: var(--ds-text);
+}
+
+.ds-cell-desc {
+  display: block;
+  margin-top: 4px;
+  font-size: 24px;
+  color: var(--ds-text-muted);
+}
+
+.ds-cell-arrow {
+  font-size: 34px;
+  color: var(--ds-text-disabled);
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   8. 标签
+   -------------------------------------------------------------------------- */
+.ds-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 16px;
+  border-radius: var(--ds-radius-sm);
+  font-size: 22px;
+  line-height: 1.5;
+}
+
+.ds-tag-primary {
+  background: var(--ds-primary-light);
+  color: var(--ds-primary-dark);
+}
+
+.ds-tag-success {
+  background: var(--ds-success-light);
+  color: var(--ds-success);
+}
+
+.ds-tag-warning {
+  background: var(--ds-warning-light);
+  color: var(--ds-warning);
+}
+
+.ds-tag-danger {
+  background: var(--ds-danger-light);
+  color: var(--ds-danger);
+}
+
+.ds-tag-muted {
+  background: var(--ds-fill);
+  color: var(--ds-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   9. 状态：加载 / 空 / 底部提示
+   -------------------------------------------------------------------------- */
+.ds-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 100px 0;
+  color: var(--ds-text-muted);
+  font-size: 26px;
+}
+
+.ds-spinner {
+  width: 48px;
+  height: 48px;
+  margin-bottom: var(--ds-gap-sm);
+  border: 4px solid var(--ds-border);
+  border-top-color: var(--ds-primary);
+  border-radius: 50%;
+  animation: ds-spin 0.8s linear infinite;
+}
+
+@keyframes ds-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ds-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120px 40px;
+  text-align: center;
+}
+
+.ds-empty-icon {
+  font-size: 84px;
+  opacity: 0.35;
+  margin-bottom: var(--ds-gap);
+}
+
+.ds-empty-title {
+  font-size: 30px;
+  color: var(--ds-text-secondary);
+  margin-bottom: 8px;
+}
+
+.ds-empty-desc {
+  font-size: 24px;
+  color: var(--ds-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   10. 骨架屏：列表加载时比"加载中..."更接近商业化观感
+   -------------------------------------------------------------------------- */
+.ds-skeleton {
+  background: linear-gradient(90deg, #eef1f4 25%, #f6f8fa 37%, #eef1f4 63%);
+  background-size: 400% 100%;
+  animation: ds-shimmer 1.4s ease infinite;
+  border-radius: var(--ds-radius-sm);
+}
+
+@keyframes ds-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+.ds-skeleton-card {
+  background: var(--ds-surface);
+  border-radius: var(--ds-radius);
+  padding: var(--ds-gap-lg);
+  margin-bottom: var(--ds-gap);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+/* --------------------------------------------------------------------------
+   11. 文本工具类
+   -------------------------------------------------------------------------- */
+.ds-ellipsis {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ds-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ds-muted {
+  color: var(--ds-text-muted);
+}
+
+.ds-divider {
+  height: 1px;
+  background: var(--ds-divider);
+  transform: scaleY(0.5);
+}
+</style>
+<style>/* 预约页样式 —— 使用 app.wxss 的设计变量 */
+
+/* --------------------------------------------------------------------------
+   预约人：一行紧凑展示，不再占一整张卡
+   -------------------------------------------------------------------------- */
+.person-card {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-gap-sm);
+  padding: 26px var(--ds-gap-lg);
+}
+
+.person-avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, var(--ds-primary-deep), var(--ds-primary));
+  flex-shrink: 0;
+}
+
+.person-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.person-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.person-name {
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--ds-text);
+}
+
+.person-id {
+  font-size: 24px;
+  color: var(--ds-text-muted);
+}
+
+.person-group {
+  display: block;
+  margin-top: 4px;
+  font-size: 24px;
+  color: var(--ds-text-secondary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* --------------------------------------------------------------------------
+   搜索
+   -------------------------------------------------------------------------- */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 76px;
+  padding: 0 24px;
+  background: var(--ds-fill);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+}
+
+.search-icon {
+  font-size: 26px;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  font-size: 27px;
+  color: var(--ds-text);
+}
+
+.clear-search {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 22px;
+  color: var(--ds-text-muted);
+  background: var(--ds-border);
+}
+
+/* --------------------------------------------------------------------------
+   筛选：每个条件独占一行，标签固定宽度，按钮撑满剩余空间
+   -------------------------------------------------------------------------- */
+.filter-block {
+  margin-top: var(--ds-gap);
+}
+
+.filter-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.filter-line + .filter-line {
+  margin-top: 14px;
+}
+
+.filter-label {
+  flex-shrink: 0;
+  width: 96px;
+  font-size: 24px;
+  color: var(--ds-text-muted);
+}
+
+.filter-buttons {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 10px;
+}
+
+.filter-btn {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  padding: 14px 4px;
+  border-radius: var(--ds-radius-sm);
+  font-size: 24px;
+  color: var(--ds-text-secondary);
+  background: var(--ds-fill);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.filter-btn.active {
+  background: var(--ds-primary);
+  color: #fff;
+  font-weight: 500;
+}
+
+/* --------------------------------------------------------------------------
+   仪器列表
+   列表可能上百条，用固定高度的内层滚动区，
+   保证「预约说明」和后续卡片不会被挤出屏幕很远
+   -------------------------------------------------------------------------- */
+.device-count {
+  font-size: 24px;
+  color: var(--ds-text-muted);
+}
+
+.device-list {
+  margin-top: var(--ds-gap);
+}
+
+.device-scroll {
+  max-height: 720px;
+  height: 720px;
+}
+
+/* --------------------------------------------------------------------------
+   仪器卡片（真正的卡片观感：白底 + 阴影 + 缩略图）
+   -------------------------------------------------------------------------- */
+.device-card {
+  background: var(--ds-surface);
+  border-radius: var(--ds-radius);
+  padding: var(--ds-gap);
+  margin-bottom: var(--ds-gap-sm);
+  border: 1px solid var(--ds-border);
+  box-shadow: var(--ds-shadow-sm);
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.device-card:active {
+  background: var(--ds-fill);
+}
+
+.device-card.selected {
+  border-color: var(--ds-primary);
+  background: var(--ds-primary-soft);
+  box-shadow: 0 6px 20px var(--ds-primary-shadow);
+}
+
+.device-card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-gap-sm);
+}
+
+/* 缩略图 */
+.device-thumb {
+  width: 120px;
+  height: 120px;
+  border-radius: var(--ds-radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--ds-fill);
+}
+
+.device-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.device-thumb-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ds-primary-light);
+}
+
+.device-thumb-icon {
+  font-size: 52px;
+}
+
+.device-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.device-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.device-name {
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--ds-text);
+  max-width: 70%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.device-model {
+  flex: 1;
+  min-width: 0;
+  font-size: 24px;
+  color: var(--ds-text-muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 右侧状态区 */
+.device-side {
+  flex-shrink: 0;
+  align-self: center;
+  margin-left: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.selected-indicator {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ds-primary);
+  box-shadow: 0 4px 10px var(--ds-primary-shadow);
+}
+
+.selected-icon {
+  color: #fff;
+  font-size: 24px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.device-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+/* 卡片里的标签：尺寸全部自己算，不再继承全局 ds-tag 的 padding + line-height 1.5
+   （那样 22px 的字会被撑成 45px 高的方块）。
+   承载元素用 view 而不是 text：text 组件在真机上会保留 wxml 里的换行缩进，
+   且固定高度、垂直居中都不生效，标签会自己长高、文字贴底。 */
+.rsv-tag {
+  display: inline-block;
+  height: 36px;
+  padding: 0 14px;
+  box-sizing: border-box;
+  border-radius: var(--ds-radius-sm);
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 36px;
+  white-space: nowrap;
+}
+
+/* 同一行标签之间留 8px：不用 gap，部分安卓内核不支持 */
+.device-tags .rsv-tag + .rsv-tag {
+  margin-left: 8px;
+}
+
+.rsv-tag--primary {
+  background: var(--ds-primary-light);
+  color: var(--ds-primary-dark);
+}
+
+.rsv-tag--success {
+  background: var(--ds-success-light);
+  color: var(--ds-success);
+}
+
+.rsv-tag--warning {
+  background: var(--ds-warning-light);
+  color: var(--ds-warning);
+}
+
+.rsv-tag--danger {
+  background: var(--ds-danger-light);
+  color: var(--ds-danger);
+}
+
+.rsv-tag--muted {
+  background: var(--ds-fill);
+  color: var(--ds-text-muted);
+}
+
+.device-location-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 24px;
+}
+
+.device-location-icon {
+  font-size: 22px;
+  margin-right: 2px;
+  opacity: 0.7;
+}
+
+.device-lab-name {
+  font-size: 24px;
+  color: var(--ds-text-secondary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.device-room-text {
+  font-size: 24px;
+  color: var(--ds-text-muted);
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   仪器编号选择（选中后展开的面板）
+   -------------------------------------------------------------------------- */
+.your-content {
+  margin-top: var(--ds-gap);
+  padding-top: var(--ds-gap);
+  border-top: 1px solid var(--ds-divider);
+}
+
+.sub-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--ds-text-secondary);
+}
+
+/* 标题前的小色块，与区块标题保持一致的视觉语言 */
+.sub-label::before {
+  content: '';
+  width: 6px;
+  height: 22px;
+  border-radius: 3px;
+  background: var(--ds-primary);
+}
+
+/* 编号列表用两列：flex + 百分比宽度，不用 grid / gap。
+   grid 在部分安卓内核（X5）不支持，会退化成块级——每个编号独占一行、铺满整行。 */
+.all_devices_btns {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+/* 单个编号：单行「编号 | 状态」，高度收到 64px。
+   原来文案换行 + 12px 内边距，一个编号块近 90px 高，列表一多非常臃肿。 */
+.rsv-chip {
+  width: 49%;
+  height: 64px;
+  margin-bottom: 12px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 24px;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.rsv-chip-no {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.2;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 状态文字用一条细竖线跟编号隔开，比换行更省高度，也不会显得空 */
+.rsv-chip-status {
+  flex-shrink: 0;
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: 1px solid currentColor;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.2;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+/* 按状态给底色，统一用设计变量，不再用高饱和实心块 */
+.rsv-chip.status-available {
+  background: var(--ds-success-light);
+  border-color: #b7e4cd;
+  color: #166534;
+}
+
+.rsv-chip.status-reserved {
+  background: var(--ds-warning-light);
+  border-color: #f3ddb0;
+  color: #92400e;
+}
+
+.rsv-chip.status-using {
+  background: var(--ds-primary-light);
+  border-color: #b3e0e4;
+  color: #1e5f66;
+}
+
+.rsv-chip.status-maintenance {
+  background: var(--ds-fill);
+  border-color: var(--ds-border);
+  color: var(--ds-text-muted);
+}
+
+/* 只有「可用」的编号可以选，按下去给一点缩放反馈。
+   view 上的 :active 在真机不触发，所以真机靠 wxml 的 hover-class 挂 .rsv-chip--pressed，
+   :active 只是给浏览器预览用 */
+.rsv-chip.status-available:active,
+.rsv-chip--pressed {
+  transform: scale(0.97);
+}
+
+/* 选中态统一用品牌色，替掉原来的 Element UI 蓝 */
+.rsv-chip.active {
+  background: var(--ds-primary);
+  border-color: var(--ds-primary);
+  color: #fff;
+  box-shadow: 0 4px 12px var(--ds-primary-shadow);
+}
+
+/* 选中后各状态标签统一变白，不再逐个指定颜色 */
+.rsv-chip.active .rsv-chip-status {
+  color: #fff;
+  opacity: 0.9;
+  border-left-color: rgba(255, 255, 255, 0.6);
+}
+
+/* --------------------------------------------------------------------------
+   冲突提示
+   -------------------------------------------------------------------------- */
+.conflict-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: var(--ds-warning-light);
+  border: 1px solid #f3ddb0;
+  border-radius: var(--ds-radius-sm);
+}
+
+.warning-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.warning-text {
+  font-size: 24px;
+  color: #856404;
+}
+
+/* --------------------------------------------------------------------------
+   预约时间：四格并排
+   -------------------------------------------------------------------------- */
+.time-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--ds-gap-sm);
+}
+
+.time-field {
+  min-width: 0;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 24px;
+  color: var(--ds-text-muted);
+}
+
+.picker-view {
+  height: 76px;
+  line-height: 76px;
+  padding: 0 20px;
+  font-size: 28px;
+  color: var(--ds-text);
+  background: var(--ds-fill);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  box-sizing: border-box;
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.picker-view:active {
+  background: var(--ds-primary-light);
+  border-color: var(--ds-primary);
+}
+
+/* 时间范围提示放在区块标题右侧 */
+.time-hint {
+  font-size: 24px;
+  color: var(--ds-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   系统预约单
+   -------------------------------------------------------------------------- */
+.reserve-page-section {
+  margin-top: var(--ds-gap-lg);
+  padding-top: var(--ds-gap);
+  border-top: 1px solid var(--ds-divider);
+}
+
+.slot-upload {
+  width: 200px;
+  height: 200px;
+  border-radius: var(--ds-radius-sm);
+  overflow: hidden;
+  border: 2px dashed var(--ds-border);
+  background: var(--ds-fill);
+  position: relative;
+}
+
+.slot-upload:active {
+  border-color: var(--ds-primary);
+}
+
+.slot-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: 8px;
+}
+
+.slot-plus {
+  font-size: 48px;
+  color: var(--ds-text-disabled);
+  line-height: 1;
+}
+
+.slot-tip {
+  font-size: 22px;
+  color: var(--ds-text-muted);
+}
+
+.slot-preview {
+  width: 100%;
+  height: 100%;
+}
+
+.slot-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* --------------------------------------------------------------------------
+   提示条
+   -------------------------------------------------------------------------- */
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: var(--ds-gap);
+  padding: 20px;
+  border-radius: var(--ds-radius-sm);
+}
+
+.alert-danger {
+  background: var(--ds-danger-light);
+  border: 1px solid #f8c9c9;
+}
+
+.alert-danger .alert-text {
+  color: #b91c1c;
+}
+
+.alert-warning {
+  background: var(--ds-warning-light);
+  border: 1px solid #f3ddb0;
+}
+
+.alert-warning .alert-text {
+  color: #92400e;
+}
+
+.alert-icon {
+  font-size: 26px;
+  flex-shrink: 0;
+}
+
+.alert-text {
+  font-size: 26px;
+  font-weight: 500;
+}
+
+/* --------------------------------------------------------------------------
+   吸底提交栏：页面再长也不用滚到底部才能提交
+   -------------------------------------------------------------------------- */
+.has-sticky-bar {
+  padding-bottom: 200px;
+}
+
+.submit-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-gap);
+  padding: 20px var(--ds-gap);
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
+  background: var(--ds-surface);
+  border-top: 1px solid var(--ds-divider);
+  box-shadow: 0 -6px 24px rgba(31, 39, 51, 0.06);
+}
+
+.submit-bar-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.submit-device {
+  display: block;
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--ds-text);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.submit-slot {
+  display: block;
+  margin-top: 4px;
+  font-size: 22px;
+  color: var(--ds-primary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.submit-tip {
+  display: block;
+  font-size: 24px;
+  color: var(--ds-text-muted);
+}
+
+.submit-btn {
+  flex-shrink: 0;
+  width: 280px;
+  height: 84px;
+  padding: 0 32px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-primary);
+  color: #fff;
+  font-size: 30px;
+  font-weight: 600;
+  box-sizing: border-box;
+  box-shadow: 0 6px 18px var(--ds-primary-shadow);
+}
+
+/* 还没选好：浅底描边代替整块灰底，和主按钮拉开层级；
+   按钮依然可以点，点下去会 toast 提示还缺哪一步，不再是「点了没反应」 */
+.submit-btn.disabled {
+  background: var(--ds-fill);
+  color: var(--ds-text-secondary);
+  border: 1px solid var(--ds-border);
+  box-shadow: none;
+}
+
+/* 提交中：沿用主色，只降一点不透明度，避免按钮在提交瞬间突然变灰 */
+.submit-btn.submitting {
+  background: var(--ds-primary);
+  color: #fff;
+  opacity: 0.75;
+  box-shadow: none;
+}
+
+.submit-btn.submitting:active {
+  opacity: 0.75;
+}
+
+/* --------------------------------------------------------------------------
+   预约说明
+   -------------------------------------------------------------------------- */
+.instructions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.instruction-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.bullet {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ds-primary);
+  opacity: 0.6;
+  margin-top: 14px;
+  flex-shrink: 0;
+}
+
+.instruction-text {
+  flex: 1;
+  font-size: 25px;
+  line-height: 1.6;
+  color: var(--ds-text-secondary);
+}
+</style>
+<style>
+/* 仅预览用：给标签加描边，方便肉眼确认文字在框内是否居中 */
+body.debug .rsv-tag { outline: 1px dashed rgba(255, 0, 0, 0.55); }
+body.debug .rsv-chip { outline: 1px dashed rgba(255, 0, 0, 0.55); }
+/* 仅预览用：把吸底栏改成静态，方便一次截到三种状态 */
+body.states .submit-bar { position: static; }
+body.states .submit-bar + .submit-bar { border-top: none; }
+/* 预览页的 .ds-page 有 min-height:100vh，会把三根静态提交栏顶到折叠线以下 */
+body.states .ds-page { min-height: 0; }
+</style>
+</head>
+<body class="states">
+
+<page class="ds-page">
+  <view class="ds-card">
+    <view class="ds-section-head">
+      <text class="ds-section-title">提交栏状态</text>
+    </view>
+    <view class="instructions" style="padding: 0 24px 12px; color: #5f6b7a; font-size: 24px; line-height: 1.6">
+      <view>1. 选好编号：主按钮可点</view>
+      <view>2. 未选编号：浅底描边，仍可点，点了 toast 提示</view>
+      <view>3. 提交中：主色半透明 + 文案变「提交中…」</view>
+    </view>
+  </view>
+</page>
+<view class="submit-bar ">
+  <view class="submit-bar-info"><text class="submit-device">紫外可见分光光度计</text><text class="submit-slot">HPLC-A02</text></view>
+  <button class="ds-btn submit-btn"><text>提交预约</text></button>
+</view>
+<view class="submit-bar ">
+  <view class="submit-bar-info"><text class="submit-device">紫外可见分光光度计</text><text class="submit-tip">请选择仪器编号</text></view>
+  <button class="ds-btn submit-btn disabled"><text>提交预约</text></button>
+</view>
+<view class="submit-bar ">
+  <view class="submit-bar-info"><text class="submit-device">紫外可见分光光度计</text><text class="submit-slot">HPLC-A02</text></view>
+  <button class="ds-btn submit-btn submitting"><text>提交中…</text></button>
+</view>
+</body>
+</html>

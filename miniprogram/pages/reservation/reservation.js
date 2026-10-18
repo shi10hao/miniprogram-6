@@ -36,6 +36,9 @@ Page({
 
     // 状态
     isLoading: false,
+    // 「提交中」单独一个状态：原来复用 isLoading，导致筛选刷新列表时
+    // 底部按钮也会显示「提交中…」，看起来像在重复提交
+    isSubmitting: false,
     timeConflict: false,
     isPastTime: false, // 新增：是否是过去时间
 
@@ -172,9 +175,8 @@ Page({
   // 搜索输入：防抖，避免每敲一个字就打一轮云函数
   onSearchInput(e) {
     const keyword = e.detail.value.trim()
-    this.setData({
-      'filters.searchKeyword': keyword,
-      selectedDevice: null
+    this.resetDeviceSelection({
+      'filters.searchKeyword': keyword
     })
 
     this.scheduleReload()
@@ -186,9 +188,8 @@ Page({
       clearTimeout(this._searchTimer)
       this._searchTimer = null
     }
-    this.setData({
-      'filters.searchKeyword': '',
-      selectedDevice: null
+    this.resetDeviceSelection({
+      'filters.searchKeyword': ''
     }, () => {
       this.getAvailableDevices()
     })
@@ -590,9 +591,8 @@ Page({
   onDeviceTypeChange(e) {
     const type = e.currentTarget.dataset.type
     // console.log('type', type)
-    this.setData({
-      'filters.deviceType': type,
-      selectedDevice: null // 清空已选仪器
+    this.resetDeviceSelection({
+      'filters.deviceType': type
     }, () => {
       this.reloadNow()
     })
@@ -602,24 +602,47 @@ Page({
   onLabTypeChange(e) {
     const type = e.currentTarget.dataset.type
     // console.log(type)
-    this.setData({
-      'filters.labType': type,
-      selectedDevice: null
+    this.resetDeviceSelection({
+      'filters.labType': type
     }, () => {
       this.reloadNow()
     })
     // console.log("filters", this.data.filters)
   },
 
+  // 统一清空「已选仪器 + 已选编号 + 编号高亮」
+  // 只清 selectedDevice 是不够的：getAvailableDevices() 会拿 selectedDeviceId
+  // 把选中态原样恢复回来，看起来就是「清空了又自己选上」
+  // extra 里的字段会覆盖默认值，供 selectDevice 这类「换组但不清空」的场景复用
+  resetDeviceSelection(extra = {}, callback) {
+    const patch = Object.assign({
+      selectedDevice: null,
+      selectedDeviceId: ''
+    }, extra)
+    const groups = this.data.availableDevices || []
+    groups.forEach((group, groupIndex) => {
+      (group.deviceStatusList || []).forEach((item, deviceIndex) => {
+        if (!item.active) return
+        patch[`availableDevices[${groupIndex}].deviceStatusList[${deviceIndex}].active`] = false
+      })
+    })
+    this.setData(patch, callback)
+  },
+
   // 选择仪器组：只负责展开该组，具体编号由 onSelectDevice 选择
   selectDevice(e) {
     const device = e.currentTarget.dataset.device
     if (!device) return
+    // 再次点同一组时保留已经选好的编号：原来会无脑清空 selectedDeviceId，
+    // 结果编号块还高亮着、提交按钮却变灰，交互上很割裂
+    const current = this.data.selectedDevice
+    if (current && current.device_ids && device.device_ids &&
+        current.device_ids[0] === device.device_ids[0]) {
+      return
+    }
     // 这里不查冲突：此刻还没有具体编号，用组内首台去查没有意义
-    this.setData({
-      selectedDevice: device,
-      selectedDeviceId: ''
-    })
+    // 换组时把上一组的编号高亮一起清掉，避免两组同时有选中态
+    this.resetDeviceSelection({ selectedDevice: device })
   },
 
   /**
@@ -893,9 +916,19 @@ Page({
 
   // 提交预约                      checkTimeConflict
   async submitReservation() {
-    if (this.data.isLoading) return
+    // 提交中直接忽略重复点击
+    if (this.data.isSubmitting) return
 
-    // 验证表单
+    // 列表还在刷新时不要拿旧数据提交
+    if (this.data.isLoading) {
+      wx.showToast({
+        title: '仪器列表加载中，请稍候',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 验证表单（含「必须选择具体编号」，未选时这里会给出提示）
     if (!this.validateForm()) return
     if (!this.data.reservePage) {
       wx.showToast({
@@ -904,95 +937,90 @@ Page({
       })
       return
     }
-    await this.requestSubscribeReminder()
+
     this.setData({
-      isLoading: true
+      isSubmitting: true
     })
 
-    // 再次检查时间冲突
-    const hasConflict = await this.checkTimeConflict(false)
-    if (hasConflict) {
-      wx.showToast({
-        title: '该时间段与其他人预约时间段重叠',
-        icon: 'none'
-      })
-      this.setData({
-        isLoading: false
-      })
-      return
-    }
-
-    // 再次检查是否是当前或过去时间
-    if (!this.isFutureReservationStart(this.data.startDate, this.data.startTime)) {
-      this.setData({
-        isPastTime: true
-      })
-      wx.showToast({
-        title: '预约开始时间必须晚于当前时间',
-        icon: 'none'
-      })
-      this.setData({
-        isLoading: false
-      })
-      return
-    }
-    this.setData({
-      isPastTime: false
-    })
+    // 提交成功后要等那 2 秒的「预约成功」提示走完再复位按钮，
+    // 这期间保持「提交中…」的样子，避免用户以为没成功又点一次
+    let submitted = false
 
     try {
+      await this.requestSubscribeReminder()
+
+      // 再次检查时间冲突
+      const hasConflict = await this.checkTimeConflict(false)
+      if (hasConflict) {
+        wx.showToast({
+          title: '该时间段与其他人预约时间段重叠',
+          icon: 'none'
+        })
+        return
+      }
+
+      // 再次检查是否是当前或过去时间
+      if (!this.isFutureReservationStart(this.data.startDate, this.data.startTime)) {
+        this.setData({
+          isPastTime: true
+        })
+        wx.showToast({
+          title: '预约开始时间必须晚于当前时间',
+          icon: 'none'
+        })
+        return
+      }
+      this.setData({
+        isPastTime: false
+      })
+
       // 等待预约单上传完成，拿到 fileID 后再继续
-      const uploadRes = await wx.cloud.uploadFile({
-        cloudPath: `reserve_pages/${Date.now()}.jpg`,
-        filePath: this.data.reservePage
-      })
-      const reservePageFileID = uploadRes.fileID
-      console.log('预约单上传成功：', reservePageFileID)
-      this.setData({
-        reservePageFileID
-      })
-    } catch (err) {
-      console.error('预约单上传失败:', err)
-      wx.showToast({
-        title: '预约单上传失败，请重试',
-        icon: 'none'
-      })
-      this.setData({
-        isLoading: false
-      })
-      return
-    }
+      try {
+        const uploadRes = await wx.cloud.uploadFile({
+          cloudPath: `reserve_pages/${Date.now()}.jpg`,
+          filePath: this.data.reservePage
+        })
+        const reservePageFileID = uploadRes.fileID
+        console.log('预约单上传成功：', reservePageFileID)
+        this.setData({
+          reservePageFileID
+        })
+      } catch (err) {
+        console.error('预约单上传失败:', err)
+        wx.showToast({
+          title: '预约单上传失败，请重试',
+          icon: 'none'
+        })
+        return
+      }
 
-    // 构建预约数据
+      // 构建预约数据
+      const storedUserInfo = wx.getStorageSync('userInfo') || {}
+      const reserveData = {
+        // 必须用用户实际选中的编号，不能用仪器组的第一个编号
+        // （原来取 selectedDevice.device_id 是组内首台，选 B 号会存成 A 号）
+        device_id: this.data.selectedDeviceId,
+        device_name: this.data.selectedDevice.device_name,
+        device_type: this.data.selectedDevice.device_type,
+        lab_type: this.data.selectedDevice.lab_type,
+        lab_name: this.data.selectedDevice.lab_name,
 
-    // 构建预约数据
-    const storedUserInfo = wx.getStorageSync('userInfo') || {}
-    const reserveData = {
-      // 必须用用户实际选中的编号，不能用仪器组的第一个编号
-      // （原来取 selectedDevice.device_id 是组内首台，选 B 号会存成 A 号）
-      device_id: this.data.selectedDeviceId || this.data.selectedDevice.device_id,
-      device_name: this.data.selectedDevice.device_name,
-      device_type: this.data.selectedDevice.device_type,
-      lab_type: this.data.selectedDevice.lab_type,
-      lab_name: this.data.selectedDevice.lab_name,
+        reserve_date: this.data.startDate, // 以开始日期为主
+        start_time: `${this.data.startDate} ${this.data.startTime}`,
+        end_time: `${this.data.endDate} ${this.data.endTime}`,
+        start_ts: this.getReservationTimeMs(this.data.startDate, this.data.startTime),
+        end_ts: this.getReservationTimeMs(this.data.endDate, this.data.endTime),
+        reserve_page: this.data.reservePageFileID,
 
-      reserve_date: this.data.startDate, // 以开始日期为主
-      start_time: `${this.data.startDate} ${this.data.startTime}`,
-      end_time: `${this.data.endDate} ${this.data.endTime}`,
-      start_ts: this.getReservationTimeMs(this.data.startDate, this.data.startTime),
-      end_ts: this.getReservationTimeMs(this.data.endDate, this.data.endTime),
-      reserve_page: this.data.reservePageFileID,
+        user_id: this.data.userInfo.userId,
+        student_name: this.data.userInfo.name,
+        research_group: this.data.userInfo.researchGroup,
+        phone: this.data.userInfo.phone,
+        _openid: storedUserInfo.openid || '',
 
-      user_id: this.data.userInfo.userId,
-      student_name: this.data.userInfo.name,
-      research_group: this.data.userInfo.researchGroup,
-      phone: this.data.userInfo.phone,
-      _openid: storedUserInfo.openid || '',
+        create_time: new Date().toISOString()
+      }
 
-      create_time: new Date().toISOString()
-    }
-
-    try {
       var useCloudFunction = false
       try {
         var checkRes = await wx.cloud.callFunction({
@@ -1050,6 +1078,7 @@ Page({
         icon: 'success',
         duration: 2000
       })
+      submitted = true
       var currentDevices = this.data.availableDevices
       var currentSelected = this.data.selectedDevice
       if (currentSelected && currentDevices.length > 0) {
@@ -1072,10 +1101,12 @@ Page({
       }
 
       setTimeout(() => {
-        this.setData({
-          selectedDevice: null,
+        // 成功后退回「未选择」：编号和编号高亮也要一起清，
+        // 否则列表刷新时又会按旧的 selectedDeviceId 把选中态恢复出来
+        this.resetDeviceSelection({
           timeConflict: false,
-          isPastTime: false
+          isPastTime: false,
+          isSubmitting: false
         })
         this.getAvailableDevices()
       }, 2000)
@@ -1087,9 +1118,12 @@ Page({
         icon: 'none'
       })
     } finally {
-      this.setData({
-        isLoading: false
-      })
+      // 成功时按钮的复位交给上面的 setTimeout，这里只管失败/中途 return 的情况
+      if (!submitted) {
+        this.setData({
+          isSubmitting: false
+        })
+      }
     }
   },
 
@@ -1164,6 +1198,7 @@ Page({
   validateForm() {
     const {
       selectedDevice,
+      selectedDeviceId,
       startDate,
       startTime,
       endDate,
@@ -1174,6 +1209,16 @@ Page({
     if (!selectedDevice) {
       wx.showToast({
         title: '请选择仪器',
+        icon: 'none'
+      })
+      return false
+    }
+
+    // 只选了仪器组、没选具体编号时不能提交：否则会回退成组内第一台，
+    // 用户明明没选，却给某台设备下了单
+    if (!selectedDeviceId) {
+      wx.showToast({
+        title: '请选择仪器编号',
         icon: 'none'
       })
       return false

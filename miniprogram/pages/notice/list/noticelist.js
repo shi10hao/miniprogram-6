@@ -58,16 +58,16 @@ Page({
     return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`
   },
 
-  // 跳转到详情页（关键：正确传递参数）
+  // 跳转到详情页：公告与消息共用 messagedetail，用 source=notice 区分
   goToDetail(e) {
     const noticeId = e.currentTarget.dataset.noticeid
     if (!noticeId) {
       wx.showToast({ title: '参数错误', icon: 'none' })
       return
     }
-    
+
     wx.navigateTo({
-      url: `/pages/notice/detail/noticedetail?noticeId=${noticeId}`
+      url: `/pages/message/detail/messagedetail?messageId=${encodeURIComponent(noticeId)}&source=notice`
     })
   }
 })

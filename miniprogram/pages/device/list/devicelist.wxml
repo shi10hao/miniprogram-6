@@ -1,130 +1,158 @@
-<view class="container">
-  <!-- 统计信息卡片 -->
-  <view class="stats-card">
-    <view class="stats-grid">
-      <view class="stat-item">
-        <text class="stat-number">{{stats.total}}</text>
-        <text class="stat-label">总仪器</text>
+<view class="page">
+  <!-- 概览：仪器数量统计 -->
+  <view class="overview-card">
+    <view class="overview-head">
+      <text class="ds-section-title">仪器概览</text>
+      <text class="overview-sub">
+        {{isLoggedIn ? '共 ' + stats.totalUnits + ' 台设备' : '登录查看完整数据'}}
+      </text>
+    </view>
+    <view class="overview-grid">
+      <view class="overview-item">
+        <text class="overview-num {{isLoggedIn ? '' : 'overview-num-masked'}}">{{isLoggedIn ? stats.total : '—'}}</text>
+        <text class="overview-label">仪器种数</text>
       </view>
-      <view class="stat-item">
-        <text class="stat-number">{{stats.public}}</text>
-        <text class="stat-label">公共实验室</text>
+      <view class="overview-item">
+        <text class="overview-num {{isLoggedIn ? '' : 'overview-num-masked'}}">{{isLoggedIn ? stats.public : '—'}}</text>
+        <text class="overview-label">公共实验室</text>
       </view>
-      <view class="stat-item">
-        <text class="stat-number">{{stats.group}}</text>
-        <text class="stat-label">课题组</text>
+      <view class="overview-item">
+        <text class="overview-num {{isLoggedIn ? '' : 'overview-num-masked'}}">{{isLoggedIn ? stats.group : '—'}}</text>
+        <text class="overview-label">课题组</text>
       </view>
-      <view class="stat-item">
-        <text class="stat-number">{{stats.large}}/{{stats.small}}</text>
-        <text class="stat-label">大型/小型</text>
+      <view class="overview-item">
+        <text class="overview-num overview-num-split {{isLoggedIn ? '' : 'overview-num-masked'}}">
+          <block wx:if="{{isLoggedIn}}">
+            <text class="num-large">{{stats.large}}</text>
+            <text class="num-divider">/</text>
+            <text class="num-small">{{stats.small}}</text>
+          </block>
+          <block wx:else>—</block>
+        </text>
+        <text class="overview-label">大型 / 小型</text>
       </view>
     </view>
   </view>
 
-  <!-- 搜索区域 -->
-  <view class="search-section">
+  <!-- 搜索 + 筛选：合并到一张卡片里，减少白块分割 -->
+  <view class="toolbar">
     <view class="search-box">
-      <input class="search-input" placeholder="搜索仪器名称、实验室..." bindinput="onSearchInput" value="{{filters.searchKeyword}}" />
       <text class="search-icon">🔍</text>
-      <text class="clear-search" wx:if="{{filters.searchKeyword}}" bindtap="clearSearch">✕</text>
+      <input class="search-input" placeholder="搜索仪器名称、型号、实验室..." placeholder-class="search-placeholder" value="{{filters.searchKeyword}}" confirm-type="search" bindinput="onSearchInput" />
+      <view wx:if="{{filters.searchKeyword}}" class="clear-search" hover-class="clear-search-hover" bindtap="clearSearch">✕</view>
     </view>
-  </view>
 
-  <!-- 筛选区域 -->
-  <view class="filter-section">
-    <!-- 实验室类型筛选 -->
-    <view class="filter-group">
-      <text class="filter-label">实验室类型</text>
-      <view class="filter-buttons">
-        <text class="filter-btn {{filters.labType === 'all' ? 'active' : ''}}" data-type="all" bindtap="onLabTypeChange">全部</text>
-        <text class="filter-btn {{filters.labType === 'public' ? 'active' : ''}}" data-type="public" bindtap="onLabTypeChange">公共实验室</text>
-        <text class="filter-btn {{filters.labType === 'group' ? 'active' : ''}}" data-type="group" bindtap="onLabTypeChange">课题组</text>
+    <view class="filter-block">
+      <view class="filter-line">
+        <text class="filter-label">实验室</text>
+        <view class="filter-buttons">
+          <view class="filter-btn {{filters.labType === 'all' ? 'active' : ''}}" data-type="all" bindtap="onLabTypeChange">全部</view>
+          <view class="filter-btn {{filters.labType === 'public' ? 'active' : ''}}" data-type="public" bindtap="onLabTypeChange">公共</view>
+          <view class="filter-btn {{filters.labType === 'group' ? 'active' : ''}}" data-type="group" bindtap="onLabTypeChange">课题组</view>
+        </view>
       </view>
-    </view>
-
-    <!-- 仪器类型筛选 -->
-    <view class="filter-group">
-      <text class="filter-label">仪器类型</text>
-      <view class="filter-buttons">
-        <text class="filter-btn {{filters.deviceType === 'all' ? 'active' : ''}}" data-type="all" bindtap="onDeviceTypeChange">全部</text>
-        <text class="filter-btn {{filters.deviceType === 'large' ? 'active' : ''}}" data-type="large" bindtap="onDeviceTypeChange">大型仪器</text>
-        <text class="filter-btn {{filters.deviceType === 'small' ? 'active' : ''}}" data-type="small" bindtap="onDeviceTypeChange">小型仪器</text>
+      <view class="filter-line">
+        <text class="filter-label">仪器</text>
+        <view class="filter-buttons">
+          <view class="filter-btn {{filters.deviceType === 'all' ? 'active' : ''}}" data-type="all" bindtap="onDeviceTypeChange">全部</view>
+          <view class="filter-btn {{filters.deviceType === 'large' ? 'active' : ''}}" data-type="large" bindtap="onDeviceTypeChange">大型</view>
+          <view class="filter-btn {{filters.deviceType === 'small' ? 'active' : ''}}" data-type="small" bindtap="onDeviceTypeChange">小型</view>
+        </view>
       </view>
     </view>
   </view>
 
-  <!-- 加载状态 -->
-  <view wx:if="{{isLoading}}" class="loading">
-    <text>加载中...</text>
+  <!-- 结果条：筛选后实时反馈数量，并提供一键重置 -->
+  <view wx:if="{{!isLoading}}" class="result-bar">
+    <text class="result-text">
+      {{isLoggedIn ? '共 ' + filteredDevices.length + ' 种仪器' : '登录后查看完整列表'}}
+    </text>
+    <text wx:if="{{hasActiveFilter}}" class="result-reset" bindtap="resetFilters">重置筛选</text>
   </view>
 
-  <!-- 仪器列表 -->
-  <view wx:else class="device-list">
-    <view wx:if="{{displayedDevices.length === 0}}" class="empty">
-      <text class="empty-icon">🔍</text>
-      <text class="empty-text">暂无符合条件的仪器</text>
-      <text class="empty-desc">请尝试调整筛选条件</text>
+  <!-- 骨架屏：比"加载中..."更接近成品观感 -->
+  <view wx:if="{{isLoading}}" class="list">
+    <view class="skeleton-card" wx:for="{{skeletonRows}}" wx:key="*this">
+      <view class="sk-thumb ds-skeleton"></view>
+      <view class="sk-body">
+        <view class="sk-line sk-line-title ds-skeleton"></view>
+        <view class="sk-line sk-line-sub ds-skeleton"></view>
+        <view class="sk-line sk-line-meta ds-skeleton"></view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:else class="list">
+    <!-- 仪器列表 -->
+    <view wx:if="{{displayedDevices.length === 0}}" class="ds-empty">
+      <text class="ds-empty-icon">🔍</text>
+      <text class="ds-empty-title">{{hasActiveFilter ? '暂无符合条件的仪器' : '这里还没有仪器数据'}}</text>
+      <text class="ds-empty-desc">{{hasActiveFilter ? '试试更换关键词或重置筛选条件' : '下拉可以刷新列表'}}</text>
+      <view wx:if="{{hasActiveFilter}}" class="empty-reset" hover-class="empty-reset-hover" bindtap="resetFilters">重置筛选</view>
     </view>
 
-    <view class="device-card" wx:for="{{displayedDevices}}" wx:key="groupKey" data-deviceid="{{item.primaryDeviceId}}" bindtap="goToDetail">
-      <!-- 设备头信息 -->
-      <view class="card-header">
-        <view class="device-basic">
-          <view class="device-name-row">
-            <text class="device-name">{{item.device_name}}</text>
-            <text wx:if="{{item.model}}" class="device-model">{{item.model}}</text>
-            <view class="device-count-badge {{item.lab_type === 'mixed' ? 'mixed' : ''}}">
+    <view wx:for="{{displayedDevices}}" wx:key="groupKey" class="device-card {{item.matchesEntryDevice ? 'is-entry' : ''}}" data-deviceid="{{item.primaryDeviceId}}" hover-class="device-card-hover" hover-stay-time="80" bindtap="goToDetail">
+      <view class="card-main">
+        <!-- 缩略图：左图右文比大图卡片更省屏幕，一屏能看更多仪器 -->
+        <view class="thumb">
+          <image wx:if="{{item.picture && !item.imgFailed}}" class="thumb-img" src="{{item.picture}}" mode="aspectFill" lazy-load binderror="onDeviceImageError" data-index="{{index}}"></image>
+          <view wx:else class="thumb-fallback">
+            <text class="thumb-fallback-icon">{{item.device_type === 'large' ? '🧪' : '🔬'}}</text>
+          </view>
+        </view>
+
+        <view class="card-info">
+          <view class="name-row">
+            <text class="device-name ds-clamp-2">{{item.device_name}}</text>
+            <view class="count-badge {{item.lab_type === 'mixed' ? 'mixed' : ''}}">
               <block wx:if="{{item.lab_type !== 'mixed'}}">
-                <text class="count-text">{{item.totalCount}}台</text>
+                <text>{{item.totalCount}} 台</text>
               </block>
               <block wx:else>
                 <text class="count-split-text">公{{item.publicCount}} 组{{item.groupCount}}</text>
               </block>
             </view>
           </view>
+
+          <text wx:if="{{item.model}}" class="device-model ds-ellipsis">{{item.model}}</text>
+
           <view class="device-tags">
-            <view class="device-tag lab {{item.lab_type}}">
-              {{item.labTypeLabel}}
-            </view>
-            <view class="device-tag type {{item.device_type}}">
-              {{item.deviceTypeLabel}}
-            </view>
+            <text class="ds-tag lab-{{item.lab_type}}">{{item.labTypeLabel}}</text>
+            <text class="ds-tag type-{{item.device_type}}">{{item.deviceTypeLabel}}</text>
+          </view>
+
+          <view class="meta-row">
+            <text class="meta-icon">📍</text>
+            <text class="meta-text">{{item.lab_name}}</text>
+          </view>
+          <view wx:if="{{item.deviceRooms.length}}" class="meta-row">
+            <text class="meta-icon">🏠</text>
+            <text class="meta-text">{{item.device_room}}</text>
           </view>
         </view>
       </view>
 
-      <!-- 设备图片 -->
-      <view class="device-image">
-        <image
-          wx:if="{{!item.imgFailed}}"
-          class="device-img"
-          src="{{item.picture}}"
-          mode="aspectFill"
-          lazy-load
-          binderror="onDeviceImageError"
-          data-index="{{index}}"
-        ></image>
-        <view wx:else class="device-img device-img-fallback">
-          <text class="img-fallback-text">图片加载失败</text>
-        </view>
-        <view class="lab-info">
-        <text class="lab-name">{{item.lab_name}}</text>
-        <text wx:if="{{item.device_room}}" class="lab-room">{{item.device_room}}</text>
-      </view>
-      </view>
-
-      <!-- 设备描述 -->
-      <view class="device-desc">
-        <text class="desc-text">{{item.description || '暂无描述'}}</text>
+      <!-- 描述放在底部浅底块里，与上方信息分层 -->
+      <view wx:if="{{item.description}}" class="card-desc">
+        <text class="desc-text">{{item.description}}</text>
       </view>
     </view>
-
-    <!-- 分页提示：滚到底部自动加载下一页 -->
-    <view wx:if="{{hasMore}}" class="list-footer">
-      <text class="list-footer-text">上拉加载更多</text>
+    <view wx:if="{{!isLoggedIn && filteredDevices.length > displayedDevices.length}}" class="unlock-fade"></view>
+    <!-- 游客解锁引导卡 -->
+    <view wx:if="{{!isLoggedIn && filteredDevices.length > displayedDevices.length}}" class="unlock-card">
+      <text class="unlock-icon">🔒</text>
+      <text class="unlock-title">登录解锁全部仪器</text>
+      <text class="unlock-desc">还有更多仪器型号、实验室与位置信息待查看</text>
+      <view class="unlock-btn" hover-class="unlock-btn-hover" bindtap="handleLogin">
+        跳转登录
+      </view>
     </view>
-    <view wx:elif="{{displayedDevices.length > 0}}" class="list-footer">
-      <text class="list-footer-text">已显示全部 {{displayedDevices.length}} 种仪器</text>
+    <view class="list-footer">
+      <block wx:if="{{isLoggedIn}}">
+        <text wx:if="{{hasMore}}" class="list-footer-text">上拉加载更多</text>
+        <text wx:elif="{{displayedDevices.length > 0}}" class="list-footer-text">已显示全部 {{displayedDevices.length}} 种仪器</text>
+      </block>
+      <text wx:else class="list-footer-text list-footer-guest">登录后可浏览全部仪器</text>
     </view>
   </view>
 </view>

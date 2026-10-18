@@ -15,6 +15,8 @@ Page({
     hasMore: false,
     isLoadingMore: false,
     isLoading: true,
+    // 骨架屏占位行（仅用于加载态渲染，不参与业务逻辑）
+    skeletonRows: [0, 1, 2],
     entryDeviceId: '',
     // 筛选条件
     filters: {
@@ -22,6 +24,8 @@ Page({
       deviceType: 'all', // all, large, small
       searchKeyword: ''
     },
+    // 是否存在生效中的筛选（决定结果条/空态里是否露出「重置筛选」）
+    hasActiveFilter: false,
     // 统计信息
     stats: {
       total: 0,
@@ -30,21 +34,40 @@ Page({
       large: 0,
       small: 0,
       totalUnits: 0
-    }
+    },
+    isLoggedIn: false,
+    guestVisibleCount: 3, // 游客可见条数
   },
 
-  onLoad: function(options) {
+  onLoad: function (options) {
     // 数据代次：每次重新拉取列表就 +1，用于丢弃过期的图片解析结果
     this._dataSeq = 0
     // 搜索防抖定时器
     this._searchTimer = null
     this.setData({
-      entryDeviceId: (options && options.deviceId) || ''
+      entryDeviceId: (options && options.deviceId) || '',
+      isLoggedIn: this.checkLogin()
     })
     this.getDevices()
   },
-
-  onUnload: function() {
+  onShow: function () {
+    var loggedIn = this.checkLogin()
+    if (loggedIn !== this.data.isLoggedIn) {
+      this.setData({
+        isLoggedIn: loggedIn
+      })
+      // 如果云函数按登录态返回不同数据量，这里要重新拉；否则 applyFilters 即可
+      if (loggedIn) {
+        this.getDevices(true)
+      } else {
+        this.setData({
+          stats: { total: 0, public: 0, group: 0, large: 0, small: 0, totalUnits: 0 }
+        })
+        this.applyFilters()
+      }
+    }
+  },
+  onUnload: function () {
     if (this._searchTimer) {
       clearTimeout(this._searchTimer)
       this._searchTimer = null
@@ -52,27 +75,32 @@ Page({
   },
 
   // 触底追加下一页（替代一次性渲染全部卡片）
-  onReachBottom: function() {
+  onReachBottom: function () {
     this.loadMoreDevices()
   },
 
-  getUserGroupName: function() {
+  getUserGroupName: function () {
     var userInfo = wx.getStorageSync('userInfo') || {}
     return (userInfo.groupName || '').trim()
   },
 
-  getVisibleCondition: function(groupName) {
+  getVisibleCondition: function (groupName) {
     var _ = db.command
     if (groupName) {
-      return _.or([
-        { lab_type: 'public' },
-        { lab_name: groupName }
+      return _.or([{
+          lab_type: 'public'
+        },
+        {
+          lab_name: groupName
+        }
       ])
     }
-    return { lab_type: 'public' }
+    return {
+      lab_type: 'public'
+    }
   },
 
-  getDeviceModel: function(device) {
+  getDeviceModel: function (device) {
     var specs = device.specifications || {}
     if (specs && typeof specs === 'object') {
       return String(specs['型号'] || specs.model || '').trim()
@@ -80,16 +108,16 @@ Page({
     return String(device.model || '').trim()
   },
 
-  getGroupKey: function(device) {
+  getGroupKey: function (device) {
     return (device.device_name || '') + '::' + this.getDeviceModel(device)
   },
 
-  mergeDevices: function(devices) {
+  mergeDevices: function (devices) {
     var grouped = {}
     var that = this
     var entryDeviceId = this.data.entryDeviceId
 
-    devices.forEach(function(device) {
+    devices.forEach(function (device) {
       var key = that.getGroupKey(device)
       if (!grouped[key]) {
         grouped[key] = {
@@ -150,7 +178,7 @@ Page({
       }
     })
 
-    return Object.values(grouped).map(function(item) {
+    return Object.values(grouped).map(function (item) {
       var labType = item.labTypes.length === 1 ? item.labTypes[0] : 'mixed'
       var deviceType = item.deviceTypes.length === 1 ? item.deviceTypes[0] : 'mixed'
       return {
@@ -162,7 +190,7 @@ Page({
         lab_name: item.labNames.length > 0 ? item.labNames.join(' / ') : '未设置实验室',
         device_room: item.deviceRooms.length > 0 ? item.deviceRooms.join(' / ') : '未设置位置'
       }
-    }).sort(function(a, b) {
+    }).sort(function (a, b) {
       if (a.matchesEntryDevice && !b.matchesEntryDevice) {
         return -1
       }
@@ -173,43 +201,44 @@ Page({
     })
   },
 
-  getDevices: function() {
+  getDevices: function (silent) {
     var that = this
     var groupName = this.getUserGroupName()
-    this.setData({ isLoading: true })
-
+  
+    // 静默模式下不置 isLoading，避免闪骨架屏
+    if (!silent) {
+      this.setData({ isLoading: true })
+    }
+  
     return wx.cloud.callFunction({
       name: 'getDevices',
-      data: {
-        groupName: groupName
-      }
+      data: { groupName: groupName }
     })
-      .then(function(res) {
-        // console.log("res",res)
+      .then(function (res) {
         var devices = res.result || []
         that._dataSeq = (that._dataSeq || 0) + 1
         var groupedDevices = that.mergeDevices(devices)
         var stats = that.calculateStats(devices, groupedDevices)
-
-        // 先把首屏渲染出来（图片位置先空着），再异步换图片临时链接，
-        // 避免等图片解析完才看到内容。
+        if (!that.data.isLoggedIn) {
+          stats = { total: 0, public: 0, group: 0, large: 0, small: 0, totalUnits: 0 }
+        }
+  
         that.setData({
           devices: groupedDevices,
           stats: stats,
-          isLoading: false
-        }, function() {
+          isLoading: false   // 静默模式也置 false，防止残留 true
+        }, function () {
           that.applyFilters()
         })
-
+  
         return groupedDevices
       })
-      .catch(function(err) {
-        // console.error('加载仪器数据失败：', err)
+      .catch(function (err) {
         that.setData({ isLoading: false })
-        wx.showToast({
-          title: '加载失败',
-          icon: 'none'
-        })
+        // 静默模式不弹 toast，避免登录返回时莫名报错打断体验
+        if (!silent) {
+          wx.showToast({ title: '加载失败', icon: 'none' })
+        }
         throw err
       })
   },
@@ -218,41 +247,45 @@ Page({
    * 把 devices.picture 里的 cloud:// fileID 换成临时 https 链接。
    * 直接渲染 cloud:// 会触发渲染层 500 报错（Failed to load local image resource）。
    */
-  resolveDevicePictures: function() {
+  resolveDevicePictures: function () {
     var that = this
     var devices = this.data.devices || []
     // 记住这次解析对应的数据代次，避免下拉刷新后旧结果覆盖新数据
     var seq = this._dataSeq || 0
-    var rawIds = devices.map(function(item) {
+    var rawIds = devices.map(function (item) {
       return item.picture
-    }).filter(function(id) {
+    }).filter(function (id) {
       return cloudFile.isCloudFileId(id)
     })
 
     if (!rawIds.length) return Promise.resolve()
 
     return cloudFile.resolveTempUrls(rawIds)
-      .then(function(map) {
+      .then(function (map) {
         if (seq !== (that._dataSeq || 0)) return
 
         // 更新 _allDevices 里的原始数据，只把「当前已渲染的那部分」写进 data。
         // 用路径 setData 而不是整表替换，避免把上百条记录重新推给渲染层。
-        var updatedAll = devices.map(function(item) {
+        var updatedAll = devices.map(function (item) {
           if (!cloudFile.isCloudFileId(item.picture)) return item
           var url = cloudFile.resolveSingle(item.picture, map)
           if (!url) return item
-          return Object.assign({}, item, { picture: url })
+          return Object.assign({}, item, {
+            picture: url
+          })
         })
 
-        var patch = { devices: updatedAll }
+        var patch = {
+          devices: updatedAll
+        }
         var displayed = that.data.displayedDevices || []
         if (displayed.length) {
           // 用 groupKey → 已解析图片 的映射做 O(n) 查找
           var pictureByKey = {}
-          updatedAll.forEach(function(item) {
+          updatedAll.forEach(function (item) {
             pictureByKey[item.groupKey] = item.picture
           })
-          displayed.forEach(function(item, index) {
+          displayed.forEach(function (item, index) {
             var picture = pictureByKey[item.groupKey]
             if (picture && picture !== item.picture) {
               patch['displayedDevices[' + index + '].picture'] = picture
@@ -261,13 +294,13 @@ Page({
         }
         that.setData(patch)
       })
-      .catch(function(err) {
+      .catch(function (err) {
         console.error('解析仪器图片失败:', err)
       })
   },
 
   // 单张仪器图片加载失败 → 收起图片，避免反复重试刷屏
-  onDeviceImageError: function(e) {
+  onDeviceImageError: function (e) {
     var index = e.currentTarget.dataset.index
     if (index === undefined || index === null) return
     var patch = {}
@@ -275,7 +308,7 @@ Page({
     this.setData(patch)
   },
 
-  calculateStats: function(devices, groupedDevices) {
+  calculateStats: function (devices, groupedDevices) {
     var stats = {
       total: groupedDevices.length,
       public: 0,
@@ -285,7 +318,7 @@ Page({
       totalUnits: devices.length
     }
 
-    groupedDevices.forEach(function(device) {
+    groupedDevices.forEach(function (device) {
       if (device.labTypes.indexOf('public') > -1) {
         stats.public++
       }
@@ -303,9 +336,10 @@ Page({
   },
 
   // 重新应用筛选并回到第一页
-  applyFilters: function() {
+  applyFilters: function () {
     var filters = this.data.filters
-    var filtered = this.data.devices.filter(function(device) {
+    var isLoggedIn = this.data.isLoggedIn
+    var filtered = this.data.devices.filter(function (device) {
       // 实验室类型筛选
       if (filters.labType !== 'all' && device.labTypes.indexOf(filters.labType) === -1) {
         return false
@@ -326,10 +360,10 @@ Page({
         var description = (device.description || '').toLowerCase()
 
         if (!deviceName.includes(keyword) &&
-            !model.includes(keyword) &&
-            !labName.includes(keyword) &&
-            !room.includes(keyword) &&
-            !description.includes(keyword)) {
+          !model.includes(keyword) &&
+          !labName.includes(keyword) &&
+          !room.includes(keyword) &&
+          !description.includes(keyword)) {
           return false
         }
       }
@@ -337,11 +371,16 @@ Page({
       return true
     })
 
+    var limit = isLoggedIn ?
+      PAGE_SIZE :
+      Math.min(this.data.guestVisibleCount, filtered.length)
+
     this.setData({
       filteredDevices: filtered,
+      hasActiveFilter: !!(filters.searchKeyword || filters.labType !== 'all' || filters.deviceType !== 'all'),
       pageNum: 1,
-      displayedDevices: filtered.slice(0, PAGE_SIZE),
-      hasMore: filtered.length > PAGE_SIZE,
+      displayedDevices: filtered.slice(0, limit),
+      hasMore: isLoggedIn && filtered.length > PAGE_SIZE,
       isLoadingMore: false
     }, () => {
       this.resolveDevicePictures()
@@ -349,7 +388,8 @@ Page({
   },
 
   // 触底追加下一页
-  loadMoreDevices: function() {
+  loadMoreDevices: function () {
+    if (!this.data.isLoggedIn) return
     if (!this.data.hasMore || this.data.isLoadingMore) return
     var nextPage = this.data.pageNum + 1
     var end = nextPage * PAGE_SIZE
@@ -370,7 +410,7 @@ Page({
   },
 
   // 切换实验室类型筛选
-  onLabTypeChange: function(e) {
+  onLabTypeChange: function (e) {
     var labType = e.currentTarget.dataset.type
     this.setData({
       'filters.labType': labType
@@ -380,7 +420,7 @@ Page({
   },
 
   // 切换仪器类型筛选
-  onDeviceTypeChange: function(e) {
+  onDeviceTypeChange: function (e) {
     var deviceType = e.currentTarget.dataset.type
     this.setData({
       'filters.deviceType': deviceType
@@ -390,7 +430,7 @@ Page({
   },
 
   // 搜索输入：防抖，避免每敲一个字就重建整个列表
-  onSearchInput: function(e) {
+  onSearchInput: function (e) {
     this.setData({
       'filters.searchKeyword': e.detail.value
     })
@@ -404,8 +444,23 @@ Page({
     }, 300)
   },
 
+  // 一键重置全部筛选条件（空状态与结果条上的入口）
+  resetFilters: function () {
+    if (this._searchTimer) {
+      clearTimeout(this._searchTimer)
+      this._searchTimer = null
+    }
+    this.setData({
+      'filters.labType': 'all',
+      'filters.deviceType': 'all',
+      'filters.searchKeyword': ''
+    }, () => {
+      this.applyFilters()
+    })
+  },
+
   // 清除搜索
-  clearSearch: function() {
+  clearSearch: function () {
     if (this._searchTimer) {
       clearTimeout(this._searchTimer)
       this._searchTimer = null
@@ -418,7 +473,7 @@ Page({
   },
 
   // 查看仪器详情
-  goToDetail: function(e) {
+  goToDetail: function (e) {
     var deviceId = e.currentTarget.dataset.deviceid
     if (!deviceId) {
       wx.showToast({
@@ -433,13 +488,25 @@ Page({
     })
   },
 
-  onPullDownRefresh: function() {
+  onPullDownRefresh: function () {
     this.getDevices()
-      .then(function() {
+      .then(function () {
         wx.stopPullDownRefresh()
       })
-      .catch(function() {
+      .catch(function () {
         wx.stopPullDownRefresh()
       })
-  }
+  },
+
+  checkLogin: function () {
+    var userInfo = wx.getStorageSync('userInfo') || {}
+    return !!(userInfo.openid || userInfo._openid || userInfo.userId)
+  },
+
+  handleLogin: function () {
+    // 按你项目实际登录入口改：跳登录页 / 打开授权弹窗
+    wx.navigateTo({
+      url: '/pages/auth/auth'
+    })
+  },
 })

@@ -461,7 +461,8 @@ Page({
     const noticeId = e.currentTarget.dataset.noticeid
     if (noticeId) {
       wx.navigateTo({
-        url: `/pages/notice/detail/noticedetail?noticeId=${noticeId}`,
+        // 公告与消息共用 messagedetail，用 source=notice 区分
+        url: `/pages/message/detail/messagedetail?messageId=${encodeURIComponent(noticeId)}&source=notice`,
         fail(err) {
           // console.error('跳转公告详情失败:', err)
         }

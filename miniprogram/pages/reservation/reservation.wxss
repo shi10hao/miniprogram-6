@@ -56,15 +56,6 @@
   text-overflow: ellipsis;
 }
 
-.person-tag {
-  flex-shrink: 0;
-  padding: 4rpx 16rpx;
-  border-radius: var(--ds-radius-sm);
-  font-size: 22rpx;
-  color: var(--ds-primary-dark);
-  background: var(--ds-primary-light);
-}
-
 /* --------------------------------------------------------------------------
    搜索
    -------------------------------------------------------------------------- */
@@ -275,26 +266,6 @@
   gap: 8rpx;
 }
 
-.device-remaining {
-  font-size: 22rpx;
-  font-weight: 500;
-  color: var(--ds-success);
-  background: var(--ds-success-light);
-  padding: 4rpx 14rpx;
-  border-radius: var(--ds-radius-pill);
-  white-space: nowrap;
-}
-
-.device-full {
-  font-size: 22rpx;
-  font-weight: 500;
-  color: var(--ds-text-muted);
-  background: var(--ds-fill);
-  padding: 4rpx 14rpx;
-  border-radius: var(--ds-radius-pill);
-  white-space: nowrap;
-}
-
 .selected-indicator {
   width: 44rpx;
   height: 44rpx;
@@ -316,8 +287,54 @@
 .device-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 10rpx;
+  align-items: center;
   margin-bottom: 10rpx;
+}
+
+/* 卡片里的标签：尺寸全部自己算，不再继承全局 ds-tag 的 padding + line-height 1.5
+   （那样 22rpx 的字会被撑成 45rpx 高的方块）。
+   承载元素用 view 而不是 text：text 组件在真机上会保留 wxml 里的换行缩进，
+   且固定高度、垂直居中都不生效，标签会自己长高、文字贴底。 */
+.rsv-tag {
+  display: inline-block;
+  height: 36rpx;
+  padding: 0 14rpx;
+  box-sizing: border-box;
+  border-radius: var(--ds-radius-sm);
+  font-size: 22rpx;
+  font-weight: 500;
+  line-height: 36rpx;
+  white-space: nowrap;
+}
+
+/* 同一行标签之间留 8rpx：不用 gap，部分安卓内核不支持 */
+.device-tags .rsv-tag + .rsv-tag {
+  margin-left: 8rpx;
+}
+
+.rsv-tag--primary {
+  background: var(--ds-primary-light);
+  color: var(--ds-primary-dark);
+}
+
+.rsv-tag--success {
+  background: var(--ds-success-light);
+  color: var(--ds-success);
+}
+
+.rsv-tag--warning {
+  background: var(--ds-warning-light);
+  color: var(--ds-warning);
+}
+
+.rsv-tag--danger {
+  background: var(--ds-danger-light);
+  color: var(--ds-danger);
+}
+
+.rsv-tag--muted {
+  background: var(--ds-fill);
+  color: var(--ds-text-muted);
 }
 
 .device-location-row {
@@ -375,76 +392,101 @@
   background: var(--ds-primary);
 }
 
+/* 编号列表用两列：flex + 百分比宽度，不用 grid / gap。
+   grid 在部分安卓内核（X5）不支持，会退化成块级——每个编号独占一行、铺满整行。 */
 .all_devices_btns {
   display: flex;
   flex-wrap: wrap;
-  gap: 12rpx;
+  justify-content: space-between;
 }
 
-.each_devices_btn {
-  flex: 0 0 auto;
-  min-width: 168rpx;
-  padding: 12rpx 16rpx;
+/* 单个编号：单行「编号 | 状态」，高度收到 64rpx。
+   原来文案换行 + 12rpx 内边距，一个编号块近 90rpx 高，列表一多非常臃肿。 */
+.rsv-chip {
+  width: 49%;
+  height: 64rpx;
+  margin-bottom: 12rpx;
+  padding: 0 16rpx;
+  box-sizing: border-box;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4rpx;
-  border-radius: var(--ds-radius-sm);
+  border: 1rpx solid transparent;
+  border-radius: 10rpx;
   font-size: 24rpx;
-  box-sizing: border-box;
-  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
 }
 
-.device-no {
+.rsv-chip-no {
+  flex: 0 1 auto;
+  min-width: 0;
   font-size: 24rpx;
-  line-height: 1.3;
+  font-weight: 500;
+  line-height: 1.2;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 状态文字用一条细竖线跟编号隔开，比换行更省高度，也不会显得空 */
+.rsv-chip-status {
+  flex-shrink: 0;
+  margin-left: 10rpx;
+  padding-left: 10rpx;
+  border-left: 1rpx solid currentColor;
+  font-size: 18rpx;
+  font-weight: 400;
+  line-height: 1.2;
+  opacity: 0.75;
+  white-space: nowrap;
 }
 
 /* 按状态给底色，统一用设计变量，不再用高饱和实心块 */
-.each_devices_btn.status-available {
+.rsv-chip.status-available {
   background: var(--ds-success-light);
-  border: 1rpx solid #b7e4cd;
+  border-color: #b7e4cd;
   color: #166534;
 }
 
-.each_devices_btn.status-reserved {
+.rsv-chip.status-reserved {
   background: var(--ds-warning-light);
-  border: 1rpx solid #f3ddb0;
+  border-color: #f3ddb0;
   color: #92400e;
 }
 
-.each_devices_btn.status-using {
+.rsv-chip.status-using {
   background: var(--ds-primary-light);
-  border: 1rpx solid #b3e0e4;
+  border-color: #b3e0e4;
   color: #1e5f66;
 }
 
-.each_devices_btn.status-maintenance {
+.rsv-chip.status-maintenance {
   background: var(--ds-fill);
-  border: 1rpx solid var(--ds-border);
+  border-color: var(--ds-border);
   color: var(--ds-text-muted);
 }
 
+/* 只有「可用」的编号可以选，按下去给一点缩放反馈。
+   view 上的 :active 在真机不触发，所以真机靠 wxml 的 hover-class 挂 .rsv-chip--pressed，
+   :active 只是给浏览器预览用 */
+.rsv-chip.status-available:active,
+.rsv-chip--pressed {
+  transform: scale(0.97);
+}
+
 /* 选中态统一用品牌色，替掉原来的 Element UI 蓝 */
-.each_devices_btn.active {
+.rsv-chip.active {
   background: var(--ds-primary);
   border-color: var(--ds-primary);
   color: #fff;
   box-shadow: 0 4rpx 12rpx var(--ds-primary-shadow);
 }
 
-.status-tag {
-  display: block;
-  font-size: 18rpx;
-  font-weight: normal;
-  opacity: 0.85;
-}
-
 /* 选中后各状态标签统一变白，不再逐个指定颜色 */
-.each_devices_btn.active .status-tag {
+.rsv-chip.active .rsv-chip-status {
   color: #fff;
   opacity: 0.9;
+  border-left-color: rgba(255, 255, 255, 0.6);
 }
 
 /* --------------------------------------------------------------------------
@@ -671,15 +713,35 @@
   flex-shrink: 0;
   width: 280rpx;
   height: 84rpx;
+  padding: 0 32rpx;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-primary);
+  color: #fff;
   font-size: 30rpx;
   font-weight: 600;
+  box-sizing: border-box;
   box-shadow: 0 6rpx 18rpx var(--ds-primary-shadow);
 }
 
+/* 还没选好：浅底描边代替整块灰底，和主按钮拉开层级；
+   按钮依然可以点，点下去会 toast 提示还缺哪一步，不再是「点了没反应」 */
 .submit-btn.disabled {
-  background: var(--ds-text-disabled);
-  color: #fff;
+  background: var(--ds-fill);
+  color: var(--ds-text-secondary);
+  border: 1rpx solid var(--ds-border);
   box-shadow: none;
+}
+
+/* 提交中：沿用主色，只降一点不透明度，避免按钮在提交瞬间突然变灰 */
+.submit-btn.submitting {
+  background: var(--ds-primary);
+  color: #fff;
+  opacity: 0.75;
+  box-shadow: none;
+}
+
+.submit-btn.submitting:active {
+  opacity: 0.75;
 }
 
 /* --------------------------------------------------------------------------

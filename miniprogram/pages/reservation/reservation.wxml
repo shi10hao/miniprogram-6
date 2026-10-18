@@ -11,7 +11,7 @@
       </view>
       <text class="person-group">{{userInfo.researchGroup}}</text>
     </view>
-    <text class="person-tag">预约人</text>
+    <text class="ds-tag ds-tag-primary">预约人</text>
   </view>
 
   <!-- ==================== 预约时间 ==================== -->
@@ -160,13 +160,11 @@
                 <text wx:if="{{group.deviceModel}}" class="device-model">{{group.deviceModel}}</text>
               </view>
 
+              <!-- 标签用 view 承载、文案与标签写在同一行：text 组件在真机上会保留 wxml 里的
+                   换行缩进（标签内多出一行空行），也不吃固定高度，所以不再用 text + 全局 ds-tag -->
               <view class="device-tags">
-                <text class="ds-tag {{group.lab_type === 'public' ? 'ds-tag-primary' : (group.lab_type === 'group' ? 'ds-tag-warning' : 'ds-tag-success')}}">
-                  {{group.lab_type === 'public' ? '公共实验室' : (group.lab_type === 'group' ? '课题组' : '公共/课题组')}}
-                </text>
-                <text class="ds-tag {{group.device_type === 'large' ? 'ds-tag-danger' : 'ds-tag-success'}}">
-                  {{group.device_type === 'large' ? '大型仪器' : '小型仪器'}}
-                </text>
+                <view class="rsv-tag rsv-tag--{{group.lab_type === 'public' ? 'primary' : (group.lab_type === 'group' ? 'warning' : 'success')}}">{{group.lab_type === 'public' ? '公共实验室' : (group.lab_type === 'group' ? '课题组' : '公共/课题组')}}</view>
+                <view class="rsv-tag rsv-tag--{{group.device_type === 'large' ? 'danger' : 'success'}}">{{group.device_type === 'large' ? '大型仪器' : '小型仪器'}}</view>
               </view>
 
               <view class="device-location-row">
@@ -177,16 +175,17 @@
             </view>
 
             <view class="device-side">
-              <text
-                wx:if="{{group.remainingCount > 0 && !(selectedDevice && selectedDevice.device_ids[0] === group.device_ids[0])}}"
-                class="device-remaining"
-              >剩余 {{group.remainingCount}} 台</text>
-              <text
-                wx:elif="{{group.remainingCount === 0 && !(selectedDevice && selectedDevice.device_ids[0] === group.device_ids[0])}}"
-                class="device-full"
-              >已约满</text>
               <view
-                wx:if="{{selectedDevice && selectedDevice.device_ids[0] === group.device_ids[0]}}"
+                wx:if="{{group.remainingCount > 0 && !(selectedDevice && selectedDevice.device_ids[0] === group.device_ids[0])}}"
+                class="rsv-tag rsv-tag--success"
+              >剩余 {{group.remainingCount}} 台</view>
+              <view
+                wx:elif="{{group.remainingCount === 0 && !(selectedDevice && selectedDevice.device_ids[0] === group.device_ids[0])}}"
+                class="rsv-tag rsv-tag--muted"
+              >已约满</view>
+              <!-- 只有真的选了编号才打勾：选中组但没选编号时按钮仍是灰的，避免看起来已经选好 -->
+              <view
+                wx:if="{{selectedDeviceId && selectedDevice && selectedDevice.device_ids[0] === group.device_ids[0]}}"
                 class="selected-indicator"
               >
                 <text class="selected-icon">✓</text>
@@ -209,7 +208,7 @@
             <text class="sub-label">选择仪器编号</text>
             <view class="all_devices_btns">
               <view
-                class="each_devices_btn status-{{deviceItem.status}} {{deviceItem.active ? 'active' : ''}}"
+                class="rsv-chip status-{{deviceItem.status}} {{deviceItem.active ? 'active' : ''}}"
                 wx:for="{{group.deviceStatusList}}"
                 wx:for-item="deviceItem"
                 wx:for-index="deviceIndex"
@@ -218,13 +217,13 @@
                 data-device-index="{{deviceIndex}}"
                 data-id="{{deviceItem.device_id}}"
                 data-status="{{deviceItem.status}}"
+                hover-class="{{deviceItem.status === 'available' ? 'rsv-chip--pressed' : 'none'}}"
+                hover-stay-time="60"
                 bindtap="onSelectDevice"
                 catchtap
               >
-                <text class="device-no">{{deviceItem.device_id}}</text>
-                <text class="status-tag">
-                  {{deviceItem.status === 'available' ? '可用' : deviceItem.status === 'reserved' ? '已预约' : deviceItem.status === 'using' ? '使用中' : '维修中'}}
-                </text>
+                <view class="rsv-chip-no">{{deviceItem.device_id}}</view>
+                <view class="rsv-chip-status">{{deviceItem.status === 'available' ? '可用' : deviceItem.status === 'reserved' ? '已预约' : deviceItem.status === 'using' ? '使用中' : '维修中'}}</view>
               </view>
             </view>
           </view>
@@ -267,12 +266,13 @@
     <text wx:if="{{!selectedDevice}}" class="submit-tip">请先选择仪器</text>
     <text wx:elif="{{!selectedDeviceId}}" class="submit-tip">请选择仪器编号</text>
   </view>
+  <!-- 按钮不再挂原生 disabled：原生 disabled 会让点击完全没有反馈，
+       这里用 disabled 样式表示「还没准备好」，点下去由 submitReservation 给出文字提示 -->
   <button
-    class="ds-btn submit-btn {{(!selectedDevice || !selectedDeviceId) ? 'disabled' : ''}}"
+    class="ds-btn submit-btn {{(!selectedDevice || !selectedDeviceId) ? 'disabled' : ''}} {{isSubmitting ? 'submitting' : ''}}"
     bindtap="submitReservation"
-    disabled="{{isLoading || !selectedDevice || !selectedDeviceId}}"
   >
-    <text wx:if="{{!isLoading}}">提交预约</text>
-    <text wx:else>提交中...</text>
+    <text wx:if="{{isSubmitting}}">提交中…</text>
+    <text wx:else>提交预约</text>
   </button>
 </view>

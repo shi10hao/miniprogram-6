@@ -12,3 +12,6 @@ $RECYCLE.BIN/
 
 # Node.js
 node_modules/
+
+# 个人 AI 指令（不共享）
+CLAUDE.local.md

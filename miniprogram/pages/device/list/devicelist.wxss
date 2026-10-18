@@ -1,368 +1,627 @@
-.container {
-  background-color: #f5f5f5;
+/* ==========================================================================
+   仪器列表（devicelist）
+   颜色 / 圆角 / 阴影 / 间距全部取自 app.wxss 的设计变量，
+   与首页、预约页保持同一套视觉语言。
+   ========================================================================== */
+
+.page {
   min-height: 100vh;
-  padding-bottom: 20rpx;
+  padding: var(--ds-gap);
+  box-sizing: border-box;
+  background: var(--ds-bg);
 }
 
-/* 统计信息卡片 */
-.stats-card {
-  background: white;
-  margin: 20rpx;
-  border-radius: 20rpx;
-  padding: 30rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.06);
+/* --------------------------------------------------------------------------
+   1. 概览卡片
+   -------------------------------------------------------------------------- */
+.overview-card {
+  padding: var(--ds-gap) var(--ds-gap-lg) var(--ds-gap-sm);
+  margin-bottom: var(--ds-gap);
+  border-radius: var(--ds-radius);
+  background: linear-gradient(135deg, #ffffff 0%, var(--ds-primary-soft) 100%);
+  box-shadow: var(--ds-shadow-sm);
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20rpx;
+.overview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--ds-gap-sm);
 }
 
-.stat-item {
-  text-align: center;
-  padding: 20rpx 0;
+.overview-sub {
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
 }
 
-.stat-number {
-  display: block;
+.overview-grid {
+  display: flex;
+  align-items: stretch;
+}
+
+.overview-item {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6rpx 0 10rpx;
+}
+
+/* 列之间用一根细线分隔，比四个独立小卡更轻 */
+.overview-item + .overview-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rpx;
+  height: 44rpx;
+  background: var(--ds-divider);
+}
+
+.overview-num {
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ds-primary-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 大型 / 小型用两色区分，避免"12/8"看不出谁是谁 */
+.overview-num-split {
+  display: flex;
+  align-items: baseline;
   font-size: 32rpx;
-  font-weight: bold;
-  color: #62BCC4;
-  margin-bottom: 8rpx;
 }
 
-.stat-label {
-  display: block;
+.num-large {
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ds-danger);
+  font-variant-numeric: tabular-nums;
+}
+
+.num-divider {
+  margin: 0 4rpx;
+  font-size: 24rpx;
+  color: var(--ds-text-disabled);
+}
+
+.num-small {
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ds-success);
+  font-variant-numeric: tabular-nums;
+}
+
+.overview-label {
+  margin-top: 6rpx;
   font-size: 22rpx;
-  color: #666;
+  color: var(--ds-text-muted);
+  white-space: nowrap;
 }
 
-/* 搜索区域 */
-.search-section {
-  background: white;
-  padding: 20rpx;
-  margin-bottom: 10rpx;
+/* --------------------------------------------------------------------------
+   2. 搜索 + 筛选（同一张卡片）
+   -------------------------------------------------------------------------- */
+.toolbar {
+  padding: var(--ds-gap);
+  margin-bottom: var(--ds-gap-sm);
+  border-radius: var(--ds-radius);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
 }
 
 .search-box {
-  position: relative;
   display: flex;
   align-items: center;
+  gap: 12rpx;
+  height: 76rpx;
+  padding: 0 24rpx;
+  background: var(--ds-fill);
+  border: 1rpx solid var(--ds-border);
+  border-radius: var(--ds-radius-pill);
+}
+
+.search-icon {
+  font-size: 26rpx;
+  flex-shrink: 0;
+  opacity: 0.6;
 }
 
 .search-input {
   flex: 1;
-  height: 80rpx;
-  background: #f8f9fa;
-  border-radius: 40rpx;
-  padding: 0 80rpx 0 30rpx;
-  font-size: 28rpx;
-  border: 1rpx solid #e9ecef;
+  min-width: 0;
+  height: 100%;
+  font-size: 27rpx;
+  color: var(--ds-text);
 }
 
-.search-icon {
-  position: absolute;
-  right: 50rpx;
-  font-size: 28rpx;
-  color: #999;
+.search-placeholder {
+  color: var(--ds-text-disabled);
+  font-size: 27rpx;
 }
 
 .clear-search {
-  position: absolute;
-  right: 30rpx;
-  font-size: 24rpx;
-  color: #999;
-  padding: 10rpx;
+  flex-shrink: 0;
+  width: 40rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 22rpx;
+  color: var(--ds-text-muted);
+  background: var(--ds-border);
 }
 
-/* 筛选区域 */
-.filter-section {
-  background: white;
-  padding: 30rpx 20rpx;
-  margin-bottom: 20rpx;
+.clear-search-hover {
+  background: var(--ds-text-disabled);
+  color: #fff;
 }
 
-.filter-group {
-  margin-bottom: 30rpx;
+/* 每个筛选条件独占一行：标签定宽、按钮等分，点击区域够大 */
+.filter-block {
+  margin-top: var(--ds-gap);
 }
 
-.filter-group:last-child {
-  margin-bottom: 0;
+.filter-line {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.filter-line + .filter-line {
+  margin-top: 14rpx;
 }
 
 .filter-label {
-  display: block;
-  font-size: 26rpx;
-  color: #333;
-  font-weight: 500;
-  margin-bottom: 20rpx;
+  flex-shrink: 0;
+  width: 96rpx;
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
 }
 
 .filter-buttons {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  gap: 20rpx;
+  gap: 10rpx;
 }
 
 .filter-btn {
-  padding: 16rpx 32rpx;
-  background: #f8f9fa;
-  border-radius: 40rpx;
-  font-size: 26rpx;
-  color: #666;
-  transition: all 0.3s ease;
+  flex: 1;
+  min-width: 0;
+  padding: 14rpx 4rpx;
+  text-align: center;
+  border-radius: var(--ds-radius-sm);
+  font-size: 24rpx;
+  color: var(--ds-text-secondary);
+  background: var(--ds-fill);
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .filter-btn.active {
-  background: #62BCC4;
-  color: white;
+  background: var(--ds-primary);
+  color: #fff;
+  font-weight: 500;
 }
 
-/* 加载状态 */
-.loading {
-  text-align: center;
-  padding: 100rpx 0;
-  color: #666;
-  font-size: 28rpx;
+/* --------------------------------------------------------------------------
+   3. 结果条
+   -------------------------------------------------------------------------- */
+.result-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8rpx var(--ds-gap-sm);
 }
 
-/* 空状态 */
-.empty {
+.result-text {
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
+}
+
+.result-num {
+  font-weight: 600;
+  color: var(--ds-text-secondary);
+}
+
+.result-reset {
+  font-size: 24rpx;
+  color: var(--ds-primary-dark);
+}
+
+/* --------------------------------------------------------------------------
+   4. 骨架屏
+   -------------------------------------------------------------------------- */
+.list {
   display: flex;
   flex-direction: column;
+  gap: var(--ds-gap);
+  padding-bottom: var(--ds-gap-lg);
+}
+
+.skeleton-card {
+  display: flex;
+  gap: var(--ds-gap-sm);
+  padding: var(--ds-gap);
+  border-radius: var(--ds-radius);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.sk-thumb {
+  width: 168rpx;
+  height: 168rpx;
+  flex-shrink: 0;
+  border-radius: var(--ds-radius-sm);
+}
+
+.sk-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  padding-top: 8rpx;
+}
+
+.sk-line {
+  height: 24rpx;
+  border-radius: var(--ds-radius-pill);
+}
+
+.sk-line-title {
+  width: 62%;
+  height: 30rpx;
+}
+
+.sk-line-sub {
+  width: 38%;
+}
+
+.sk-line-meta {
+  width: 84%;
+}
+
+/* --------------------------------------------------------------------------
+   5. 仪器卡片：左图右文
+   -------------------------------------------------------------------------- */
+.device-card {
+  padding: var(--ds-gap);
+  border-radius: var(--ds-radius);
+  border: 1rpx solid var(--ds-border);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-sm);
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.device-card-hover {
+  background: var(--ds-fill);
+  border-color: var(--ds-primary);
+  box-shadow: 0 6rpx 20rpx var(--ds-primary-shadow);
+}
+
+/* 从详情页跳进列表时，高亮当前这台仪器 */
+.device-card.is-entry {
+  border-color: var(--ds-primary);
+  background: var(--ds-primary-soft);
+  box-shadow: 0 6rpx 20rpx var(--ds-primary-shadow);
+}
+
+.card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-gap-sm);
+}
+
+.thumb {
+  position: relative;
+  width: 168rpx;
+  height: 168rpx;
+  flex-shrink: 0;
+  border-radius: var(--ds-radius-sm);
+  overflow: hidden;
+  background: var(--ds-fill);
+}
+
+.thumb-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.thumb-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 120rpx 0;
-  text-align: center;
+  background: var(--ds-primary-light);
 }
 
-.empty-icon {
-  font-size: 80rpx;
-  margin-bottom: 24rpx;
-  opacity: 0.6;
+.thumb-fallback-icon {
+  font-size: 56rpx;
+  opacity: 0.8;
 }
 
-.empty-text {
-  display: block;
-  font-size: 28rpx;
-  color: #666;
-  margin-bottom: 12rpx;
+.card-info {
+  flex: 1;
+  min-width: 0;
 }
 
-.empty-desc {
-  display: block;
-  font-size: 24rpx;
-  color: #999;
-}
-
-/* 仪器列表 */
-.device-list {
+.name-row {
   display: flex;
-  flex-direction: column;
-  gap: 20rpx;
-  padding: 0 20rpx;
-}
-
-/* 仪器卡片 */
-.device-card {
-  background-color: white;
-  border-radius: 20rpx;
-  overflow: hidden;
-  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.06);
-}
-
-.card-header {
-  padding: 30rpx 30rpx 20rpx;
-}
-
-.device-basic {
-  margin-bottom: 10rpx;
+  align-items: flex-start;
+  gap: 12rpx;
+  margin-bottom: 8rpx;
 }
 
 .device-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ds-text);
+}
+
+/* 台数徽标：浅底彩字，比原来的实心色块更安静 */
+.count-badge {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 4rpx 14rpx;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-primary-light);
+  color: var(--ds-primary-deep);
+  font-size: 22rpx;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.count-badge.mixed {
+  background: #eef0fb;
+  color: #45509e;
+}
+
+.count-split-text {
+  font-size: 20rpx;
+  letter-spacing: 1rpx;
+}
+
+.device-model {
   display: block;
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 16rpx;
+  margin-bottom: 12rpx;
+  font-size: 24rpx;
+  color: var(--ds-text-muted);
 }
 
 .device-tags {
   display: flex;
-  gap: 12rpx;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-bottom: 12rpx;
 }
 
-.device-tag {
-  font-size: 22rpx;
-  padding: 6rpx 16rpx;
-  border-radius: 12rpx;
+/* 卡片内两个标签稍加内边距，但仍沿用全局 ds-tag 尺寸 */
+.device-tags .ds-tag {
+  padding: 6rpx 18rpx;
   font-weight: 500;
-  color: white;
-  display: flex;
-  align-items: center;            /* 垂直居中 */
-  justify-content: center;        /* 水平居中 */
-  height: 48rpx;                  /* 固定高度 */
-  min-width: 120rpx;           /* 最小宽度 */
-  box-sizing: border-box;      /* 包含 padding */
-  
-  /* 文本样式 */
-  text-align: center;
-  white-space: nowrap;
-  line-height: 1;
 }
 
-.device-tag.lab.public {
-  background: #62BCC4;
+.ds-tag.lab-public {
+  background: var(--ds-primary-light);
+  color: #1e6b72;
 }
 
-.device-tag.lab.group {
-  background: #ffc107;
-  color: #333;
+.ds-tag.lab-group {
+  background: var(--ds-warning-light);
+  color: #92600b;
 }
 
-.device-tag.lab.mixed {
-  background: #5a6abf;
+.ds-tag.lab-mixed {
+  background: #eef0fb;
+  color: #45509e;
 }
 
-.device-tag.type.large {
-  background: #e74c3c;
+.ds-tag.type-large {
+  background: var(--ds-danger-light);
+  color: #b33636;
 }
 
-.device-tag.type.small {
-  background: #2ecc71;
+.ds-tag.type-small {
+  background: var(--ds-success-light);
+  color: #0d7d58;
 }
 
-/* 仪器图片 */
-.device-image {
-  position: relative;
-  width: 100%;
-  height: 300rpx;
-  overflow: hidden;
+.ds-tag.type-mixed {
+  background: var(--ds-fill);
+  color: var(--ds-text-secondary);
 }
 
-.device-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* 图片加载失败时的占位块 */
-.device-img-fallback {
+.meta-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: #f2f3f5;
-  box-sizing: border-box;
-}
-
-.img-fallback-text {
+  gap: 6rpx;
+  margin-top: 6rpx;
   font-size: 24rpx;
-  color: #a8abb2;
 }
 
-.lab-info {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(transparent, rgba(0,0,0,0.7));
-  padding: 20rpx 30rpx;
-  color: white;
-}
-
-.lab-name {
-  display: block;
-  font-size: 26rpx;
-  font-weight: 500;
-  margin-bottom: 4rpx;
-}
-
-.lab-room {
-  display: block;
+.meta-icon {
+  flex-shrink: 0;
   font-size: 22rpx;
-  opacity: 0.9;
+  opacity: 0.75;
 }
 
-/* 仪器描述 */
-.device-desc {
-  padding: 20rpx 30rpx;
+.meta-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--ds-text-secondary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 描述：底部浅底块，与上方元信息分层 */
+.card-desc {
+  margin-top: var(--ds-gap-sm);
+  padding: 16rpx 18rpx;
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-fill);
 }
 
 .desc-text {
-  font-size: 26rpx;
-  color: #666;
-  line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: var(--ds-text-secondary);
 }
 
-/* 分页加载提示 */
+/* --------------------------------------------------------------------------
+   6. 空状态 / 底部提示
+   -------------------------------------------------------------------------- */
+.empty-reset {
+  margin-top: var(--ds-gap-lg);
+  padding: 0 48rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-primary);
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 500;
+}
+
+.empty-reset-hover {
+  opacity: 0.85;
+}
+
 .list-footer {
-  padding: 30rpx 0 40rpx;
+  padding: 8rpx 0 24rpx;
   text-align: center;
 }
 
 .list-footer-text {
   font-size: 24rpx;
-  color: #999;
+  color: var(--ds-text-muted);
 }
 
-/* 修改：设备名称行样式 */
-.device-name-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 16rpx;
-}
-
-.device-name {
-  font-size: 32rpx;
-  font-weight: bold;
-  color: #333;
-  flex-shrink: 0;
-  margin-right: 12rpx;
-}
-
-.device-model {
-  font-size: 24rpx;
-  color: #999;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.device-count-badge {
-  background: #62BCC4;
-  color: white;
-  font-size: 22rpx;
-  padding: 6rpx 16rpx;
-  border-radius: 20rpx;
-  font-weight: 500;
-  min-width: 80rpx;
-  text-align: center;
-  box-sizing: border-box;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 40rpx; /* 固定高度 */
-}
-
-/* ↓ 加这个 */
-.device-count-badge.mixed {
-  min-width: 120rpx;
-  background: #5a6abf;
-}
-
-.count-split-text {
-  font-size: 20rpx;
-  white-space: nowrap;
-  letter-spacing: 2rpx;
-}
-
-
-
+/* --------------------------------------------------------------------------
+   7. 游客态：概览脱敏
+   -------------------------------------------------------------------------- */
+   .overview-num-masked {
+    color: var(--ds-text-disabled);
+    font-weight: 600;
+  }
+  /* split 格里的 — 默认 32rpx，脱敏时统一到 40rpx，避免四格大小不一 */
+  .overview-num-split.overview-num-masked {
+    font-size: 40rpx;
+  }
+  
+  /* 结果条游客文案可加一个小锁，视觉上点明"未登录" */
+  .result-text-guest::before {
+    content: '🔒';
+    margin-right: 8rpx;
+    font-size: 20rpx;
+    opacity: 0.7;
+  }
+  
+  /* --------------------------------------------------------------------------
+     8. 游客解锁卡（登录墙）
+     -------------------------------------------------------------------------- */
+  /* 卡片上方的渐隐，暗示列表被"截断" */
+  .unlock-fade {
+    height: 64rpx;
+    margin-top: calc(var(--ds-gap) * -1);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, var(--ds-bg) 100%);
+    pointer-events: none;
+  }
+  
+  .unlock-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 56rpx 40rpx 48rpx;
+    border-radius: var(--ds-radius);
+    border: 1rpx dashed var(--ds-primary);
+    background:
+      radial-gradient(120% 80% at 50% 0%, rgba(7, 193, 96, 0.08) 0%, rgba(7, 193, 96, 0) 60%),
+      var(--ds-surface);
+    box-shadow: var(--ds-shadow-sm);
+    overflow: hidden;
+  }
+  
+  /* 顶部主色短线：商业化卡片常见的"可解锁"暗示 */
+  .unlock-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 120rpx;
+    height: 6rpx;
+    transform: translateX(-50%);
+    border-radius: 0 0 6rpx 6rpx;
+    background: var(--ds-primary);
+  }
+  
+  .unlock-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 96rpx;
+    height: 96rpx;
+    margin-bottom: 20rpx;
+    border-radius: 50%;
+    background: var(--ds-primary-soft);
+    font-size: 44rpx;
+    line-height: 1;
+  }
+  
+  .unlock-title {
+    font-size: 32rpx;
+    font-weight: 600;
+    color: var(--ds-text);
+  }
+  
+  .unlock-desc {
+    margin: 12rpx 0 32rpx;
+    font-size: 24rpx;
+    line-height: 1.6;
+    color: var(--ds-text-muted);
+    text-align: center;
+  }
+  
+  .unlock-btn {
+    min-width: 360rpx;
+    height: 84rpx;
+    line-height: 84rpx;
+    text-align: center;
+    border-radius: var(--ds-radius-pill);
+    background: linear-gradient(135deg, var(--ds-primary) 0%, var(--ds-primary-dark) 100%);
+    color: #fff;
+    font-size: 30rpx;
+    font-weight: 600;
+    box-shadow: 0 8rpx 20rpx var(--ds-primary-shadow);
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  
+  .unlock-btn-hover {
+    transform: scale(0.98);
+    opacity: 0.92;
+  }
+  
+  /* footer 游客文案：弱化，不抢按钮 */
+  .list-footer-guest {
+    color: var(--ds-text-disabled);
+  }
