@@ -1,0 +1,21 @@
+{
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.formatOnSave": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "eslint.validate": ["javascript"],
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/miniprogram_npm": true,
+    "miniprogram/pages/webview/3dscene/lib": true
+  },
+  "files.associations": {
+    "*.wxml": "html",
+    "*.wxss": "css"
+  }
+}

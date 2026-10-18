@@ -6,6 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 微信小程序 + 云开发。前端在 `miniprogram/`（页面在 `pages/`，公共工具在 `utils/`），云函数在 `cloudfunctions/`（一个函数一个目录，各自带 `package.json`，依赖 `wx-server-sdk`）。没有构建步骤、没有 CI，代码由微信开发者工具编译。
 
+## 代码规范
+
+改动任何 JS / WXML / WXSS 前先读 `@docs/code-style.md`，**那是唯一标准**（本节的条目只是摘要，冲突时以该文档为准）。三条硬底线：
+
+- 新写或改动的方法一律用简写 `backToStudentAuth() {}`，禁止 `xxx: function () {}` 与箭头函数挂 `Page`；无分号、单引号、2 空格、禁止 `var`。
+- 碰过的文件顺手规范化（只动自己改过的那部分，别整文件重排）。
+- 云函数返回 `{ code, msg, data }`；前端 `await wx.cloud.callFunction(...)` 配 `try / catch / finally`。
+
+提交前跑 `npm run lint`（自动修复用 `npm run lint:fix`），错误清零。
+
 ## 跑测试
 
 - 测试是独立 node 脚本（只用 `assert`，无框架、无 `npm test`），**必须在 `miniprogram/` 目录下运行**——脚本用相对当前目录的路径读 `app.json` 等文件：
