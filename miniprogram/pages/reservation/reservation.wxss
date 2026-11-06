@@ -392,6 +392,14 @@
   background: var(--ds-primary);
 }
 
+/* 详情页带编号进来时的说明："同款还有几台可换" */
+.preselect-hint {
+  display: block;
+  margin: -6rpx 0 14rpx;
+  font-size: 22rpx;
+  color: var(--ds-primary-dark);
+}
+
 /* 编号列表用两列：flex + 百分比宽度，不用 grid / gap。
    grid 在部分安卓内核（X5）不支持，会退化成块级——每个编号独占一行、铺满整行。 */
 .all_devices_btns {
@@ -439,6 +447,12 @@
   line-height: 1.2;
   opacity: 0.75;
   white-space: nowrap;
+}
+
+/* 「· 当前」跟在状态文字后面，不另起一行，避免编号块高度不齐 */
+.rsv-chip-current {
+  font-weight: 500;
+  opacity: 1;
 }
 
 /* 按状态给底色，统一用设计变量，不再用高饱和实心块 */

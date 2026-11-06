@@ -127,13 +127,14 @@
 
     <view wx:else class="device-list">
       <!-- 仪器数量多，用内层滚动把后续卡片保持在首屏可见范围内 -->
-      <scroll-view scroll-y class="device-scroll">
+      <scroll-view scroll-y class="device-scroll" scroll-into-view="{{scrollTarget}}" scroll-with-animation>
         <view
           class="device-card {{selectedDevice && selectedDevice.device_ids[0] === group.device_ids[0] ? 'selected' : ''}}"
           wx:for="{{availableDevices}}"
           wx:for-item="group"
           wx:for-index="groupIndex"
           wx:key="device_id"
+          id="device-{{group.device_ids[0]}}"
           data-device="{{group}}"
           bindtap="selectDevice"
         >
@@ -206,6 +207,7 @@
             class="your-content"
           >
             <text class="sub-label">选择仪器编号</text>
+            <text wx:if="{{preselectHint}}" class="preselect-hint">{{preselectHint}}</text>
             <view class="all_devices_btns">
               <view
                 class="rsv-chip status-{{deviceItem.status}} {{deviceItem.active ? 'active' : ''}}"
@@ -223,7 +225,7 @@
                 catchtap
               >
                 <view class="rsv-chip-no">{{deviceItem.device_id}}</view>
-                <view class="rsv-chip-status">{{deviceItem.status === 'available' ? '可用' : deviceItem.status === 'reserved' ? '已预约' : deviceItem.status === 'using' ? '使用中' : '维修中'}}</view>
+                <view class="rsv-chip-status">{{deviceItem.status === 'available' ? '可用' : deviceItem.status === 'reserved' ? '已预约' : deviceItem.status === 'using' ? '使用中' : '维修中'}}<text wx:if="{{deviceItem.active}}" class="rsv-chip-current"> · 当前</text></view>
               </view>
             </view>
           </view>

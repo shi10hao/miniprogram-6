@@ -1,152 +1,240 @@
-<view class="container">
-  <!-- 加载状态 -->
-  <view wx:if="{{isLoading}}" class="loading-container">
-    <view class="loading-spinner"></view>
-    <text class="loading-text">加载中...</text>
+<view class="page {{device && !isLoading ? 'has-bar' : ''}}">
+
+  <!-- 顶部品牌头：与导航栏同色，滚动时不会出现断层 -->
+  <view class="hero">
+    <view class="hero-top">
+      <text class="hero-eyebrow">仪器详情</text>
+      <view wx:if="{{!isLoading && device}}" class="hero-chip hero-chip-{{statusKey}}">
+        <text class="chip-dot"></text>
+        <text>{{statusText}}</text>
+      </view>
+    </view>
+    <text class="hero-title">{{device ? nameText : '仪器详情'}}</text>
+    <text wx:if="{{heroSub}}" class="hero-sub">{{heroSub}}</text>
   </view>
 
-  <!-- 错误状态 -->
-  <view wx:elif="{{loadError}}" class="error-container">
-    <text class="error-icon">⚠️</text>
-    <text class="error-title">加载失败</text>
-    <text class="error-desc">请检查网络连接后重试</text>
-    <button class="reload-btn" bindtap="reloadPage">重新加载</button>
+  <view class="body">
+
+    <!-- 加载中：骨架屏比转圈更接近成品观感，张数与正文对齐，加载完不跳高度 -->
+    <block wx:if="{{isLoading}}">
+      <view class="ds-card">
+        <view class="sk-main">
+          <view class="ds-skeleton sk-cover"></view>
+          <view class="sk-lines">
+            <view class="ds-skeleton sk-line sk-line-lg"></view>
+            <view class="ds-skeleton sk-line"></view>
+            <view class="ds-skeleton sk-line sk-line-sm"></view>
+          </view>
+        </view>
+        <view class="sk-tags">
+          <view class="ds-skeleton sk-tag"></view>
+          <view class="ds-skeleton sk-tag"></view>
+        </view>
+      </view>
+
+      <view class="ds-card">
+        <view class="sk-lines">
+          <view class="ds-skeleton sk-line sk-line-sm"></view>
+          <view class="sk-chips">
+            <view class="ds-skeleton sk-chip"></view>
+            <view class="ds-skeleton sk-chip"></view>
+            <view class="ds-skeleton sk-chip"></view>
+            <view class="ds-skeleton sk-chip"></view>
+          </view>
+        </view>
+      </view>
+
+      <view class="ds-card">
+        <view class="sk-btns">
+          <view class="ds-skeleton sk-btn"></view>
+          <view class="ds-skeleton sk-btn"></view>
+          <view class="ds-skeleton sk-btn"></view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 请求失败：网络或云调用异常，重试有意义 -->
+    <block wx:elif="{{loadError}}">
+      <view class="ds-card state-card">
+        <text class="state-icon">⚠️</text>
+        <text class="state-title">仪器信息没能加载出来</text>
+        <text class="state-desc">网络可能不太稳定，稍等片刻再试一次</text>
+        <button class="ds-btn ds-btn-block state-btn" bindtap="reloadPage">重新加载</button>
+      </view>
+    </block>
+
+    <block wx:elif="{{notFound || !device}}">
+      <view class="ds-card state-card">
+        <text class="state-icon">🔍</text>
+        <text class="state-title">没找到这台仪器</text>
+        <text class="state-desc">它可能已被删除，或者不在你可以查看的实验室范围内</text>
+        <button class="ds-btn ds-btn-block state-btn" bindtap="goDeviceList">返回仪器列表</button>
+      </view>
+    </block>
+
+    <block wx:else>
+
+      <!-- 1. 基本信息 + 仪器简介 -->
+      <view class="ds-card">
+        <view class="card-head">
+          <text class="ds-section-title">基本信息</text>
+        </view>
+
+        <view class="basic-row">
+          <view
+            class="cover"
+            bindtap="previewCover"
+            hover-class="cover-hover"
+            hover-stay-time="60"
+            aria-role="button"
+            aria-label="查看仪器大图"
+          >
+            <image
+              wx:if="{{hasPicture && !picFailed}}"
+              class="cover-img"
+              src="{{device.picture}}"
+              mode="aspectFill"
+              lazy-load
+              binderror="onDeviceImageError"
+            ></image>
+            <view wx:else class="cover-fallback">
+              <text class="cover-icon">{{coverIcon}}</text>
+            </view>
+          </view>
+
+          <view class="basic-info">
+            <view class="basic-tags">
+              <text class="ds-tag {{typeTagClass}}">{{typeLabel}}</text>
+              <text class="ds-tag {{labTagClass}}">{{labTypeLabel}}</text>
+            </view>
+            <view class="meta-row">
+              <text class="meta-icon">🏛️</text>
+              <text class="meta-label">实验室</text>
+              <text class="meta-value ds-ellipsis">{{labText}}</text>
+            </view>
+            <view class="meta-row">
+              <text class="meta-icon">📍</text>
+              <text class="meta-label">位置</text>
+              <text class="meta-value ds-ellipsis">{{roomText}}</text>
+            </view>
+            <view class="meta-row" bindtap="copyDeviceId" aria-role="button" aria-label="复制仪器编号">
+              <text class="meta-icon">🔖</text>
+              <text class="meta-label">编号</text>
+              <text class="meta-value ds-ellipsis">{{device.device_id || '未编号'}}</text>
+              <text wx:if="{{device.device_id}}" class="meta-copy">复制</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="desc-block">
+          <text class="desc-label">仪器简介</text>
+          <text class="desc-text {{hasDescription ? '' : 'is-empty'}}">{{descriptionText}}</text>
+        </view>
+      </view>
+
+      <!-- 2. 同款仪器：三种状态 + 编号 -->
+      <view class="ds-card">
+        <view class="card-head">
+          <text class="ds-section-title">同款仪器</text>
+          <text class="card-hint">{{totalUnits ? '共 ' + totalUnits + ' 台' : ''}}</text>
+        </view>
+
+        <view wx:if="{{statusHint}}" class="status-hint">{{statusHint}}</view>
+
+        <view wx:for="{{statusGroups}}" wx:key="key" class="status-group">
+          <view class="group-head">
+            <view class="group-name">
+              <text class="group-dot group-dot-{{item.key}}"></text>
+              <text class="group-label">{{item.label}}</text>
+            </view>
+            <text class="group-count">{{item.count}} 台</text>
+          </view>
+          <view class="group-codes">
+            <text wx:if="{{!item.codes.length}}" class="group-empty">暂无</text>
+            <view
+              wx:for="{{item.codes}}"
+              wx:for-item="code"
+              wx:key="*this"
+              class="code-chip code-chip-{{item.key}}"
+              data-code="{{code}}"
+              bindtap="copyCode"
+              hover-class="code-chip-hover"
+              hover-stay-time="60"
+              aria-role="button"
+              aria-label="复制编号 {{code}}"
+            >{{code}}</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 3. 操作指南 -->
+      <view class="ds-card">
+        <view class="card-head">
+          <text class="ds-section-title">操作指南</text>
+        </view>
+        <view class="guide-grid">
+          <view
+            class="guide-btn {{hasProcedure ? '' : 'is-empty'}}"
+            hover-class="guide-btn-hover"
+            hover-stay-time="60"
+            bindtap="viewProcedure"
+            aria-role="button"
+            aria-label="查看操作规程"
+          >
+            <text class="guide-icon">📋</text>
+            <text class="guide-label">操作规程</text>
+          </view>
+          <view
+            class="guide-btn {{hasVideo ? '' : 'is-empty'}}"
+            hover-class="guide-btn-hover"
+            hover-stay-time="60"
+            bindtap="viewVideo"
+            aria-role="button"
+            aria-label="查看操作视频"
+          >
+            <text class="guide-icon">🎬</text>
+            <text class="guide-label">操作视频</text>
+          </view>
+          <view
+            class="guide-btn {{hasPrecautions ? '' : 'is-empty'}}"
+            hover-class="guide-btn-hover"
+            hover-stay-time="60"
+            bindtap="viewPrecautions"
+            aria-role="button"
+            aria-label="查看注意事项"
+          >
+            <text class="guide-icon">⚠️</text>
+            <text class="guide-label">注意事项</text>
+          </view>
+        </view>
+        <view wx:if="{{!hasProcedure || !hasVideo || !hasPrecautions}}" class="guide-foot">
+          灰色入口表示暂未上传对应资料
+        </view>
+      </view>
+
+      <!-- 4. 三维位置（仅公共实验室开放） -->
+      <view wx:if="{{device.lab_type === 'public'}}" class="ds-card ds-card-tight">
+        <view class="ds-cell" bindtap="view3DLocation" aria-role="button" aria-label="查看实验室三维位置">
+          <view class="ds-cell-icon">🧭</view>
+          <view class="ds-cell-body">
+            <text class="ds-cell-title">实验室三维位置</text>
+            <text class="ds-cell-desc">在 3D 场景中查看这台仪器所在的房间与位置</text>
+          </view>
+          <text class="ds-cell-arrow">›</text>
+        </view>
+      </view>
+
+      <view class="foot-tip">下拉可以刷新仪器状态</view>
+
+    </block>
+
   </view>
 
-  <!-- 主要内容 -->
-  <view wx:else class="main-content">
-    <view wx:if="{{device}}" class="content-wrapper">
-
-      <!-- 基本信息卡（含仪器简介） -->
-      <view class="basic-info-card">
-        <view class="device-image-section">
-          <image
-            wx:if="{{!picFailed}}"
-            class="device-image"
-            src="{{device.picture}}"
-            mode="aspectFill"
-            binderror="onDeviceImageError"
-          ></image>
-          <view wx:else class="device-image device-image-fallback">
-            <text class="img-fallback-text">图片加载失败</text>
-          </view>
-        </view>
-        <view class="device-info-section">
-          <view class="device-name-row">
-            <text class="device-name">{{device.device_name}}</text>
-            <text wx:if="{{deviceModel}}" class="device-model-text">{{deviceModel}}</text>
-          </view>
-          <view class="device-tags">
-            <text class="device-tag type">{{device.device_type === 'large' ? '大型仪器' : '小型仪器'}}</text>
-            <text class="device-tag status {{usageStatus}}">{{usageStatus === 'using' ? '使用中' : '可用'}}</text>
-          </view>
-          <text class="device-lab">🏛️ {{device.lab_name || '实验室未设置'}}</text>
-          <text class="device-location">📍 {{device.device_room || '位置未设置'}}</text>
-        </view>
-
-        <!-- 仪器简介（紧跟基本信息下方，位于顶端） -->
-        <view class="description-inline">
-          <text class="description-label">仪器简介</text>
-          <text class="description-text">{{device.description || '暂无仪器简介'}}</text>
-        </view>
-      </view>
-
-      <!-- 仪器状态 -->
-      <view class="status-cards">
-        <!-- 可用仪器 -->
-        <view class="status-card available">
-          <view class="status-header">
-            <view class="status-title-section">
-              <text class="status-icon">✅</text>
-              <text class="status-title">可用仪器编号：</text>
-            </view>
-            <text class="device-count">{{availableDevices.length}}台</text>
-          </view>
-          <view class="device-codes-grid">
-            <text wx:if="{{availableDevices.length === 0}}" class="no-device">暂无可用仪器</text>
-            <view class="code-item" wx:for="{{availableDevices}}" wx:key="device_id">
-              <text class="device-code">{{item.device_id}}</text>
-            </view>
-          </view>
-        </view>
-
-        <!-- 正在使用 -->
-        <view class="status-card using">
-          <view class="status-header">
-            <view class="status-title-section">
-              <text class="status-icon">🔧</text>
-              <text class="status-title">正在使用编号：</text>
-            </view>
-            <text class="device-count">{{usingDevices.length}}台</text>
-          </view>
-          <view class="device-codes-grid">
-            <text wx:if="{{usingDevices.length === 0}}" class="no-device">暂无使用中的仪器</text>
-            <view class="code-item" wx:for="{{usingDevices}}" wx:key="device_id">
-              <text class="device-code">{{item.device_id}}</text>
-            </view>
-          </view>
-        </view>
-
-        <!-- 维修中 -->
-        <view class="status-card maintenance">
-          <view class="status-header">
-            <view class="status-title-section">
-              <text class="status-icon">🛠️</text>
-              <text class="status-title">维修中编号：</text>
-            </view>
-            <text class="device-count">{{maintenanceDevices.length}}台</text>
-          </view>
-          <view class="device-codes-grid">
-            <text wx:if="{{maintenanceDevices.length === 0}}" class="no-device">暂无维修中的仪器</text>
-            <view class="code-item" wx:for="{{maintenanceDevices}}" wx:key="device_id">
-              <text class="device-code">{{item.device_id}}</text>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 查看三维位置 -->
-      <view class="location-card" wx:if="{{device.lab_type === 'public'}}" bindtap="view3DLocation">
-        <view class="location-icon">🌐</view>
-        <view class="location-info">
-          <text class="location-title">查看实验室三维位置</text>
-          <text class="location-desc">在3D场景中查看仪器位置</text>
-        </view>
-        <text class="location-arrow">></text>
-      </view>
-
-      <!-- 操作指南（含规格参数） -->
-      <view class="guide-card">
-        <view class="card-header">
-          <text class="card-title">🔧 操作指南</text>
-        </view>
-        <view class="guide-buttons">
-          <button class="guide-btn" bindtap="viewProcedure">
-            <text class="btn-icon">📋</text>
-            <text class="btn-text">操作规程</text>
-          </button>
-          <button class="guide-btn" bindtap="viewVideo">
-            <text class="btn-icon">🎬</text>
-            <text class="btn-text">操作视频</text>
-          </button>
-          <button class="guide-btn" bindtap="viewPrecautions">
-            <text class="btn-icon">⚠️</text>
-            <text class="btn-text">注意事项</text>
-          </button>
-          <!-- <button class="guide-btn" bindtap="viewSpecifications">
-            <text class="btn-icon">📐</text>
-            <text class="btn-text">规格参数</text>
-          </button> -->
-        </view>
-      </view>
-
+  <!-- 吸底预约栏：只在拿到仪器后才出现，避免空态还挂个按钮 -->
+  <view wx:if="{{device && !isLoading}}" class="action-bar">
+    <view class="action-info">
+      <text class="action-text">{{barText}}</text>
     </view>
-
-    <!-- 空状态 -->
-    <view wx:else class="empty-container">
-      <text class="empty-icon">🔍</text>
-      <text class="empty-title">未找到仪器信息</text>
-      <text class="empty-desc">请检查仪器编号或联系管理员</text>
-    </view>
+    <button class="ds-btn action-btn" bindtap="goReserve">去预约</button>
   </view>
 </view>

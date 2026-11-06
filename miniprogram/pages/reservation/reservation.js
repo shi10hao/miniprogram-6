@@ -27,6 +27,9 @@ Page({
     deviceType: 'all', // all, public, group
     availableDevices: [], // 可用的仪器列表
     selectedDevice: null, // 选择的仪器
+    // 从详情页带编号进来时：滚到那张卡 + 一句"还能换一台"的提示
+    scrollTarget: '',
+    preselectHint: '',
 
     // 预约时间
     reserveDate: '',
@@ -50,7 +53,7 @@ Page({
     maxEndDate: '' // 新增：结束日期最大可选值
   },
 
-  onLoad() {
+  onLoad(options) {
     // 登录态校验
     const userInfo = wx.getStorageSync('userInfo')
     if (!userInfo) {
@@ -64,6 +67,8 @@ Page({
     this._loadSeq = 0
     // 搜索/筛选防抖定时器
     this._searchTimer = null
+    // 从仪器详情页「去预约」进来时带上的编号，列表加载完自动选中（用完即清空）
+    this._preselectDeviceId = String((options && options.deviceId) || '').trim()
 
     this.initData()
     this.getUserInfo()
@@ -375,6 +380,9 @@ Page({
         selectedDevice: nextSelectedDevice,
         selectedDeviceId: nextSelectedDevice ? keepDeviceId : '',
         isLoading: false
+      }, () => {
+        // 从详情页跳过来时，列表一就绪就把那一台选中
+        this.applyPreselect(devicesWithStatus)
       })
 
       // 图片是 cloud:// fileID，异步换成临时链接，避免渲染层 500
@@ -392,6 +400,49 @@ Page({
         icon: 'none'
       })
     }
+  },
+
+  // 详情页带 deviceId 跳过来时自动选中那一台；只认可用状态的设备，其余给一句提示
+  applyPreselect(devices) {
+    const deviceId = this._preselectDeviceId
+    if (!deviceId) return
+    // 只消费一次，之后列表刷新（换日期、搜索）不再抢用户的手动选择
+    this._preselectDeviceId = ''
+
+    let groupIndex = -1
+    let targetStatus = ''
+    devices.forEach((group, gi) => {
+      (group.deviceStatusList || []).forEach((item) => {
+        if (item.device_id !== deviceId) return
+        groupIndex = gi
+        targetStatus = item.status
+      })
+    })
+
+    if (groupIndex === -1 || targetStatus !== 'available') {
+      wx.showToast({
+        title: '这台仪器当前不可预约',
+        icon: 'none'
+      })
+      return
+    }
+
+    const group = devices[groupIndex]
+    const usable = group.deviceStatusList.filter(item => item.status === 'available').length
+    const patch = {
+      selectedDevice: group,
+      selectedDeviceId: deviceId,
+      preselectHint: usable > 1 ? '同款 ' + usable + ' 台可用，点下面的编号可以换一台' : ''
+    }
+    group.deviceStatusList.forEach((item, i) => {
+      patch[`availableDevices[${groupIndex}].deviceStatusList[${i}].active`] = item.device_id === deviceId
+    })
+
+    this.setData(patch, () => {
+      // 卡片已经渲染出来之后再滚，第一次 setData 时节点还不存在，滚不过去
+      this.setData({ scrollTarget: 'device-' + group.device_ids[0] })
+      this.checkTimeConflict(false)
+    })
   },
 
   // 把仪器卡片的 cloud:// 图片换成临时链接（有缓存，重复加载几乎零开销）
@@ -647,8 +698,9 @@ Page({
       return
     }
     // 这里不查冲突：此刻还没有具体编号，用组内首台去查没有意义
-    // 换组时把上一组的编号高亮一起清掉，避免两组同时有选中态
-    this.resetDeviceSelection({ selectedDevice: device })
+    // 换组时把上一组的编号高亮一起清掉，避免两组同时有选中态；
+    // preselectHint 只对刚进来的那一组有效，换组后一并清空
+    this.resetDeviceSelection({ selectedDevice: device, preselectHint: '' })
   },
 
   /**
@@ -681,7 +733,9 @@ Page({
     // 用路径 setData 只更新变化的那几个字段，避免整表重刷
     const patch = {
       selectedDevice: group,
-      selectedDeviceId: deviceId
+      selectedDeviceId: deviceId,
+      // 换过编号就不再提"同款还有几台"，那句话只对刚进来时的那一组有效
+      preselectHint: ''
     }
     group.deviceStatusList.forEach((item, i) => {
       patch[`availableDevices[${groupIndex}].deviceStatusList[${i}].active`] = (item.device_id === deviceId)
