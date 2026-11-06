@@ -1,783 +1,488 @@
+// 仪器使用页
+// 三件事：扫码开始使用 / 上传过程照片 / 正常结束使用（异常则走反馈并直接结束）
+// 页面只负责交互与云开发调用，时间、状态、校验等纯计算都在 usageModel.js 里
 const db = wx.cloud.database()
 const cloudFile = require('../../utils/cloudFile.js')
+const datetime = require('../../utils/datetime.js')
+const usageModel = require('./usageModel.js')
+
 const TEMPLATE_ID = 'rgRmn33I28JIm4REBjzpin2dV474fmrLRxYFTpSJbuk'
-const BANNER_REMINDER_TYPES = ['reservation_remind', 'usage_photo_remind', 'usage_end_remind']
-const PHOTO_REMINDER_TYPES = ['usage_photo_remind', 'usage_end_remind']
+const USAGE_COLLECTION = 'device_usage'
+const RESERVE_COLLECTION = 'reserves'
+const MESSAGE_COLLECTION = 'messages'
+
+// 使用时长每 30 秒刷一次即可，没必要秒级重排
+const ELAPSED_REFRESH_MS = 30 * 1000
+const MAX_FEEDBACK_PHOTOS = 3
+// 水印画布的长边上限：原图再大也只画到 1600，避免安卓端 canvas 内存爆掉
+const MAX_WATERMARK_EDGE = 1600
 
 Page({
   data: {
+    isAuthenticated: false,
+    isLoading: false,
+    isUploading: false,
+    isSubmittingFeedback: false,
+    isSubmittingEnd: false,
+    isHistoryLoading: true,
+
     currentUsage: null,
-    // 展示用的已上传照片（cloud:// 已换成临时 https 链接）
+    elapsedText: '',
     selfUsageImages: [],
+    photoLimit: usageModel.PHOTO_LIMIT,
+
     pendingReserves: [],
     usageHistory: [],
-    isLoading: false,
     unreadReminder: null,
-    isAuthenticated: false,
-    ifWorkingOK: true,
+
+    showFeedback: false,
+    feedbackScene: 'start',
+    currentReserveId: '',
     feedbackTitle: '',
     feedbackContent: '',
-    currentReserveId: '', // 新增：当前反馈对应的预约ID
-    feedbackScene: 'start',
     feedbackPhotos: [],
-    endWithFeedback: false,
-    // 结束信息表单
-    showEndForm: false,
-    endForm: {
-      instrumentOff: null, // true/false，仪器是否关闭
-      computerOff: null, // true/false，电脑是否关闭
-      nextUser: '',
-      moreSample: null,
-      sampleCount: '', // 运行样品总数
-      moreSampleCount: '',
-      totalPage: '', // 总的预约单本地路径
-      needSupplement: null, // true/false，是否需要补充预约
-      supplementPage: '', // 补充预约单本地路径
-      devicePage: '',
-      roomPage: ''
-    },
-    endMode: false,
-    endPhotos: [null, null, null]
+    maxFeedbackPhotos: MAX_FEEDBACK_PHOTOS,
 
+    showEndForm: false,
+    endForm: usageModel.createEmptyEndForm()
   },
 
+  // ==================== 生命周期 ====================
+
   onLoad() {
+    // onShow 紧跟 onLoad 触发，数据统一放在 onShow 里加载，
+    // 避免旧实现首次进入时每个查询都跑两遍
     this.checkAuth()
-    this.loadData()
-    this.loadUnreadReminder()
   },
 
   onShow() {
     this.checkAuth()
-    this.loadCurrentUsage()
-    this.loadPendingReserves()
-    this.loadUnreadReminder()
+    this.refreshAll()
   },
+
+  onHide() {
+    this.stopElapsedTimer()
+  },
+
+  onUnload() {
+    this.stopElapsedTimer()
+  },
+
+  async onPullDownRefresh() {
+    try {
+      await this.refreshAll()
+    } finally {
+      wx.stopPullDownRefresh()
+    }
+  },
+
+  // ==================== 身份 ====================
 
   checkAuth() {
     const userInfo = wx.getStorageSync('userInfo')
-    this.setData({
-      isAuthenticated: !!(userInfo && userInfo.userId)
-    })
+    const isAuthenticated = !!(userInfo && userInfo.userId)
+    if (isAuthenticated === this.data.isAuthenticated) return
+    this.setData({ isAuthenticated })
   },
 
-  loadData() {
-    this.loadCurrentUsage()
-    this.loadPendingReserves()
-    this.loadUsageHistory()
+  goAuth() {
+    wx.navigateTo({ url: '/pages/auth/auth' })
   },
 
-  /*
-    输入：无参数，依赖本地缓存userInfo
-    输出：Promise，成功返回记录对象/null，失败返回null
-    依赖函数： this.formatUage()  格式化使用记录数据
-    使用API：云数据库查询
-  */
-  loadCurrentUsage() {
-    const userInfo = wx.getStorageSync('userInfo')
-    if (!userInfo || !userInfo.userId) {
-      this.setData({
-        currentUsage: null,
-        currentReserveId: '' // 同步清空
-      })
-      return Promise.resolve(null)
-    }
-
-    return db.collection('device_usage')
-      .where({
-        user_id: userInfo.userId,
-        status: 'using'
-      })
-      .get()
-      .then(async (res) => {
-        const usage = res.data && res.data.length > 0 ? res.data[0] : null
-        const formattedUsage = usage ? this.formatUsage(usage) : null
-        this.setData({
-          currentUsage: formattedUsage,
-          currentReserveId: formattedUsage ? formattedUsage.reserve_id : '' // 同步赋值
-        })
-        // 把 cloud:// fileID 换成可渲染的 https 临时链接
-        await this.resolveUsageImages()
-        return usage || null
-      })
-      .catch((err) => {
-        console.error('获取当前使用记录失败:', err)
-        return null
-      })
+  getCachedUserInfo() {
+    return wx.getStorageSync('userInfo') || {}
   },
 
-  /**
-   * 单张照片加载失败（例如临时链接过期）：标记后渲染占位块，
-   * 避免 <image> 反复重试造成刷屏的 500 报错。
-   */
-  onUsagePhotoError(e) {
-    const index = e.currentTarget.dataset.index
-    if (index === undefined || index === null) return
-    const list = this.data.selfUsageImages || []
-    if (!list[index]) return
-    this.setData({
-      [`selfUsageImages[${index}].failed`]: true
-    })
+  // ==================== 数据加载 ====================
+
+  refreshAll() {
+    return Promise.all([
+      this.loadCurrentUsage(),
+      this.loadPendingReserves(),
+      this.loadUsageHistory(),
+      this.loadUnreadReminder()
+    ])
   },
 
-  // 点击查看大图
-  previewUsagePhoto(e) {
-    const url = e.currentTarget.dataset.url
-    if (!url) return
-    const urls = (this.data.selfUsageImages || [])
-      .filter(item => item.url && !item.failed)
-      .map(item => item.url)
-    wx.previewImage({
-      current: url,
-      urls: urls.length ? urls : [url]
-    })
-  },
-
-  /**
-   * 解析当前使用记录里的云存储图片：
-   * usage_images 会被 <image> 直接渲染，必须换成临时链接，
-   * 否则渲染层会报 "Failed to load local image resource ... cloud://..." 500。
-   * selfUsageImages 为展示用数组，currentUsage.usage_images 保持原始 fileID 不变。
-   */
-  async resolveUsageImages() {
-    const usage = this.data.currentUsage
-    if (!usage) {
-      if (this.data.selfUsageImages && this.data.selfUsageImages.length) {
-        this.setData({ selfUsageImages: [] })
-      }
-      return
-    }
-
-    const rawList = Array.isArray(usage.usage_images) ? usage.usage_images : []
-    if (!rawList.length) {
-      if (this.data.selfUsageImages && this.data.selfUsageImages.length) {
-        this.setData({ selfUsageImages: [] })
-      }
-      return
-    }
-
-    try {
-      const map = await cloudFile.resolveTempUrls(rawList)
-      const resolved = rawList.map(item => ({
-        fileId: item,
-        url: cloudFile.resolveSingle(item, map)
-      })).filter(item => item.url)
-
-      this.setData({ selfUsageImages: resolved })
-    } catch (err) {
-      console.error('解析使用照片失败:', err)
-    }
-  },
-  //
-  loadUsageHistory() {
-    const userInfo = wx.getStorageSync('userInfo')
-    if (!userInfo || !userInfo.userId) {
-      this.setData({
-        isLoading: false,
-        usageHistory: []
-      })
-      return Promise.resolve([])
-    }
-    const _ = db.command // 新增：获取数据库操作符
-    return db.collection('device_usage')
-      .where({
-        user_id: userInfo.userId,
-        status: _.in(['completed', 'abnormal']) // 修改这一行
-      })
-      .orderBy('start_time', 'desc')
-      .limit(10)
-      .get()
-      .then((res) => {
-        const usageHistory = (res.data || []).map(item => this.formatUsage(item))
-        this.setData({
-          usageHistory
-        })
-        return usageHistory
-      })
-      .catch((err) => {
-        console.error('获取使用历史失败:', err)
-        return []
-      })
-  },
-  //
-  loadPendingReserves() {
-    const userInfo = wx.getStorageSync('userInfo')
-    if (!userInfo || !userInfo.userId) {
-      this.setData({
-        pendingReserves: []
-      })
-      return Promise.resolve([])
-    }
-
-    const now = new Date()
-    const pad = n => String(n).padStart(2, '0')
-    const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-    const todayStartTs = this.getReservationTimeMs(todayStr, '00:00')
-
-    const queryAllReserves = async () => {
-      let allRecords = []
-      let lastId = null
-      let lastTime = null
-      const pageSize = 20
-
-      while (true) {
-        let query = db.collection('reserves').where({
-          user_id: userInfo.userId,
-          status: 'approved'
-        }).orderBy('start_time', 'asc').orderBy('_id', 'asc').limit(pageSize)
-
-        // 核心修正：用 start_time 做主游标，_id 兜底
-        if (lastTime && lastId) {
-          const _ = db.command
-          query = query.where(_.or([{
-            start_time: _.gt(lastTime)
-          },
-          {
-            start_time: _.eq(lastTime),
-            _id: _.gt(lastId)
-          }
-          ]))
-        }
-
-        const res = await query.get()
-        const records = res.data || []
-
-        if (records.length === 0) break
-        allRecords = allRecords.concat(records)
-        if (records.length < pageSize) break
-
-        // 更新游标
-        const lastItem = records[records.length - 1]
-        lastTime = lastItem.start_time
-        lastId = lastItem._id
-      }
-      return allRecords
-    }
-    return queryAllReserves()
-      .then((res) => {
-        const records = res || []
-        // console.log("records:", records)
-        const pending = records.filter(function (item) {
-          const usageNotStarted = !item.usage_status || item.usage_status === 'not_started'
-          const endTs = this.getReserveTimestamp(item, 'end')
-          return usageNotStarted && endTs && endTs >= todayStartTs
-        }, this).map((item) => {
-          const startTs = this.getReserveTimestamp(item, 'start')
-          const endTs = this.getReserveTimestamp(item, 'end')
-          return Object.assign({}, item, {
-            _sort_ts: startTs || 0,
-            _end_ts: endTs || 0
-          })
-        }).sort(function (a, b) {
-          return a._sort_ts - b._sort_ts
-        }).map((item) => {
-          const startTs = item._sort_ts
-          const endTs = item._end_ts
-          let state = 'expired'
-          if (startTs && endTs) {
-            if (now.getTime() < startTs) {
-              state = 'pending'
-            } else if (now.getTime() >= startTs && now.getTime() < endTs) {
-              state = 'ready'
-            }
-          }
-          // 判断是否跨天
-          const startDateOnly = item.start_time ? this.formatDateOnly(item.start_time) : ''
-          const endDateOnly = item.end_time ? this.formatDateOnly(item.end_time) : ''
-          const isCrossDay = startDateOnly && endDateOnly && startDateOnly !== endDateOnly
-
-          let startDisplay = ''
-          let endDisplay = ''
-          if (isCrossDay) {
-            const pad = n => String(n).padStart(2, '0')
-            const startD = this.parseDateValue(item.start_time)
-            const endD = this.parseDateValue(item.end_time)
-            if (startD && endD) {
-              startDisplay = `${pad(startD.getMonth() + 1)}-${pad(startD.getDate())} ${pad(startD.getHours())}:${pad(startD.getMinutes())}`
-              endDisplay = `${pad(endD.getMonth() + 1)}-${pad(endD.getDate())} ${pad(endD.getHours())}:${pad(endD.getMinutes())}`
-            } else {
-              startDisplay = this.formatClock(item.start_time)
-              endDisplay = this.formatClock(item.end_time)
-            }
-          } else {
-            startDisplay = this.formatClock(item.start_time)
-            endDisplay = this.formatClock(item.end_time)
-          }
-
-          return {
-            _id: item._id,
-            device_name: item.device_name || '',
-            device_id: item.device_id || '',
-            start_time: item.start_time || '',
-            end_time: item.end_time || '',
-            reserve_date: item.reserve_date || '',
-            start_display: startDisplay,
-            end_display: endDisplay,
-            state: state
-          }
-        })
-        this.setData({
-          pendingReserves: pending
-        })
-        return pending
-      })
-      .catch((err) => {
-        console.error('获取待使用预约失败:', err)
-        this.setData({
-          pendingReserves: []
-        })
-        return []
-      })
-  },
-  //
-  loadUnreadReminder() {
-    const userInfo = wx.getStorageSync('userInfo') || {}
+  async loadCurrentUsage() {
+    const userInfo = this.getCachedUserInfo()
     if (!userInfo.userId) {
-      this.setData({
-        unreadReminder: null
-      })
-      return Promise.resolve(null)
+      this.clearCurrentUsage()
+      return null
     }
-
-    const _ = db.command
-    return db.collection('messages')
-      .where({
-        user_id: userInfo.userId,
-        is_read: _.neq(true),
-        type: _.in(BANNER_REMINDER_TYPES)
-      })
-      .orderBy('create_time', 'desc')
-      .limit(1)
-      .get()
-      .then((res) => {
-        const item = res.data && res.data.length > 0 ? res.data[0] : null
-        this.setData({
-          unreadReminder: item ? this.normalizeUnreadReminder(item) : null
-        })
-        return item
-      })
-      .catch((err) => {
-        console.error('获取未读提醒失败:', err)
-        this.setData({
-          unreadReminder: null
-        })
-        return null
-      })
-  },
-  //
-  normalizeUnreadReminder(item) {
-    return {
-      _id: item._id,
-      type: item.type,
-      title: item.title || '未读提醒',
-      content: this.getReminderSummary(item),
-      related_id: item.related_id || '',
-      create_time: this.formatTime(item.create_time)
-    }
-  },
-  //
-  getReminderSummary(item) {
-    if (PHOTO_REMINDER_TYPES.indexOf(item.type) !== -1) {
-      return '请前往“仪器使用”页的“上传照片板块”完成照片上传。'
-    }
-    return this.truncateText(item.content || '', 48)
-  },
-  // 1
-  goToReminder() {
-    const reminder = this.data.unreadReminder
-    if (!reminder) return
-
-    // 新增：点击横幅自动标记消息为已读
-    db.collection('messages').doc(reminder._id).update({
-      data: {
-        is_read: true
-      }
-    }).then(() => {
-      this.setData({
-        unreadReminder: null
-      })
-    }).catch(err => console.error('标记已读失败', err))
-
-    if (PHOTO_REMINDER_TYPES.indexOf(reminder.type) !== -1) {
-      wx.pageScrollTo({
-        scrollTop: 0,
-        duration: 200
-      })
-      return
-    }
-
-    wx.navigateTo({
-      url: `/pages/message/detail/messagedetail?messageId=${reminder._id}&source=message`
-    })
-  },
-  //
-  formatUsage(usage) {
-    const startDisplay = usage.start_time ? this.formatTime(usage.start_time) : ''
-    const endDisplay = usage.end_time ? this.formatTime(usage.end_time) : ''
-
-    // 判断是否跨天：比较开始和结束的日期部分
-    const startDateOnly = usage.start_time ? this.formatDateOnly(usage.start_time) : ''
-    const endDateOnly = usage.end_time ? this.formatDateOnly(usage.end_time) : ''
-    const isCrossDay = startDateOnly && endDateOnly && startDateOnly !== endDateOnly
-
-    let periodDisplay = ''
-    if (usage.start_time && usage.end_time) {
-      if (isCrossDay) {
-        // 跨天显示完整格式：07-17 18:00 - 07-18 10:00
-        const pad = n => String(n).padStart(2, '0')
-        const startD = this.parseDateValue(usage.start_time)
-        const endD = this.parseDateValue(usage.end_time)
-        if (startD && endD) {
-          periodDisplay = `${pad(startD.getMonth() + 1)}-${pad(startD.getDate())} ${pad(startD.getHours())}:${pad(startD.getMinutes())} - ${pad(endD.getMonth() + 1)}-${pad(endD.getDate())} ${pad(endD.getHours())}:${pad(endD.getMinutes())}`
-        } else {
-          periodDisplay = `${this.formatClock(usage.start_time)} - ${this.formatClock(usage.end_time)}`
-        }
-      } else {
-        // 同天显示完整格式：2026-07-17 15:52 - 15:53
-        const pad = n => String(n).padStart(2, '0')
-        const startD = this.parseDateValue(usage.start_time)
-        if (startD) {
-          periodDisplay = `${startD.getFullYear()}-${pad(startD.getMonth() + 1)}-${pad(startD.getDate())} ${pad(startD.getHours())}:${pad(startD.getMinutes())} - ${this.formatClock(usage.end_time)}`
-        } else {
-          periodDisplay = `${this.formatClock(usage.start_time)} - ${this.formatClock(usage.end_time)}`
-        }
-      }
-    }
-
-    return Object.assign({}, usage, {
-      start_time_display: startDisplay,
-      end_time_display: endDisplay,
-      usage_date_display: usage.start_time ? this.formatDateOnly(usage.start_time) : '',
-      usage_period_display: periodDisplay
-    })
-  },
-  //
-  formatTime(isoStr) {
-    if (!isoStr) return ''
-    const d = this.parseDateValue(isoStr)
-    if (!d) return String(isoStr)
-    const pad = n => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-  },
-  //
-  formatDateOnly(isoStr) {
-    if (!isoStr) return ''
-    const d = this.parseDateValue(isoStr)
-    if (!d) return ''
-    const pad = n => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-  },
-  //
-  formatClock(isoStr) {
-    if (!isoStr) return ''
-    const d = this.parseDateValue(isoStr)
-    if (!d) return ''
-    const pad = n => String(n).padStart(2, '0')
-    return `${pad(d.getHours())}:${pad(d.getMinutes())}`
-  },
-  //
-  parseDateValue(value) {
-    if (!value) return null
-    if (typeof value === 'number') {
-      const numericDate = new Date(value)
-      return Number.isNaN(numericDate.getTime()) ? null : numericDate
-    }
-
-    const text = String(value).trim().replace(/\//g, '-')
-    if (!text) return null
-
-    const beijingTimestamp = this.parseBeijingDateTimeMs(text)
-    if (beijingTimestamp) {
-      return new Date(beijingTimestamp)
-    }
-
-    const normalized = text.replace(' ', 'T')
-    const date = new Date(normalized)
-    return Number.isNaN(date.getTime()) ? null : date
-  },
-  //
-  parseBeijingDateTimeMs(text) {
-    const match = String(text || '').match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T-](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/)
-    if (!match) return 0
-
-    const year = Number(match[1])
-    const month = Number(match[2])
-    const day = Number(match[3])
-    const hour = Number(match[4] || 0)
-    const minute = Number(match[5] || 0)
-    const second = Number(match[6] || 0)
-    if (!year || !month || !day || hour > 23 || minute > 59 || second > 59) return 0
-
-    return Date.UTC(year, month - 1, day, hour - 8, minute, second, 0)
-  },
-  //
-  getReservationTimeMs(dateStr, timeStr) {
-    return this.parseBeijingDateTimeMs(`${dateStr} ${timeStr}`)
-  },
-  //
-  getReserveTimestamp(reserve, field) {
-    const tsKey = `${field}_ts`
-    const timeKey = `${field}_time`
-    const timestamp = Number(reserve && reserve[tsKey])
-    if (Number.isFinite(timestamp) && timestamp > 0) {
-      return timestamp
-    }
-
-    const date = this.parseDateValue(reserve && reserve[timeKey])
-    return date ? date.getTime() : 0
-  },
-  // 2
-  isReserveReady(reserve, now = new Date()) {
-    const startTs = this.getReserveTimestamp(reserve, 'start')
-    const endTs = this.getReserveTimestamp(reserve, 'end')
-    const nowTs = now.getTime()
-    return !!(startTs && endTs && nowTs >= startTs && nowTs < endTs)
-  },
-  // 3
-  formatReserveDateTime(date) {
-    const pad = n => String(n).padStart(2, '0')
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
-  },
-  // 4
-  findCurrentValidReserve(userId) {
-    return db.collection('reserves')
-      .where({
-        user_id: userId,
-        status: 'approved'
-      })
-      .orderBy('start_time', 'desc')
-      .limit(50)
-      .get()
-      .then((res) => {
-        const records = res.data || []
-        return records.find((item) => {
-          if (item.usage_status && item.usage_status !== 'not_started') return false
-          return true
-        }) || null
-      })
-  },
-  // 5
-
-  addWatermarkToPhoto(tempFilePath, deviceName, deviceId) {
-    return new Promise((resolve, reject) => {
-      // 获取图片信息
-      wx.getImageInfo({
-        src: tempFilePath,
-        success: (imgInfo) => {
-          const imgWidth = imgInfo.width
-          const imgHeight = imgInfo.height
-
-          // 创建离屏 canvas
-          const query = wx.createSelectorQuery()
-          query.select('#watermarkCanvas')
-            .fields({
-              node: true,
-              size: true
-            })
-            .exec((res) => {
-              if (!res || !res[0]) {
-                resolve(tempFilePath)
-                return
-              }
-
-              const canvas = res[0].node
-              const ctx = canvas.getContext('2d')
-
-              // 设置 canvas 尺寸与图片一致
-              canvas.width = imgWidth
-              canvas.height = imgHeight
-
-              const img = canvas.createImage()
-              img.onload = () => {
-                // 1. 绘制原图
-                ctx.drawImage(img, 0, 0, imgWidth, imgHeight)
-
-                // 2. 准备水印文字
-                const now = new Date()
-                const pad = n => String(n).padStart(2, '0')
-                const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
-                const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
-
-                const watermarks = [
-                  `${dateStr} ${timeStr}`,
-                  `${deviceName || ''} ${deviceId || ''}`
-                ]
-
-                // 3. 设置水印样式 - 描边文字
-                const fontSize = Math.max(Math.round(imgWidth / 30), 24)
-                ctx.font = `bold ${fontSize}px sans-serif`
-                ctx.textAlign = 'left'
-                ctx.textBaseline = 'top'
-
-                // 描边（黑色边框）
-                ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)'
-                ctx.lineWidth = 4
-                ctx.shadowColor = 'transparent'
-                ctx.shadowBlur = 0
-
-                // 填充（白色文字）
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
-
-                // 4. 在左上角绘制水印（大约在长宽各三分之一的位置）
-                const xPos = Math.round(imgWidth / 3) // 横向三分之一位置
-                const yPos = Math.round(imgHeight / 3) // 纵向三分之一位置
-                const lineHeight = fontSize * 1.4
-
-                watermarks.forEach((text, index) => {
-                  // 先描边
-                  ctx.strokeText(text, xPos, yPos + index * lineHeight)
-                  // 再填充（文字在描边之上）
-                  ctx.fillText(text, xPos, yPos + index * lineHeight)
-                })
-
-                // 5. 导出带水印图片
-                wx.canvasToTempFilePath({
-                  canvas,
-                  x: 0,
-                  y: 0,
-                  width: imgWidth,
-                  height: imgHeight,
-                  destWidth: imgWidth,
-                  destHeight: imgHeight,
-                  fileType: 'jpg',
-                  quality: 0.92,
-                  success: (res2) => {
-                    resolve(res2.tempFilePath)
-                  },
-                  fail: (err) => {
-                    console.error('导出水印图片失败:', err)
-                    resolve(tempFilePath)
-                  }
-                })
-              }
-              img.onerror = (err) => {
-                console.error('加载图片失败:', err)
-                resolve(tempFilePath)
-              }
-              img.src = tempFilePath
-            })
-        },
-        fail: (err) => {
-          console.error('获取图片信息失败:', err)
-          resolve(tempFilePath)
-        }
-      })
-    })
-  },
-  // 6
-  // ===== 优化：扫码开始使用 =====
-  async startUsageFromReserve(e) {
-    if (this.data.isLoading) return
-
-    const reserveId = e.currentTarget.dataset.reserveid
-    const userInfo = wx.getStorageSync('userInfo') || {}
-
-    // 第一步：仪器启动确认
-    const isNormal = await this.confirmDeviceStart(reserveId)
-    if (!isNormal) return
-
-    // 第二步：获取预约信息
-    const reserveInfo = await this.fetchReserveInfo(reserveId)
-    if (!reserveInfo) return
-
-    const {
-      deviceId: expectedDeviceId,
-      deviceName
-    } = reserveInfo
-
-    // 第三步：扫码
-    wx.showLoading({
-      title: '请扫描仪器二维码...'
-    })
 
     try {
-      const scanResult = await this.scanDeviceQR()
-      wx.hideLoading()
-
-      // 第四步：验证扫码结果
-      if (!this.validateScanResult(scanResult, expectedDeviceId)) return
-
-      // 第五步：确认开始使用
-      const confirmed = await this.confirmStartUsage(deviceName, scanResult)
-      if (!confirmed) return
-
-      // 第六步：拍照加水印
-      await this.takeAndProcessPhoto(deviceName, scanResult, reserveId)
-    } catch (err) {
-      wx.hideLoading()
-      console.error('开始使用流程失败:', err)
-      wx.showToast({
-        title: '操作失败，请重试',
-        icon: 'none'
-      })
-    }
-  },
-
-  // ===== 拆分出的辅助函数 =====
-
-  // 确认设备启动
-  confirmDeviceStart(reserveId) {
-    return new Promise((resolve) => {
-      wx.showModal({
-        title: '仪器是否正常启动',
-        content: '若出现问题请联系管理员',
-        confirmText: '正常启动',
-        cancelText: '出现问题',
-        success: (res) => {
-          if (res.cancel) {
-            console.log('仪器启动不正常')
-            this.setData({
-              ifWorkingOK: false,
-              feedbackTitle: '',
-              feedbackContent: '',
-              currentReserveId: reserveId || ''
-            })
-            resolve(false)
-          }
-
-          if (res.confirm) {
-            // 订阅消息（仅在用户首次操作时触发）
-            this.requestSubscribeMessageOnce()
-
-            this.setData({
-              ifWorkingOK: true,
-              currentReserveId: reserveId
-            })
-            console.log('仪器正常启动')
-            resolve(true)
-          }
-        }
-      })
-    })
-  },
-
-  // 获取预约信息
-  async fetchReserveInfo(reserveId) {
-    try {
-      const reserveRes = await db.collection('reserves').doc(reserveId).get()
-      const reserveItem = reserveRes.data
-      if (!reserveItem) {
-        wx.showToast({
-          title: '预约信息不存在',
-          icon: 'none'
-        })
+      const res = await db.collection(USAGE_COLLECTION)
+        .where({ user_id: userInfo.userId, status: 'using' })
+        .orderBy('start_time', 'desc')
+        .limit(1)
+        .get()
+      const record = (res.data && res.data[0]) || null
+      if (!record) {
+        this.clearCurrentUsage()
         return null
       }
-      return {
-        deviceId: reserveItem.device_id || '',
-        deviceName: reserveItem.device_name || ''
-      }
-    } catch (err) {
-      console.error('获取预约信息失败:', err)
-      wx.showToast({
-        title: '获取预约信息失败',
-        icon: 'none'
+
+      this.setData({
+        currentUsage: usageModel.buildUsageView(record),
+        elapsedText: usageModel.formatElapsedText(record.start_time)
       })
+      this.startElapsedTimer()
+      await this.resolveUsageImages()
+      return record
+    } catch (err) {
+      console.error('[usage] 获取当前使用记录失败', err)
       return null
     }
   },
 
-  // 扫码
+  clearCurrentUsage() {
+    this.stopElapsedTimer()
+    const patch = { elapsedText: '' }
+    if (this.data.currentUsage) patch.currentUsage = null
+    if (this.data.selfUsageImages.length) patch.selfUsageImages = []
+    this.setData(patch)
+  },
+
+  // 使用时长在页面上实时走，避免用户开一小时还看到「已使用 3 分钟」
+  startElapsedTimer() {
+    this.stopElapsedTimer()
+    this.elapsedTimer = setInterval(() => {
+      const usage = this.data.currentUsage
+      if (!usage) return
+      const elapsedText = usageModel.formatElapsedText(usage.start_time)
+      if (elapsedText && elapsedText !== this.data.elapsedText) {
+        this.setData({ elapsedText })
+      }
+    }, ELAPSED_REFRESH_MS)
+  },
+
+  stopElapsedTimer() {
+    if (!this.elapsedTimer) return
+    clearInterval(this.elapsedTimer)
+    this.elapsedTimer = null
+  },
+
+  async resolveUsageImages() {
+    const usage = this.data.currentUsage
+    const rawList = (usage && usage.usage_images) || []
+    if (!rawList.length) {
+      if (this.data.selfUsageImages.length) this.setData({ selfUsageImages: [] })
+      return
+    }
+
+    try {
+      // cloud:// 不能直接给 <image src>，必须换成 https 临时链接（cloudFile 内有 5 分钟缓存）
+      const urlMap = await cloudFile.resolveTempUrls(rawList)
+      const images = rawList
+        .map((fileId) => ({ fileId, url: cloudFile.resolveSingle(fileId, urlMap), failed: false }))
+        .filter((item) => item.url)
+      this.setData({ selfUsageImages: images })
+    } catch (err) {
+      console.error('[usage] 解析使用过程照片失败', err)
+    }
+  },
+
+  // 待使用预约只关心「今天及以后还没结束」的单子，
+  // 旧实现在 while 里把所有历史预约全量翻页拉回本地过滤，白跑一堆请求
+  async loadPendingReserves() {
+    const userInfo = this.getCachedUserInfo()
+    if (!userInfo.userId) {
+      this.setData({ pendingReserves: [] })
+      return []
+    }
+
+    const now = Date.now()
+    const dayStartTs = usageModel.getDayStartTs(now)
+    const _ = db.command
+
+    try {
+      // 服务端就把「今天之前已经结束」的预约过滤掉，
+      // 只把可能还在等待中/正在时间窗内的记录取回来（需 user_id + status + end_ts 组合索引）
+      const records = await this.fetchReserves({
+        user_id: userInfo.userId,
+        status: 'approved',
+        end_ts: _.gte(dayStartTs)
+      })
+
+      const pendingReserves = usageModel.buildPendingReserveList(records, now)
+      this.setData({ pendingReserves })
+      return pendingReserves
+    } catch (err) {
+      console.error('[usage] 获取待使用预约失败', err)
+      this.setData({ pendingReserves: [] })
+      return []
+    }
+  },
+
+  async fetchReserves(condition) {
+    const res = await db.collection(RESERVE_COLLECTION)
+      .where(condition)
+      .orderBy('end_ts', 'asc')
+      .limit(usageModel.PENDING_LIMIT)
+      .get()
+    return (res && res.data) || []
+  },
+
+  async loadUsageHistory() {
+    const userInfo = this.getCachedUserInfo()
+    if (!userInfo.userId) {
+      this.setData({ usageHistory: [], isHistoryLoading: false })
+      return []
+    }
+
+    const _ = db.command
+    this.setData({ isHistoryLoading: true })
+    try {
+      const res = await db.collection(USAGE_COLLECTION)
+        .where({ user_id: userInfo.userId, status: _.in(['completed', 'abnormal']) })
+        .orderBy('start_time', 'desc')
+        .limit(usageModel.HISTORY_LIMIT)
+        .get()
+      const usageHistory = usageModel.buildHistoryList(res.data || [])
+      this.setData({ usageHistory })
+      return usageHistory
+    } catch (err) {
+      console.error('[usage] 获取使用历史失败', err)
+      return []
+    } finally {
+      this.setData({ isHistoryLoading: false })
+    }
+  },
+
+  async loadUnreadReminder() {
+    const userInfo = this.getCachedUserInfo()
+    if (!userInfo.userId) {
+      this.setData({ unreadReminder: null })
+      return null
+    }
+
+    const _ = db.command
+    try {
+      const res = await db.collection(MESSAGE_COLLECTION)
+        .where({
+          user_id: userInfo.userId,
+          is_read: _.neq(true),
+          type: _.in(usageModel.REMINDER_TYPES)
+        })
+        .orderBy('create_time', 'desc')
+        .limit(1)
+        .get()
+      const item = (res.data && res.data[0]) || null
+      this.setData({ unreadReminder: item ? usageModel.buildReminderView(item) : null })
+      return item
+    } catch (err) {
+      console.error('[usage] 获取未读提醒失败', err)
+      this.setData({ unreadReminder: null })
+      return null
+    }
+  },
+
+  // ==================== 提醒 ====================
+
+  goToReminder() {
+    const reminder = this.data.unreadReminder
+    if (!reminder || !reminder._id) return
+
+    // 先本地收掉横幅再发网络请求，点一下就有反馈
+    this.setData({ unreadReminder: null })
+    this.markReminderRead(reminder._id)
+
+    if (reminder.is_photo && this.data.currentUsage) {
+      wx.pageScrollTo({ selector: '#photoSection', offsetTop: -12, duration: 260 })
+      return
+    }
+    wx.navigateTo({
+      url: `/pages/message/detail/messagedetail?messageId=${reminder._id}&source=message`
+    })
+  },
+
+  markReminderRead(messageId) {
+    if (!messageId) return
+    db.collection(MESSAGE_COLLECTION)
+      .doc(messageId)
+      .update({ data: { is_read: true } })
+      .catch((err) => console.error('[usage] 标记提醒已读失败', err))
+  },
+
+  closeReminder() {
+    const reminder = this.data.unreadReminder
+    if (!reminder || !reminder._id) return
+    this.setData({ unreadReminder: null })
+    this.markReminderRead(reminder._id)
+  },
+
+  // ==================== 使用过程照片 ====================
+
+  onUsagePhotoError(e) {
+    const index = e.currentTarget.dataset.index
+    if (index === undefined || index === null) return
+    if (!this.data.selfUsageImages[index]) return
+    this.setData({ [`selfUsageImages[${index}].failed`]: true })
+  },
+
+  previewUsagePhoto(e) {
+    const url = e.currentTarget.dataset.url
+    if (!url) return
+    const urls = this.data.selfUsageImages
+      .filter((item) => item.url && !item.failed)
+      .map((item) => item.url)
+    wx.previewImage({ current: url, urls: urls.length ? urls : [url] })
+  },
+
+  async uploadUsagePhoto() {
+    const usage = this.data.currentUsage
+    if (!usage || !usage._id) {
+      wx.showToast({ title: '当前没有进行中的使用', icon: 'none' })
+      return
+    }
+    if (this.data.isUploading) return
+
+    const remain = usageModel.PHOTO_LIMIT - this.data.selfUsageImages.length
+    if (remain <= 0) {
+      wx.showToast({ title: `最多上传 ${usageModel.PHOTO_LIMIT} 张照片`, icon: 'none' })
+      return
+    }
+
+    let tempFiles = []
+    try {
+      const mediaRes = await wx.chooseMedia({
+        count: remain,
+        mediaType: ['image'],
+        sourceType: ['album', 'camera']
+      })
+      tempFiles = (mediaRes && mediaRes.tempFiles) || []
+    } catch (err) {
+      if (!this.isUserCancel(err)) console.error('[usage] 选择照片失败', err)
+      return
+    }
+    if (!tempFiles.length) return
+
+    this.requestSubscribeMessage()
+    this.setData({ isUploading: true })
+    wx.showLoading({ title: '上传中…', mask: true })
+
+    const uploaded = []
+    try {
+      for (let i = 0; i < tempFiles.length; i += 1) {
+        const file = tempFiles[i]
+        // 过程照片同样打水印，管理员核对时能一眼看出时间与仪器
+        wx.showLoading({ title: `处理第 ${i + 1}/${tempFiles.length} 张`, mask: true })
+        const watermarkedPath = await this.addWatermarkToPhoto(
+          file.tempFilePath,
+          usage.device_name,
+          usage.device_id
+        )
+        const uploadRes = await wx.cloud.uploadFile({
+          cloudPath: `usage_photos/mid_${Date.now()}_${this.randomSuffix()}.jpg`,
+          filePath: watermarkedPath
+        })
+        uploaded.push(uploadRes.fileID)
+      }
+
+      await db.collection(USAGE_COLLECTION).doc(usage._id).update({
+        data: { usage_images: db.command.push(uploaded) }
+      })
+      wx.hideLoading()
+      wx.showToast({ title: `已上传 ${uploaded.length} 张`, icon: 'success' })
+      await this.loadCurrentUsage()
+    } catch (err) {
+      wx.hideLoading()
+      console.error('[usage] 上传使用过程照片失败', err)
+      // 半途失败时把已经传上去的文件删掉，别在云存储留垃圾
+      if (uploaded.length) await this.cleanupCloudFiles(uploaded)
+      wx.showToast({ title: '照片上传失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ isUploading: false })
+    }
+  },
+
+  // ==================== 开始使用 ====================
+
+  async startUsageFromReserve(e) {
+    if (this.data.isLoading) return
+    const reserveId = e.currentTarget.dataset.reserveid
+    if (!reserveId) return
+
+    const isNormal = await this.confirmDeviceStart(reserveId)
+    if (!isNormal) return
+
+    this.setData({ isLoading: true })
+    try {
+      const reserveInfo = await this.fetchReserveInfo(reserveId)
+      if (!reserveInfo) return
+
+      const scannedDeviceId = await this.scanDeviceQR()
+      if (!this.validateScanResult(scannedDeviceId, reserveInfo.deviceId)) return
+
+      const confirmed = await this.confirmStartUsage(reserveInfo.deviceName, scannedDeviceId)
+      if (!confirmed) return
+
+      const photoPath = await this.takeAndProcessPhoto(reserveInfo.deviceName, scannedDeviceId)
+      if (!photoPath) return
+
+      await this.handleStartPhoto(reserveId, photoPath)
+    } catch (err) {
+      // 用户点取消不是错误，别弹「操作失败」
+      if (this.isUserCancel(err)) return
+      console.error('[usage] 开始使用失败', err)
+      wx.showToast({ title: (err && err.message) || '操作失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ isLoading: false })
+    }
+  },
+
+  confirmDeviceStart(reserveId) {
+    return new Promise((resolve) => {
+      wx.showModal({
+        title: '仪器是否正常启动',
+        content: '点「出现问题」可直接提交异常反馈。',
+        confirmText: '正常启动',
+        cancelText: '出现问题',
+        success: (res) => {
+          if (!res.confirm) {
+            this.openStartFeedback(reserveId)
+            resolve(false)
+            return
+          }
+          this.requestSubscribeMessage()
+          resolve(true)
+        },
+        fail: () => resolve(false)
+      })
+    })
+  },
+
+  openStartFeedback(reserveId) {
+    this.setData({
+      showFeedback: true,
+      feedbackScene: 'start',
+      feedbackTitle: '',
+      feedbackContent: '',
+      feedbackPhotos: [],
+      currentReserveId: reserveId || ''
+    })
+  },
+
+  async fetchReserveInfo(reserveId) {
+    try {
+      const res = await db.collection(RESERVE_COLLECTION).doc(reserveId).get()
+      const reserve = res && res.data
+      if (!reserve) {
+        wx.showToast({ title: '预约不存在或已失效', icon: 'none' })
+        return null
+      }
+      return {
+        deviceId: String(reserve.device_id || '').trim(),
+        deviceName: reserve.device_name || '未知仪器'
+      }
+    } catch (err) {
+      console.error('[usage] 获取预约信息失败', err)
+      wx.showToast({ title: '预约不存在或已失效', icon: 'none' })
+      return null
+    }
+  },
+
   scanDeviceQR() {
     return new Promise((resolve, reject) => {
       wx.scanCode({
@@ -785,399 +490,113 @@ Page({
         scanType: ['qrCode'],
         success: (res) => {
           const parsed = this.parseSchoolQRCode(res.result)
-          console.log('解析结果:', parsed)
           if (!parsed || !parsed.deviceId) {
-            wx.showToast({
-              title: '无法识别设备二维码',
-              icon: 'none'
-            })
-            reject(new Error('invalid qr code'))
+            reject(new Error('无法识别仪器二维码'))
             return
           }
-          resolve(parsed.deviceId) // 直接返回设备ID，比如 "S2205619"
+          resolve(parsed.deviceId)
         },
-        fail: (err) => {
-          console.error('扫码失败:', err)
-          wx.showToast({
-            title: '扫码失败，请重试',
-            icon: 'none'
-          })
-          reject(err)
-        }
+        fail: (err) => reject(this.normalizeError(err, '扫码失败，请重试'))
       })
     })
   },
-  parseSchoolQRCode(qrResult) {
-    if (!qrResult) return null
-    // 去掉可能的 BOM 头和首尾空格
-    qrResult = qrResult.trim().replace(/^\uFEFF/, '')
-    // 如果不是 URL，可能是旧自研码
-    if (!qrResult.startsWith('http')) {
-      return {
-        deviceId: qrResult,
-        type: 'legacy'
-      }
+
+  // 学校二维码是带 yqbh 参数的 URL，老自研码是纯编号，两种都认
+  parseSchoolQRCode(content) {
+    const raw = String(content || '').trim()
+    if (!raw) return null
+
+    const matched = raw.match(/[?&]yqbh=([^&#\s]+)/i)
+    if (matched && matched[1]) {
+      return { deviceId: decodeURIComponent(matched[1]).trim(), source: 'url' }
     }
 
-    try {
-      // ✅ 手动解析 ?ywlx=1&yqbh=S2205619
-      let yqbh = null
-      const queryStart = qrResult.indexOf('?')
-      if (queryStart !== -1) {
-        const queryStr = qrResult.substring(queryStart + 1)
-        const params = queryStr.split('&')
-        for (let i = 0; i < params.length; i++) {
-          const pair = params[i].split('=')
-          const key = decodeURIComponent(pair[0] || '')
-          const val = pair[1] !== undefined ? decodeURIComponent(pair[1]) : ''
-          if (key === 'yqbh') {
-            yqbh = val
-            break
-          }
-        }
-      }
-
-      if (yqbh) {
-        return {
-          deviceId: yqbh, // S2205619 / S2205624
-          type: 'school',
-          rawUrl: qrResult,
-          ywlx: null // 如需 ywlx 同理在上面解析
-        }
-      }
-
-      // 兜底：格式不符合预期
-      return {
-        deviceId: null,
-        type: 'unknown',
-        rawUrl: qrResult
-      }
-    } catch (e) {
-      console.error('URL解析失败:', e)
-      return {
-        deviceId: null,
-        type: 'unknown',
-        rawUrl: qrResult
-      }
+    if (/^[A-Za-z0-9-]{3,32}$/.test(raw)) {
+      return { deviceId: raw, source: 'legacy' }
     }
-  },
-  // 验证扫码结果
-  validateScanResult(scannedCode, expectedDeviceId) {
-    if (expectedDeviceId && scannedCode !== expectedDeviceId) {
-      wx.showModal({
-        title: '设备不匹配',
-        content: `扫描到的设备编号 "${scannedCode}" 与预约的 "${expectedDeviceId}" 不一致，无法开始使用`,
-        showCancel: false,
-        confirmText: '知道了'
-      })
-      return false
-    }
-    return true
+    return null
   },
 
-  // 确认开始使用
+  validateScanResult(scannedDeviceId, expectedDeviceId) {
+    if (!expectedDeviceId) return true
+    if (String(scannedDeviceId).toUpperCase() === String(expectedDeviceId).toUpperCase()) return true
+
+    wx.showModal({
+      title: '设备不匹配',
+      content: `该预约对应仪器为 ${expectedDeviceId}，请扫描正确的仪器二维码。`,
+      showCancel: false
+    })
+    return false
+  },
+
   confirmStartUsage(deviceName, deviceId) {
     return new Promise((resolve) => {
       wx.showModal({
         title: '确认开始使用',
-        content: `仪器：${deviceName}\n编号：${deviceId}\n确认开始使用？`,
-        confirmText: '确认',
-        cancelText: '取消',
-        success: res => resolve(res.confirm)
+        content: `即将开始使用「${deviceName}」（${deviceId}），请拍摄仪器正在运行的照片。`,
+        confirmText: '去拍照',
+        success: (res) => resolve(!!res.confirm),
+        fail: () => resolve(false)
       })
     })
   },
 
-  // 拍照并处理
-  async takeAndProcessPhoto(deviceName, deviceId, reserveId) {
+  async takeAndProcessPhoto(deviceName, deviceId) {
+    let tempFilePath = ''
     try {
-      const mediaRes = await this.chooseCameraPhoto()
-      const tempFilePath = mediaRes.tempFiles[0].tempFilePath
-
-      // 加水印
-      wx.showLoading({
-        title: '添加水印...'
-      })
-      const watermarkedPath = await this.addWatermarkToPhoto(tempFilePath, deviceName, deviceId)
-      wx.hideLoading()
-
-      // 走原有的开始使用流程
-      this.handleStartPhoto(watermarkedPath, reserveId)
-    } catch (err) {
-      console.error('拍照失败:', err)
-      wx.showToast({
-        title: '拍照失败，请重试',
-        icon: 'none'
-      })
-    }
-  },
-
-  // 选择相机拍照
-  chooseCameraPhoto() {
-    return new Promise((resolve, reject) => {
-      wx.chooseMedia({
+      const mediaRes = await wx.chooseMedia({
         count: 1,
         mediaType: ['image'],
-        sourceType: ['camera'],
-        success: resolve,
-        fail: reject
+        sourceType: ['camera']
       })
-    })
-  },
-
-  // 订阅消息（只订阅一次）
-  requestSubscribeMessageOnce() {
-    if (!TEMPLATE_ID || TEMPLATE_ID === 'YOUR_TEMPLATE_ID_HERE') return
-
-    // 检查是否已经订阅过（用本地缓存标记）
-    const subscribed = wx.getStorageSync('msg_subscribed_' + TEMPLATE_ID)
-    if (subscribed) return
-
-    wx.requestSubscribeMessage({
-      tmplIds: [TEMPLATE_ID],
-      success: (res) => {
-        if (res[TEMPLATE_ID] === 'accept') {
-          // 标记已订阅，下次不再弹窗
-          wx.setStorageSync('msg_subscribed_' + TEMPLATE_ID, true)
-        }
-        console.log('订阅授权结果', res[TEMPLATE_ID])
-      },
-      fail: (err) => {
-        console.error('订阅消息授权失败:', err)
-      }
-    })
-  },
-
-  // ===== 新增结束 =====
-  ifWrong(reserveId) {
-    console.log('ifWrong被调用，reserveId:', reserveId)
-    this.setData({
-      ifWorkingOK: false,
-      feedbackTitle: '',
-      feedbackContent: '',
-      currentReserveId: reserveId || ''
-    })
-  },
-  openUsageFeedback() {
-    const currentUsage = this.data.currentUsage
-    console.log('openUsageFeedback - currentUsage:', currentUsage) // 加日志
-    // 兜底校验：没有使用记录时不允许提交
-    if (!currentUsage || !currentUsage.reserve_id) {
-      wx.showToast({
-        title: '未找到对应使用记录',
-        icon: 'none'
-      })
-      return
+      const file = mediaRes && mediaRes.tempFiles && mediaRes.tempFiles[0]
+      tempFilePath = (file && file.tempFilePath) || ''
+    } catch (err) {
+      throw this.normalizeError(err, '无法拍照，请重试')
     }
-    this.setData({
-      feedbackScene: 'using',
-      ifWorkingOK: false,
-      feedbackTitle: '',
-      feedbackContent: '',
-      currentReserveId: currentUsage.reserve_id, // 核心：从当前使用记录取预约ID
-      feedbackPhotos: [],
-      endWithFeedback: true // 默认不结束
-    })
-  },
-  closeFeedback() {
-    this.setData({
-      ifWorkingOK: true
-    })
-  },
+    if (!tempFilePath) return ''
 
-  // 标题输入
-  onTitleInput(e) {
-    this.setData({
-      feedbackTitle: e.detail.value
-    })
-  },
-
-  // 内容输入
-  onContentInput(e) {
-    this.setData({
-      feedbackContent: e.detail.value
-    })
-  },
-
-  submitFeedback() {
-    // console.log("0")
-    const {
-      feedbackTitle,
-      feedbackContent,
-      currentReserveId,
-      feedbackScene,
-      feedbackPhotos,
-      endWithFeedback
-    } = this.data
-    console.log('this.data.currentReserveId:', this.data.currentReserveId)
-    console.log('解构的currentReserveId:', currentReserveId)
-    // 兜底：如果 currentReserveId 为空，从 pendingReserves 中查找
-    let finalReserveId = currentReserveId
-    if (!finalReserveId) {
-      const pending = this.data.pendingReserves
-      if (pending && pending.length > 0) {
-        finalReserveId = pending[0]._id
-      }
-    }
-    // 校验：内容不能为空
-    if (!feedbackContent.trim()) {
-      wx.showToast({
-        title: '请填写问题描述',
-        icon: 'none'
-      })
-      return
-    }
-    if (!finalReserveId) {
-      console.log('预约信息异常')
-      wx.showToast({
-        title: '预约信息异常',
-        icon: 'none'
-      })
-      return
-    }
-    wx.showLoading({
-      title: '提交中...'
-    })
-    const userInfo = wx.getStorageSync('userInfo') || {}
-    console.log('feedbackScene:', feedbackScene)
-    // 调用异常反馈云函数
-    wx.cloud.callFunction({
-      name: 'submitAbnormalFeedback',
-      data: {
-        reserveId: finalReserveId,
-        feedbackTitle: feedbackTitle.trim(),
-        feedbackContent: feedbackContent.trim(),
-        feedbackScene: feedbackScene,
-        feedbackPhotos: feedbackPhotos,
-        endUsage: endWithFeedback,
-        userInfo: {
-          userId: userInfo.userId,
-          name: userInfo.name || '',
-          phone: userInfo.phone || '',
-          groupName: userInfo.groupName || '',
-          openid: userInfo.openid || ''
-        }
-      }
-    }).then((res) => {
+    wx.showLoading({ title: '添加水印…', mask: true })
+    try {
+      return await this.addWatermarkToPhoto(tempFilePath, deviceName, deviceId)
+    } finally {
       wx.hideLoading()
-      const result = res.result || {}
-      console.log('res:', res)
-      if (result.success) {
-        if (feedbackScene === 'using' || feedbackScene === 'start') {
-          wx.cloud.callFunction({
-            name: 'sendAbnormalNotification',
-            data: {
-              reserveId: finalReserveId,
-              deviceName: this.data.currentUsage?.device_name || '',
-              deviceId: this.data.currentUsage?.device_id || '',
-              userName: userInfo.name || userInfo.userId || '未知用户',
-              feedbackTitle: feedbackTitle.trim(),
-              feedbackContent: feedbackContent.trim()
-            }
-          }).then((notifyRes) => {
-            console.log('异常通知发送结果:', notifyRes)
-          }).catch((err) => {
-            console.error('发送异常通知失败:', err)
-          })
-        }
-        if (feedbackScene === 'using' && endWithFeedback) {
-          wx.showToast({
-            title: '反馈已提交，使用已异常结束',
-            icon: 'none',
-            duration: 2000
-          })
-          this.loadCurrentUsage()
-          this.loadUsageHistory()
-        } else {
-          wx.showToast({
-            title: '反馈提交成功',
-            icon: 'success'
-          })
-        }
-        this.setData({
-          ifWorkingOK: true
-        })
-        this.loadPendingReserves() // 刷新预约列表，异常预约会被过滤
-      } else {
-        wx.showToast({
-          title: result.error || '提交失败',
-          icon: 'none'
-        })
-      }
-    }).catch((err) => {
-      wx.hideLoading()
-      console.error('提交反馈失败:', err)
-      wx.showToast({
-        title: '提交失败，请重试',
-        icon: 'none'
-      })
-    })
+    }
   },
-  // 7
-  handleStartPhoto(tempFilePath, specificReserveId) {
-    const userInfo = wx.getStorageSync('userInfo') || {}
+
+  async handleStartPhoto(reserveId, photoPath) {
+    const userInfo = this.getCachedUserInfo()
     if (!userInfo.userId) {
-      wx.showToast({
-        title: '请先完成身份认证',
-        icon: 'none'
-      })
+      wx.showToast({ title: '请先完成身份认证', icon: 'none' })
       return
     }
 
-    wx.showLoading({
-      title: '获取预约信息...'
-    })
-
-    let reservePromise
-    if (specificReserveId) {
-      reservePromise = db.collection('reserves').doc(specificReserveId).get()
-        .then((res) => {
-          const item = res.data
-          if (!item || item.status !== 'approved') return null
-          if (String(item.user_id || '').trim() !== String(userInfo.userId || '').trim()) return null
-          if (item.usage_status && item.usage_status !== 'not_started') return null
-          // if (!this.isReserveReady(item, new Date())) return null
-          return item
-        })
-    } else {
-      reservePromise = this.findCurrentValidReserve(userInfo.userId)
-    }
-
-    reservePromise.then((reserve) => {
-      wx.hideLoading()
-      if (!reserve) {
-        wx.showToast({
-          title: '当前时间无可开始使用的预约',
-          icon: 'none'
-        })
-        return
+    wx.showLoading({ title: '创建使用记录…', mask: true })
+    try {
+      // 再过一遍预约状态：从弹窗到拍照中间可能已经过期或被别的端开始
+      const reserveRes = await db.collection(RESERVE_COLLECTION).doc(reserveId).get()
+      const reserve = reserveRes && reserveRes.data
+      if (!reserve) throw new Error('该预约已失效，请下拉刷新')
+      if (reserve.status !== 'approved') throw new Error('当前预约不可开始使用')
+      if (String(reserve.user_id || '').trim() !== String(userInfo.userId).trim()) {
+        throw new Error('无权开始该预约')
       }
-      this.createUsageRecord(reserve, tempFilePath, userInfo)
-    })
-      .catch((err) => {
-        wx.hideLoading()
-        console.error('获取预约失败:', err)
-        wx.showToast({
-          title: '获取预约信息失败',
-          icon: 'none'
-        })
-      })
-  },
-  // 8
-  createUsageRecord(reserve, startPhotoPath, userInfo) {
-    this.setData({
-      isLoading: true
-    })
+      if (reserve.usage_status && reserve.usage_status !== 'not_started') {
+        throw new Error('该预约已开始使用，请勿重复操作')
+      }
 
-    wx.cloud.uploadFile({
-      cloudPath: `usage_photos/start_${Date.now()}.jpg`,
-      filePath: startPhotoPath,
-      success: (uploadRes) => {
-        const startPhotoId = uploadRes.fileID
-        wx.cloud.callFunction({
+      const uploadRes = await wx.cloud.uploadFile({
+        cloudPath: `usage_photos/start_${Date.now()}_${this.randomSuffix()}.jpg`,
+        filePath: photoPath
+      })
+      const startPhotoId = uploadRes.fileID
+
+      let callRes = null
+      try {
+        callRes = await wx.cloud.callFunction({
           name: 'startUsage',
           data: {
-            reserveId: reserve._id,
+            reserveId,
             startPhotoId,
             userInfo: {
               userId: userInfo.userId,
@@ -1187,591 +606,509 @@ Page({
               openid: userInfo.openid || ''
             }
           }
-        }).then((callRes) => {
-          const result = callRes && callRes.result ? callRes.result : {}
-          if (!result.success) {
-            throw new Error(this.getStartUsageErrorMessage(result))
-          }
-
-          this.setData({
-            isLoading: false
-          })
-          wx.showToast({
-            title: '开始使用成功',
-            icon: 'success'
-          })
-          this.loadCurrentUsage()
-          this.loadPendingReserves()
-          this.loadUsageHistory()
-        }).catch((err) => {
-          this.cleanupCloudFiles([startPhotoId]).then(() => {
-            this.setData({
-              isLoading: false
-            })
-            console.error('创建使用记录失败:', err)
-            wx.showToast({
-              title: err && err.message ? err.message : '开始使用失败',
-              icon: 'none'
-            })
-          })
         })
-      },
-      fail: (err) => {
-        this.setData({
-          isLoading: false
-        })
-        console.error('上传照片失败:', err)
-        wx.showToast({
-          title: '照片上传失败',
-          icon: 'none'
-        })
+      } catch (err) {
+        // 云函数调用失败：把刚传的照片删掉，避免占空间
+        await this.cleanupCloudFiles([startPhotoId])
+        throw err
       }
-    })
+
+      const result = (callRes && callRes.result) || {}
+      if (!result.success) {
+        await this.cleanupCloudFiles([startPhotoId])
+        throw new Error(this.getStartUsageErrorMessage(result))
+      }
+
+      wx.hideLoading()
+      wx.showToast({ title: '开始使用成功', icon: 'success' })
+      await this.refreshAll()
+    } catch (err) {
+      wx.hideLoading()
+      throw err
+    }
   },
-  // 9
+
   getStartUsageErrorMessage(result) {
-    const code = result && result.code ? result.code : ''
-    if (code === 'ALREADY_STARTED') {
-      return '该预约已开始使用，请勿重复操作'
-    }
-    if (code === 'INVALID_TIME_WINDOW' || code === 'RESERVE_NOT_FOUND') {
-      return '当前时间无可开始使用的预约'
-    }
-    if (code === 'FORBIDDEN') {
-      return '无权开始该预约'
-    }
-    return (result && result.error) || '开始使用失败'
+    const code = result && result.code
+    if (code === 'ALREADY_STARTED') return '该预约已开始使用，请勿重复操作'
+    if (code === 'INVALID_TIME_WINDOW' || code === 'RESERVE_NOT_FOUND') return '当前时间无可开始使用的预约'
+    if (code === 'FORBIDDEN') return '无权开始该预约'
+    return (result && result.error) || '开始使用失败，请重试'
   },
-  // 10
-  cleanupCloudFiles(fileList) {
-    const validFiles = (fileList || []).filter(Boolean)
-    if (validFiles.length === 0) {
-      return Promise.resolve()
-    }
 
-    return wx.cloud.deleteFile({
-      fileList: validFiles
-    })
-      .catch((err) => {
-        console.error('清理云文件失败:', err)
-      })
-  },
-  // 11
-  requestSubscribeMessage() {
-    if (!TEMPLATE_ID || TEMPLATE_ID === 'YOUR_TEMPLATE_ID_HERE') return
-    wx.requestSubscribeMessage({
-      tmplIds: [TEMPLATE_ID],
-      success: (res) => {
-        // accept=同意则累加1次推送额度；用户勾选“总是保持以上选择”后无弹窗自动累加
-        console.log('订阅授权结果', res[TEMPLATE_ID])
-      },
-      fail: (err) => {
-        console.error('订阅消息授权失败:', err)
-      }
-    })
-  },
-  // 12
-  uploadUsagePhoto() {
-    if (!this.data.currentUsage) return
-    this.requestSubscribeMessage()
+  // ==================== 异常反馈（提交即结束） ====================
 
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      success: (res) => {
-        const tempFilePath = res.tempFiles[0].tempFilePath
-        this.setData({
-          isLoading: true
-        })
-        wx.cloud.uploadFile({
-          cloudPath: `usage_photos/mid_${Date.now()}.jpg`,
-          filePath: tempFilePath,
-          success: (uploadRes) => {
-            db.collection('device_usage')
-              .doc(this.data.currentUsage._id)
-              .update({
-                data: {
-                  usage_images: db.command.push(uploadRes.fileID)
-                }
-              })
-              .then(() => {
-                this.setData({
-                  isLoading: false
-                })
-                wx.showToast({
-                  title: '照片上传成功',
-                  icon: 'success'
-                })
-                this.loadCurrentUsage()
-              })
-              .catch((err) => {
-                this.setData({
-                  isLoading: false
-                })
-                console.error('更新使用记录失败:', err)
-                wx.showToast({
-                  title: '上传失败',
-                  icon: 'none'
-                })
-              })
-          },
-          fail: (err) => {
-            this.setData({
-              isLoading: false
-            })
-            console.error('上传照片失败:', err)
-            wx.showToast({
-              title: '上传失败',
-              icon: 'none'
-            })
-          }
-        })
-      }
-    })
-  },
-  // 13
-  startEndUsage() {
-    // 弹出结束信息表单，不再进入 endMode
+  openUsageFeedback() {
+    const usage = this.data.currentUsage
+    if (!usage || !usage.reserve_id) {
+      wx.showToast({ title: '未找到对应的预约记录，请下拉刷新', icon: 'none' })
+      return
+    }
     this.setData({
-      showEndForm: true,
-      endForm: {
-        instrumentOff: null,
-        computerOff: null,
-        sampleCount: '',
-        moreSample: null,
-        moreSampleCount: '',
-        totalPage: '',
-        needSupplement: null,
-        supplementPage: ''
-      }
+      showFeedback: true,
+      feedbackScene: 'using',
+      feedbackTitle: '',
+      feedbackContent: '',
+      feedbackPhotos: [],
+      currentReserveId: usage.reserve_id
     })
   },
-  // 14
-  writeUsageEndReminder() {
-    const currentUsage = this.data.currentUsage
-    const userInfo = wx.getStorageSync('userInfo') || {}
-    if (!currentUsage || !userInfo.userId) {
-      return Promise.resolve()
-    }
 
-    const messageKey = `usage_end_remind:${currentUsage._id}`
-    const messageDocId = `usage_end_remind_${currentUsage._id}`
-
-    return db.collection('messages')
-      .doc(messageDocId)
-      .set({
-        data: {
-          user_id: userInfo.userId,
-          title: '结束使用前请上传三张照片',
-          content: `您已进入${currentUsage.device_name || '仪器'}的结束使用流程。请前往“仪器使用”页的“上传照片板块”，依次上传值日照、仪器关闭照、实验室关门照三张照片。`,
-          type: 'usage_end_remind',
-          related_id: currentUsage._id,
-          message_key: messageKey,
-          is_read: false,
-          create_time: new Date().toISOString()
-        }
-      })
-      .then(() => {
-        this.loadUnreadReminder()
-      })
-      .catch((err) => {
-        console.error('写入结束使用提醒失败:', err)
-      })
+  closeFeedback() {
+    if (this.data.isSubmittingFeedback) return
+    this.setData({ showFeedback: false })
   },
 
-  // 19
-  cancelEnd() {
-    this.setData({
-      endMode: false,
-      endPhotos: [null, null, null]
-    })
+  onFeedbackTitleInput(e) {
+    this.setData({ feedbackTitle: e.detail.value })
   },
-  // 20
-  truncateText(text, maxLength) {
-    const value = String(text || '')
-    if (value.length <= maxLength) {
-      return value
-    }
-    return `${value.slice(0, maxLength - 1)}…`
+
+  onFeedbackContentInput(e) {
+    this.setData({ feedbackContent: e.detail.value })
   },
-  goAuth() {
-    wx.navigateTo({
-      url: '/pages/auth/auth'
-    })
-  },
-  // 选择故障照片
-  chooseFeedbackPhoto() {
-    const maxCount = 3 - this.data.feedbackPhotos.length
-    if (maxCount <= 0) {
-      wx.showToast({
-        title: '最多上传3张照片',
-        icon: 'none'
-      })
+
+  async chooseFeedbackPhoto() {
+    const remain = MAX_FEEDBACK_PHOTOS - this.data.feedbackPhotos.length
+    if (remain <= 0) {
+      wx.showToast({ title: `最多上传 ${MAX_FEEDBACK_PHOTOS} 张照片`, icon: 'none' })
       return
     }
 
-    wx.chooseMedia({
-      count: maxCount,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      success: (res) => {
-        const tempFiles = res.tempFiles || []
-        this.uploadFeedbackPhotos(tempFiles)
-      }
-    })
+    try {
+      const mediaRes = await wx.chooseMedia({
+        count: remain,
+        mediaType: ['image'],
+        sourceType: ['album', 'camera']
+      })
+      const files = (mediaRes && mediaRes.tempFiles) || []
+      if (!files.length) return
+      this.setData({
+        feedbackPhotos: this.data.feedbackPhotos.concat(files.map((file) => file.tempFilePath))
+      })
+    } catch (err) {
+      if (!this.isUserCancel(err)) console.error('[usage] 选择反馈照片失败', err)
+    }
   },
 
-  // 批量上传故障照片到云存储
-  uploadFeedbackPhotos(tempFiles) {
-    wx.showLoading({
-      title: '上传中...'
-    })
-    const uploadTasks = tempFiles.map((file) => {
-      return new Promise((resolve, reject) => {
-        wx.cloud.uploadFile({
-          cloudPath: `feedback_pics/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`,
-          filePath: file.tempFilePath,
-          success: res => resolve(res.fileID),
-          fail: reject
-        })
-      })
-    })
-
-    Promise.all(uploadTasks)
-      .then((fileIDs) => {
-        wx.hideLoading()
-        this.setData({
-          feedbackPhotos: this.data.feedbackPhotos.concat(fileIDs)
-        })
-      })
-      .catch((err) => {
-        wx.hideLoading()
-        console.error('反馈照片上传失败:', err)
-        wx.showToast({
-          title: '照片上传失败',
-          icon: 'none'
-        })
-      })
-  },
-
-  // 删除已选故障照片
   deleteFeedbackPhoto(e) {
     const index = e.currentTarget.dataset.index
     const photos = this.data.feedbackPhotos.slice()
     photos.splice(index, 1)
+    this.setData({ feedbackPhotos: photos })
+  },
+
+  previewFeedbackPhoto(e) {
+    const url = e.currentTarget.dataset.url
+    if (!url) return
+    wx.previewImage({ current: url, urls: this.data.feedbackPhotos })
+  },
+
+  async uploadFeedbackPhotos() {
+    const uploaded = []
+    for (let i = 0; i < this.data.feedbackPhotos.length; i += 1) {
+      const filePath = this.data.feedbackPhotos[i]
+      const uploadRes = await wx.cloud.uploadFile({
+        cloudPath: `feedback_pics/${Date.now()}_${i}_${this.randomSuffix()}.jpg`,
+        filePath
+      })
+      uploaded.push(uploadRes.fileID)
+    }
+    return uploaded
+  },
+
+  async submitFeedback() {
+    if (this.data.isSubmittingFeedback) return
+
+    const { feedbackTitle, feedbackContent, feedbackScene, currentReserveId } = this.data
+    const content = String(feedbackContent || '').trim()
+    if (!content) {
+      wx.showToast({ title: '请填写问题描述', icon: 'none' })
+      return
+    }
+    // 这里不再用 pendingReserves[0] 兜底：猜错预约会把反馈挂到别人的记录上
+    if (!currentReserveId) {
+      wx.showToast({ title: '预约信息异常，请重新进入页面', icon: 'none' })
+      return
+    }
+
+    const userInfo = this.getCachedUserInfo()
+    this.setData({ isSubmittingFeedback: true })
+    wx.showLoading({ title: '提交中…', mask: true })
+
+    let uploadedPhotos = []
+    try {
+      uploadedPhotos = await this.uploadFeedbackPhotos()
+      const res = await wx.cloud.callFunction({
+        name: 'submitAbnormalFeedback',
+        data: {
+          reserveId: currentReserveId,
+          feedbackTitle: String(feedbackTitle || '').trim(),
+          feedbackContent: content,
+          feedbackScene,
+          feedbackPhotos: uploadedPhotos,
+          // 反馈即结束：不留「已反馈但还在使用中」的中间态
+          endUsage: true,
+          userInfo: {
+            userId: userInfo.userId || '',
+            name: userInfo.name || '',
+            phone: userInfo.phone || '',
+            groupName: userInfo.groupName || '',
+            openid: userInfo.openid || ''
+          }
+        }
+      })
+
+      const result = (res && res.result) || {}
+      if (!result.success) throw new Error(result.error || '提交失败')
+
+      wx.hideLoading()
+      this.setData({ showFeedback: false })
+      this.notifyAbnormalFeedback(currentReserveId, feedbackTitle, content, userInfo)
+      wx.showToast({
+        title: feedbackScene === 'using' ? '反馈已提交，本次使用已结束' : '反馈已提交',
+        icon: 'none',
+        duration: 2000
+      })
+      await this.refreshAll()
+    } catch (err) {
+      wx.hideLoading()
+      console.error('[usage] 提交异常反馈失败', err)
+      if (uploadedPhotos.length) await this.cleanupCloudFiles(uploadedPhotos)
+      wx.showToast({ title: (err && err.message) || '提交失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ isSubmittingFeedback: false })
+    }
+  },
+
+  // 通知失败不影响反馈已提交的事实，只记日志
+  notifyAbnormalFeedback(reserveId, title, content, userInfo) {
+    const usage = this.data.currentUsage || {}
+    wx.cloud.callFunction({
+      name: 'sendAbnormalNotification',
+      data: {
+        reserveId,
+        deviceName: usage.device_name || '',
+        deviceId: usage.device_id || '',
+        userName: userInfo.name || userInfo.userId || '未知用户',
+        feedbackTitle: String(title || '').trim(),
+        feedbackContent: String(content || '').trim()
+      }
+    }).catch((err) => console.error('[usage] 发送异常通知失败', err))
+  },
+
+  // ==================== 正常结束使用 ====================
+
+  startEndUsage() {
+    if (!this.data.currentUsage) {
+      wx.showToast({ title: '当前没有进行中的使用', icon: 'none' })
+      return
+    }
     this.setData({
-      feedbackPhotos: photos
+      showEndForm: true,
+      endForm: usageModel.createEmptyEndForm()
     })
   },
 
-  // 结束使用复选框切换
-  onEndWithFeedbackChange(e) {
-    const checked = e.detail.value.includes('1')
-    this.setData({
-      endWithFeedback: checked
-    })
-  },
-  // 取消结束表单
   cancelEndForm() {
-    this.setData({
-      showEndForm: false
-    })
+    if (this.data.isSubmittingEnd) return
+    this.setData({ showEndForm: false })
   },
-  // 选择仪器是否关闭
+
+  updateEndForm(key, value) {
+    this.setData({ [`endForm.${key}`]: value })
+  },
+
   selectInstrumentOff(e) {
-    const value = e.currentTarget.dataset.value === 'true'
-    this.setData({
-      'endForm.instrumentOff': value
-    })
+    this.updateEndForm('instrumentOff', e.currentTarget.dataset.value === 'true')
   },
-  // 选择电脑是否关闭
+
   selectComputerOff(e) {
-    const value = e.currentTarget.dataset.value === 'true'
-    this.setData({
-      'endForm.computerOff': value
-    })
+    this.updateEndForm('computerOff', e.currentTarget.dataset.value === 'true')
   },
+
   selectMoreSample(e) {
-    const value = e.currentTarget.dataset.value === 'true'
-    this.setData({
-      'endForm.moreSample': value
-    })
+    this.updateEndForm('moreSample', e.currentTarget.dataset.value === 'true')
   },
-  onNextUserInput(e) {
-    const val = e.detail.value.trim()
-    this.setData({
-      'endForm.nextUser': val
-    })
-  },
-  // 输入运行样品总数
-  onSampleCountInput(e) {
-    let val = e.detail.value
-    // 只允许正整数
-    val = val.replace(/\D/g, '')
-    if (val === '0') val = ''
-    this.setData({
-      'endForm.sampleCount': val
-    })
-  },
-  onMoreSampleCountInput(e) {
-    let val = e.detail.value
-    // 只允许正整数
-    val = val.replace(/\D/g, '')
-    if (val === '0') val = ''
-    this.setData({
-      'endForm.moreSampleCount': val
-    })
-  },
-  // 上传总的预约单
-  pickTotalPage() {
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      success: (res) => {
-        this.setData({
-          'endForm.totalPage': res.tempFiles[0].tempFilePath
-        })
-      },
-      fail: (err) => {
-        console.error('选择预约单失败:', err)
-      }
-    })
-  },
-  pickDevicePage() {
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      success: (res) => {
-        this.setData({
-          'endForm.devicePage': res.tempFiles[0].tempFilePath
-        })
-      },
-      fail: (err) => {
-        console.error('选择仪器关闭照片失败:', err)
-      }
-    })
-  },
-  pickRoomPage() {
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      success: (res) => {
-        this.setData({
-          'endForm.roomPage': res.tempFiles[0].tempFilePath
-        })
-      },
-      fail: (err) => {
-        console.error('选择实验室关门照片失败:', err)
-      }
-    })
-  },
-  // 选择是否需要补充预约
+
   selectNeedSupplement(e) {
-    const value = e.currentTarget.dataset.value === 'true'
-    this.setData({
-      'endForm.needSupplement': value,
-      'endForm.supplementPage': '' // 切换时清空已选的补充预约单
-    })
+    this.updateEndForm('needSupplement', e.currentTarget.dataset.value === 'true')
   },
-  // 上传补充预约单
-  pickSupplementPage() {
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      success: (res) => {
-        this.setData({
-          'endForm.supplementPage': res.tempFiles[0].tempFilePath
-        })
-      },
-      fail: (err) => {
-        console.error('选择补充预约单失败:', err)
-      }
-    })
+
+  onNextUserInput(e) {
+    this.updateEndForm('nextUser', e.detail.value)
   },
-  // 提交结束表单
-  async submitEndForm() {
-    const endForm = this.data.endForm
 
-    // 表单验证
-    if (endForm.instrumentOff === null) {
-      wx.showToast({
-        title: '请选择仪器是否关闭',
-        icon: 'none'
-      })
-      return
-    }
-    if (endForm.computerOff === null) {
-      wx.showToast({
-        title: '请选择电脑是否关闭',
-        icon: 'none'
-      })
-      return
-    }
-    if (!endForm.sampleCount) {
-      wx.showToast({
-        title: '请填写运行样品总数',
-        icon: 'none'
-      })
-      return
-    }
-    if (endForm.moreSample === null) {
-      wx.showToast({
-        title: '请选择是否多余预约',
-        icon: 'none'
-      })
-      return
-    }
-    if (endForm.moreSample && !endForm.moreSampleCount) {
-      wx.showToast({
-        title: '请填写剩余样品数量',
-        icon: 'none'
-      })
-      return
-    }
-    if (!endForm.totalPage) {
-      wx.showToast({
-        title: '请上传总的预约单',
-        icon: 'none'
-      })
-      return
-    }
-    if (!endForm.devicePage) {
-      wx.showToast({
-        title: '请上传仪器关闭照片',
-        icon: 'none'
-      })
-      return
-    }
-    if (!endForm.roomPage) {
-      wx.showToast({
-        title: '请上传实验室关门',
-        icon: 'none'
-      })
-      return
-    }
-    if (endForm.needSupplement === null) {
-      wx.showToast({
-        title: '请选择是否需要补充预约',
-        icon: 'none'
-      })
-      return
-    }
-    if (endForm.needSupplement && !endForm.supplementPage) {
-      wx.showToast({
-        title: '请上传补充预约单',
-        icon: 'none'
-      })
-      return
-    }
-    if (endForm.computerOff === false && !endForm.nextUser) {
-      wx.showToast({
-        title: '请上传下一个使用者姓名',
-        icon: 'none'
-      })
-      return
-    }
+  onSampleCountInput(e) {
+    const value = this.normalizeCountInput(e.detail.value)
+    this.updateEndForm('sampleCount', value)
+    // 返回过滤后的值，输入框里的非法字符会被立刻吃掉
+    return value
+  },
 
-    this.setData({
-      isLoading: true
-    })
+  onMoreSampleCountInput(e) {
+    const value = this.normalizeCountInput(e.detail.value)
+    this.updateEndForm('moreSampleCount', value)
+    return value
+  },
+
+  // 只留数字，且不允许前导 0（'0' 直接清空，免得不小心提交 0 个样品）
+  normalizeCountInput(value) {
+    const digits = String(value || '').replace(/\D/g, '')
+    if (!digits) return ''
+    const trimmed = digits.replace(/^0+/, '')
+    return trimmed
+  },
+
+  async pickEndPhoto(e) {
+    const key = e.currentTarget.dataset.key
+    if (!key) return
 
     try {
-      // 上传所有图片
-      const uploadTasks = []
-      const fileMap = {}
+      const mediaRes = await wx.chooseMedia({
+        count: 1,
+        mediaType: ['image'],
+        sourceType: ['album', 'camera']
+      })
+      const file = mediaRes && mediaRes.tempFiles && mediaRes.tempFiles[0]
+      if (file && file.tempFilePath) this.updateEndForm(key, file.tempFilePath)
+    } catch (err) {
+      if (!this.isUserCancel(err)) console.error('[usage] 选择结束照片失败', err)
+    }
+  },
 
-      // 上传总的预约单
-      const totalPageTask = wx.cloud.uploadFile({
-        cloudPath: `end_check/total_${Date.now()}.jpg`,
-        filePath: endForm.totalPage
-      })
-      uploadTasks.push(totalPageTask)
-      const devicePageTask = wx.cloud.uploadFile({
-        cloudPath: `end_check/device_${Date.now()}.jpg`,
-        filePath: endForm.devicePage
-      })
-      uploadTasks.push(devicePageTask)
-      const roomPageTask = wx.cloud.uploadFile({
-        cloudPath: `end_check/room_${Date.now()}.jpg`,
-        filePath: endForm.roomPage
-      })
-      uploadTasks.push(roomPageTask)
-      // 如果需要补充预约，上传补充预约单
-      let supplementTask = null
+  clearEndPhoto(e) {
+    const key = e.currentTarget.dataset.key
+    if (key) this.updateEndForm(key, '')
+  },
+
+  async submitEndForm() {
+    if (this.data.isSubmittingEnd) return
+
+    const usage = this.data.currentUsage
+    if (!usage || !usage._id) {
+      wx.showToast({ title: '使用记录已失效，请下拉刷新', icon: 'none' })
+      return
+    }
+
+    const endForm = this.data.endForm
+    const formError = usageModel.getEndFormError(endForm)
+    if (formError) {
+      wx.showToast({ title: formError, icon: 'none' })
+      return
+    }
+
+    this.setData({ isSubmittingEnd: true })
+    wx.showLoading({ title: '提交中…', mask: true })
+
+    const uploaded = []
+    try {
+      const fileIds = {
+        totalPage: await this.uploadEndPhoto('end_check/total_', endForm.totalPage, uploaded),
+        devicePage: await this.uploadEndPhoto('end_check/device_', endForm.devicePage, uploaded),
+        roomPage: await this.uploadEndPhoto('end_check/room_', endForm.roomPage, uploaded),
+        supplementPage: ''
+      }
       if (endForm.needSupplement) {
-        supplementTask = wx.cloud.uploadFile({
-          cloudPath: `end_check/supplement_${Date.now()}.jpg`,
-          filePath: endForm.supplementPage
-        })
-        uploadTasks.push(supplementTask)
-      }
-      const uploadResults = await Promise.all(uploadTasks)
-      const totalPageFileID = uploadResults[0].fileID
-      const devicePageFileID = uploadResults[1].fileID
-      const roomPageFileID = uploadResults[2].fileID
-      const supplementPageFileID = supplementTask ? uploadResults[3].fileID : ''
-      // 构建结束信息数据
-      const currentUsage = this.data.currentUsage
-      const endTime = new Date().toISOString()
-
-      const endChecklist = {
-        instrument_off: endForm.instrumentOff,
-        computer_off: endForm.computerOff,
-        nextUser: endForm.nextUser || '',
-        sample_count: parseInt(endForm.sampleCount),
-        more_sample: endForm.moreSample,
-        more_sample_count: endForm.moreSample ? parseInt(endForm.moreSampleCount) : 0,
-        total_page: totalPageFileID,
-        device_page: devicePageFileID, // 新增
-        room_page: roomPageFileID, // 新增
-        need_supplement: endForm.needSupplement,
-        supplement_page: supplementPageFileID || ''
+        fileIds.supplementPage = await this.uploadEndPhoto(
+          'end_check/supplement_',
+          endForm.supplementPage,
+          uploaded
+        )
       }
 
-      // 更新 device_usage 表
-      await db.collection('device_usage').doc(currentUsage._id).update({
+      const endChecklist = usageModel.buildEndChecklist(endForm, fileIds)
+
+      await db.collection(USAGE_COLLECTION).doc(usage._id).update({
         data: {
-          end_time: endTime,
+          end_time: new Date().toISOString(),
           status: 'completed',
           end_checklist: endChecklist
         }
       })
 
-      // 更新 reserves 表
-      if (currentUsage.reserve_id) {
-        await db.collection('reserves').doc(currentUsage.reserve_id).update({
-          data: {
-            usage_status: 'completed'
-          }
+      if (usage.reserve_id) {
+        await db.collection(RESERVE_COLLECTION).doc(usage.reserve_id).update({
+          data: { usage_status: 'completed' }
         })
       }
 
+      wx.hideLoading()
+      this.stopElapsedTimer()
       this.setData({
-        isLoading: false,
         showEndForm: false,
         currentUsage: null,
-        selfUsageImages: []
+        selfUsageImages: [],
+        elapsedText: ''
       })
-
-      wx.showToast({
-        title: '使用已结束',
-        icon: 'success'
-      })
-      this.loadData()
+      wx.showToast({ title: '使用已结束', icon: 'success' })
+      await this.refreshAll()
     } catch (err) {
-      this.setData({
-        isLoading: false
-      })
-      console.error('结束使用失败:', err)
-      wx.showToast({
-        title: '结束失败，请重试',
-        icon: 'none'
-      })
+      wx.hideLoading()
+      console.error('[usage] 结束使用失败', err)
+      if (uploaded.length) await this.cleanupCloudFiles(uploaded)
+      wx.showToast({ title: '结束失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ isSubmittingEnd: false })
     }
+  },
+
+  async uploadEndPhoto(prefix, filePath, uploadedList) {
+    const uploadRes = await wx.cloud.uploadFile({
+      cloudPath: `${prefix}${Date.now()}_${this.randomSuffix()}.jpg`,
+      filePath
+    })
+    uploadedList.push(uploadRes.fileID)
+    return uploadRes.fileID
+  },
+
+  // ==================== 历史记录 ====================
+
+  openHistoryDetail(e) {
+    const reserveId = e.currentTarget.dataset.reserveid
+    if (!reserveId) {
+      wx.showToast({ title: '该记录没有关联预约', icon: 'none' })
+      return
+    }
+    wx.navigateTo({ url: `/pages/reserve-detail/reserve-detail?id=${reserveId}` })
+  },
+
+  // ==================== 通用工具 ====================
+
+  async addWatermarkToPhoto(tempFilePath, deviceName, deviceId) {
+    if (!tempFilePath) return ''
+    try {
+      const info = await this.getImageInfo(tempFilePath)
+      return await this.drawWatermark(info, tempFilePath, deviceName, deviceId)
+    } catch (err) {
+      // 水印失败不该挡住主流程，退回原图继续上传
+      console.warn('[usage] 添加水印失败，使用原图', err)
+      return tempFilePath
+    }
+  },
+
+  getImageInfo(src) {
+    return new Promise((resolve, reject) => {
+      wx.getImageInfo({
+        src,
+        success: resolve,
+        fail: reject
+      })
+    })
+  },
+
+  drawWatermark(info, tempFilePath, deviceName, deviceId) {
+    return new Promise((resolve, reject) => {
+      wx.createSelectorQuery()
+        .select('#watermarkCanvas')
+        .fields({ node: true, size: true })
+        .exec((res) => {
+          const canvas = res && res[0] && res[0].node
+          if (!canvas) {
+            reject(new Error('水印画布未就绪'))
+            return
+          }
+
+          // 原图动辄 4000px，直接开这么大的画布在安卓上会 OOM，长边压到 1600 足够看清水印
+          const rawWidth = info.width || 750
+          const rawHeight = info.height || 1000
+          const scale = Math.min(1, MAX_WATERMARK_EDGE / Math.max(rawWidth, rawHeight))
+          const width = Math.max(Math.round(rawWidth * scale), 1)
+          const height = Math.max(Math.round(rawHeight * scale), 1)
+
+          // 先定画布尺寸再取上下文，避免 resize 把已设置的绘制状态清掉
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+
+          const image = canvas.createImage()
+          image.onload = () => {
+            ctx.clearRect(0, 0, width, height)
+            ctx.drawImage(image, 0, 0, width, height)
+
+            const now = new Date()
+            const lines = [
+              `${datetime.formatDateKey(now)} ${datetime.formatClock(now)}`,
+              `${deviceName || ''} ${deviceId || ''}`.trim()
+            ].filter(Boolean)
+
+            const fontSize = Math.max(Math.round(width / 24), 14)
+            const x = Math.round(width / 24)
+            let y = Math.round(height / 3)
+
+            ctx.textBaseline = 'top'
+            ctx.font = `${fontSize}px sans-serif`
+            ctx.lineWidth = Math.max(Math.round(fontSize / 6), 2)
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)'
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.96)'
+            lines.forEach((line) => {
+              ctx.strokeText(line, x, y)
+              ctx.fillText(line, x, y)
+              y += Math.round(fontSize * 1.5)
+            })
+
+            wx.canvasToTempFilePath({
+              canvas,
+              x: 0,
+              y: 0,
+              width,
+              height,
+              destWidth: width,
+              destHeight: height,
+              fileType: 'jpg',
+              quality: 0.92,
+              success: (out) => resolve(out.tempFilePath || tempFilePath),
+              fail: () => reject(new Error('导出水印照片失败'))
+            })
+          }
+          image.onerror = () => reject(new Error('读取照片失败'))
+          image.src = tempFilePath
+        })
+    })
+  },
+
+  async cleanupCloudFiles(fileIds) {
+    const list = (fileIds || []).filter(Boolean)
+    if (!list.length) return
+    try {
+      await wx.cloud.deleteFile({ fileList: list })
+    } catch (err) {
+      console.warn('[usage] 清理云端文件失败', err)
+    }
+  },
+
+  requestSubscribeMessage() {
+    // 同一次会话里只问一次，用户拒绝后不再骚扰
+    if (wx.getStorageSync(`msg_subscribed_${TEMPLATE_ID}`)) return
+    wx.requestSubscribeMessage({
+      tmplIds: [TEMPLATE_ID],
+      success: (res) => {
+        if (res && res[TEMPLATE_ID] === 'accept') {
+          wx.setStorageSync(`msg_subscribed_${TEMPLATE_ID}`, true)
+        }
+      },
+      fail: (err) => console.warn('[usage] 订阅消息授权失败', err)
+    })
+  },
+
+  randomSuffix() {
+    return Math.random().toString(36).slice(2, 8)
+  },
+
+  // 弹层上挡住穿透滚动的占位处理器
+  noop() {},
+
+  // 把 wx 的 fail 回调统一成 Error，并标出「用户自己取消」
+  normalizeError(err, fallbackMessage) {
+    const message = (err && (err.errMsg || err.message)) || ''
+    const error = new Error(message || fallbackMessage || '操作失败')
+    error.isUserCancel = message.indexOf('cancel') !== -1 || message.indexOf('取消') !== -1
+    return error
+  },
+
+  isUserCancel(err) {
+    if (!err) return false
+    if (err.isUserCancel) return true
+    const message = err.errMsg || err.message || ''
+    return message.indexOf('cancel') !== -1 || message.indexOf('取消') !== -1
   }
 })

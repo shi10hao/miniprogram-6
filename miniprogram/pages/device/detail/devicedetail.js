@@ -4,14 +4,9 @@ const cloudFile = require('../../../utils/cloudFile.js')
 const detailCore = require('./lib/detailCore.js')
 // 「去预约」：单台直进 / 多台先选实例
 const reserveFlow = require('./lib/reserveFlow.js')
+// 取数封装（可见性条件、翻页取全、使用中查询）在 lib/detailQuery.js
+const detailQuery = require('./lib/detailQuery.js')
 
-// 小程序端单次 get() 最多返回 20 条，超出部分会被静默截断（不报错），
-// 同款仪器超过 20 台时「使用中」会漏，所以必须自己翻页
-const QUERY_LIMIT = 20
-// 单次 _.in() 的设备数量上限保守值，避免一次塞几百个 id
-const IN_CHUNK = 50
-// 翻页时每轮最多并发几个请求，云调用并发打满会被限流
-const PARALLEL_LIMIT = 5
 // onShow 静默刷新的最小间隔，从视频页/3D 页快速返回不再重复查库
 const STATUS_REFRESH_GAP = 30 * 1000
 
@@ -49,7 +44,7 @@ Page({
     // 吸底预约栏：能不能预约、左边那句话说什么
     availableCount: 0,
     canReserve: false,
-    barText: '暂无可预约'
+    barText: '当前没有空闲仪器'
   },
 
   // ==================== 生命周期 ====================
@@ -94,10 +89,12 @@ Page({
 
   onShareAppMessage() {
     const device = this.data.device
-    const deviceId = this.data.currentDeviceId
+    const deviceId = this.data.currentDeviceId || ''
+    // 没编号时不要拼出 ?deviceId= 这种空参数，落地页会判成"缺少仪器编号"
+    const query = deviceId ? '?deviceId=' + encodeURIComponent(deviceId) : ''
     const share = {
       title: device ? device.device_name + ' · 仪器详情' : '仪器详情',
-      path: '/pages/device/detail/devicedetail?deviceId=' + encodeURIComponent(deviceId)
+      path: '/pages/device/detail/devicedetail' + query
     }
     const cover = this.getShareCover()
     if (cover) share.imageUrl = cover
@@ -106,9 +103,10 @@ Page({
 
   onShareTimeline() {
     const device = this.data.device
+    const deviceId = this.data.currentDeviceId || ''
     const share = {
       title: device ? device.device_name + ' · 仪器详情' : '仪器详情',
-      query: 'deviceId=' + encodeURIComponent(this.data.currentDeviceId || '')
+      query: deviceId ? 'deviceId=' + encodeURIComponent(deviceId) : ''
     }
     const cover = this.getShareCover()
     if (cover) share.imageUrl = cover
@@ -143,7 +141,7 @@ Page({
 
     try {
       const res = await db.collection('devices')
-        .where(this.buildVisibleQuery({ device_id: deviceId }))
+        .where(detailQuery.buildVisibleQuery({ device_id: deviceId }))
         .limit(1)
         .get()
       if (seq !== this._seq) return
@@ -202,8 +200,8 @@ Page({
       hasDescription: !!description,
       // cloud:// 直接塞渲染层会先失败一次（还可能闪一下兜底图），等换成 https 再显示
       hasPicture: !!String(device.picture || '').trim() && !cloudFile.isCloudFileId(device.picture),
-      hasProcedure: !!device.operation_procedure,
-      hasPrecautions: !!device.precautions,
+      hasProcedure: detailCore.hasGuideContent(device.operation_procedure),
+      hasPrecautions: detailCore.hasGuideContent(device.precautions),
       hasVideo: !!String(device.video_url || '').trim(),
       isLoading: false,
       loadError: false,
@@ -241,24 +239,21 @@ Page({
     // 无论成败都记时间戳：失败后立刻再触发一次没有意义，等下一个窗口
     this._lastStatusAt = Date.now()
 
-    const deviceName = device.device_name || ''
     const currentModel = detailCore.getDeviceModel(device)
+    const deviceName = String(device.device_name || '').trim()
 
     try {
-      const sameNameDevices = await this.fetchAllDocs(
-        'devices',
-        this.buildVisibleQuery({ device_name: deviceName })
-      )
+      // 名称为空时按名称查会得到 0 条，看起来像"这台仪器不存在"；
+      // 这种情况退化成只看当前这一台，状态至少是真的
+      const sameModelDevices = deviceName
+        ? await this.getSameModelDevices(deviceName, currentModel)
+        : [device]
       if (seq && seq !== this._seq) return
 
-      // 同名不同型号要区分开，否则会把别的型号算成同款
-      const sameModelDevices = sameNameDevices.filter((item) => {
-        return detailCore.getDeviceModel(item) === currentModel
-      })
       const deviceIds = sameModelDevices
         .map(item => item.device_id)
         .filter(Boolean)
-      const usingIds = await this.getUsingDeviceIds(deviceIds)
+      const usingIds = await detailQuery.getUsingDeviceIds(deviceIds)
       if (seq && seq !== this._seq) return
 
       this.renderStatus(sameModelDevices, usingIds)
@@ -280,6 +275,15 @@ Page({
     }
   },
 
+  // 同名且同型号才算同款：型号不同的是另一批仪器，混进来台数就不对了
+  async getSameModelDevices(deviceName, currentModel) {
+    const list = await detailQuery.fetchAllDocs(
+      'devices',
+      detailQuery.buildVisibleQuery({ device_name: deviceName })
+    )
+    return list.filter(item => detailCore.getDeviceModel(item) === currentModel)
+  },
+
   // 把同款仪器按可用 / 使用中 / 维修中分类后写入页面
   renderStatus(devices, usingIds) {
     const statusGroups = detailCore.buildStatusGroups(devices, usingIds)
@@ -294,86 +298,6 @@ Page({
     }, summary, bar))
   },
 
-  // 分批把符合条件的记录取全（小程序端单次最多 20 条，多出来的会被静默丢掉）
-  async fetchAllDocs(collectionName, condition) {
-    const collection = db.collection(collectionName)
-    const first = await collection.where(condition).limit(QUERY_LIMIT).get()
-    const list = first.data || []
-    if (list.length < QUERY_LIMIT) return list
-
-    const countRes = await collection.where(condition).count()
-    const total = countRes.total || list.length
-
-    // 每轮最多 PARALLEL_LIMIT 个并发：同款上百台时一次甩出十几个请求会被云调用限流
-    for (let start = QUERY_LIMIT; start < total; start += QUERY_LIMIT * PARALLEL_LIMIT) {
-      const end = Math.min(start + QUERY_LIMIT * PARALLEL_LIMIT, total)
-      const tasks = []
-      for (let skip = start; skip < end; skip += QUERY_LIMIT) {
-        tasks.push(collection.where(condition).skip(skip).limit(QUERY_LIMIT).get())
-      }
-      const batch = await Promise.all(tasks)
-      batch.forEach((res) => {
-        const data = res.data || []
-        data.forEach((item) => {
-          list.push(item)
-        })
-      })
-    }
-    return list
-  },
-
-  // 查这批设备里哪些正在被使用
-  async getUsingDeviceIds(deviceIds) {
-    if (!deviceIds.length) return []
-    const _ = db.command
-    const chunks = []
-    for (let i = 0; i < deviceIds.length; i += IN_CHUNK) {
-      chunks.push(deviceIds.slice(i, i + IN_CHUNK))
-    }
-
-    const results = await Promise.all(chunks.map((chunk) => {
-      return this.fetchAllDocs('device_usage', {
-        device_id: _.in(chunk),
-        status: 'using'
-      })
-    }))
-
-    const ids = []
-    results.forEach((list) => {
-      list.forEach((item) => {
-        if (item.device_id) ids.push(item.device_id)
-      })
-    })
-    return ids
-  },
-
-  // ==================== 查询条件 ====================
-
-  getUserGroupName() {
-    const userInfo = wx.getStorageSync('userInfo') || {}
-    return String(userInfo.groupName || '').trim()
-  },
-
-  // 可见性：公共实验室 + 本课题组，与仪器列表页保持同一套规则
-  getVisibleCondition(groupName) {
-    const _ = db.command
-    if (groupName) {
-      return _.or([
-        { lab_type: 'public' },
-        { lab_name: groupName }
-      ])
-    }
-    return { lab_type: 'public' }
-  },
-
-  buildVisibleQuery(extraCondition) {
-    const _ = db.command
-    return _.and([
-      extraCondition,
-      this.getVisibleCondition(this.getUserGroupName())
-    ])
-  },
-
   // ==================== 交互 ====================
 
   onDeviceImageError() {
@@ -383,7 +307,12 @@ Page({
   // 点封面看大图：铭牌上的型号、量程经常要放大才看得清
   previewCover() {
     const device = this.data.device
-    if (!device || !this.data.hasPicture || this.data.picFailed) return
+    if (!device) return
+    // 没有图或图已经加载失败时给个反馈，否则每次点都像按钮坏了
+    if (!this.data.hasPicture || this.data.picFailed) {
+      wx.showToast({ title: '这台仪器还没有图片', icon: 'none' })
+      return
+    }
     const picture = String(device.picture || '')
     const fail = err => console.error('[devicedetail] 预览图片失败', err)
     wx.previewImage({ urls: [picture], current: picture, fail })
@@ -426,7 +355,7 @@ Page({
   // 把操作规程 / 注意事项的原始值转成子页面能吃的参数（实现在 lib/detailCore.js）
   viewProcedure() {
     const device = this.data.device
-    if (!device || !device.operation_procedure) {
+    if (!device || !detailCore.hasGuideContent(device.operation_procedure)) {
       wx.showToast({ title: '暂无操作规程', icon: 'none' })
       return
     }
@@ -436,7 +365,7 @@ Page({
 
   viewPrecautions() {
     const device = this.data.device
-    if (!device || !device.precautions) {
+    if (!device || !detailCore.hasGuideContent(device.precautions)) {
       wx.showToast({ title: '暂无注意事项', icon: 'none' })
       return
     }
@@ -479,7 +408,7 @@ Page({
 
   goReserve() {
     if (!this.data.canReserve) {
-      wx.showToast({ title: '暂时没有可预约的仪器', icon: 'none' })
+      wx.showToast({ title: '当前没有空闲的仪器', icon: 'none' })
       return
     }
     // 同款有多台可预约时先在这儿挑一台，一台的直接进（见 lib/reserveFlow.js）

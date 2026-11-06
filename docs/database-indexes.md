@@ -65,6 +65,28 @@ where({ user_id, status: 'using' })
 | `status` ↑ | 等值 / IN |
 | `start_time` ↓ | 排序 |
 
+### 3.1 `reserves` —— 待使用的预约
+
+来源：`miniprogram/pages/usage/usage.js` 的 `loadPendingReserves`
+
+```js
+where({ user_id, status: 'approved', end_ts: _.gte(当天 0 点) }).orderBy('end_ts', 'asc')
+```
+
+旧实现在 `while` 里把用户所有 `approved` 预约全量翻页拉回本地再过滤，
+现在改成服务端一次查询，**没有这条索引会直接报错**（云开发对
+「等值 + 范围 + 排序」的组合查询要求复合索引）。建议索引：
+
+| 字段顺序 | 说明 |
+| --- | --- |
+| `user_id` ↑ | 等值 |
+| `status` ↑ | 等值 |
+| `end_ts` ↑ | 范围 + 排序 |
+
+> `end_ts` 由 `cloudfunctions/createReservation` 写入（数字毫秒）。
+> 极早期没有 `end_ts` 的预约不会出现在待使用列表里，这类预约早已结束，不影响使用。
+
+
 ---
 
 ## 二、建议建（列表与红点）

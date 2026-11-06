@@ -125,13 +125,13 @@ function testBuildBarState() {
     [{ device_id: 'A' }, { device_id: 'B' }, { device_id: 'C', status: 'maintenance' }],
     []
   ))
-  assert.deepStrictEqual(availableState, { availableCount: 2, canReserve: true, barText: '2 台可用' }, '有可用就能预约并报台数')
+  assert.deepStrictEqual(availableState, { availableCount: 2, canReserve: true, barText: '2 台空闲' }, '有空闲就能预约并报台数')
 
   const noneState = detailCore.buildBarState(detailCore.buildStatusGroups(
     [{ device_id: 'A', status: 'maintenance' }],
     []
   ))
-  assert.deepStrictEqual(noneState, { availableCount: 0, canReserve: false, barText: '暂无可预约' }, '没可用时按钮要拦住')
+  assert.deepStrictEqual(noneState, { availableCount: 0, canReserve: false, barText: '当前没有空闲仪器' }, '没空闲时按钮要拦住')
 }
 
 function testFormatGuide() {
@@ -169,6 +169,24 @@ function testFormatGuide() {
   )
 }
 
+function testHasGuideContent() {
+  assert.strictEqual(detailCore.hasGuideContent('先开机再预热'), true, '非空字符串算有资料')
+  assert.strictEqual(detailCore.hasGuideContent('   '), false, '纯空白不算有资料')
+
+  const structured = { sections: [{ title: '开机', steps: ['插电'] }] }
+  assert.strictEqual(detailCore.hasGuideContent(structured), true, '带 sections 的结构化资料算有资料')
+  assert.strictEqual(detailCore.hasGuideContent({ sections: [] }), false, '空 sections 不算有资料')
+
+  // 这几个是管理端清空内容后留下的空壳，真值判断会把入口点亮，点进去只显示 "{}"
+  assert.strictEqual(detailCore.hasGuideContent({}), false, '空对象不能算有资料')
+  assert.strictEqual(detailCore.hasGuideContent([]), false, '空数组不能算有资料')
+  assert.strictEqual(detailCore.hasGuideContent(null), false, 'null 不能算有资料')
+  assert.strictEqual(detailCore.hasGuideContent({ text: '  ' }), false, 'text 只有空白不算有资料')
+
+  assert.strictEqual(detailCore.hasGuideContent({ text: '先开机' }), true, '老数据 text 正文算有资料')
+  assert.strictEqual(detailCore.hasGuideContent([{ title: '开机' }]), true, '非空数组算有资料')
+}
+
 testParseDeviceId()
 testGetDeviceModelPriority()
 testCompareCode()
@@ -177,4 +195,5 @@ testBuildStatusGroupsEdgeCases()
 testBuildStatusSummary()
 testBuildBarState()
 testFormatGuide()
+testHasGuideContent()
 console.log('deviceDetailCore tests passed')

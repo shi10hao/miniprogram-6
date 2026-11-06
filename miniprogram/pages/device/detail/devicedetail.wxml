@@ -1,10 +1,10 @@
-<view class="page {{device && !isLoading ? 'has-bar' : ''}}">
+<view class="page {{device && !isLoading && !loadError ? 'has-bar' : ''}}">
 
   <!-- 顶部品牌头：与导航栏同色，滚动时不会出现断层 -->
   <view class="hero">
     <view class="hero-top">
       <text class="hero-eyebrow">仪器详情</text>
-      <view wx:if="{{!isLoading && device}}" class="hero-chip hero-chip-{{statusKey}}">
+      <view wx:if="{{!isLoading && !loadError && device}}" class="hero-chip hero-chip-{{statusKey}}">
         <text class="chip-dot"></text>
         <text>{{statusText}}</text>
       </view>
@@ -154,7 +154,8 @@
             <view
               wx:for="{{item.codes}}"
               wx:for-item="code"
-              wx:key="*this"
+              wx:for-index="codeIndex"
+              wx:key="codeIndex"
               class="code-chip code-chip-{{item.key}}"
               data-code="{{code}}"
               bindtap="copyCode"
@@ -231,7 +232,7 @@
   </view>
 
   <!-- 吸底预约栏：只在拿到仪器后才出现，避免空态还挂个按钮 -->
-  <view wx:if="{{device && !isLoading}}" class="action-bar">
+  <view wx:if="{{device && !isLoading && !loadError}}" class="action-bar">
     <view class="action-info">
       <text class="action-text">{{barText}}</text>
     </view>

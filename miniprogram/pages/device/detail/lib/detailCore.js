@@ -118,7 +118,9 @@ function buildBarState(statusGroups) {
   return {
     availableCount,
     canReserve: availableCount > 0,
-    barText: availableCount > 0 ? availableCount + ' 台可用' : '暂无可预约'
+    // 这里只能说"空闲"（当前没人在用）：能不能约还取决于预约时段的冲突，
+    // 时段口径由预约页决定，详情页不该替它下结论
+    barText: availableCount > 0 ? availableCount + ' 台空闲' : '当前没有空闲仪器'
   }
 }
 
@@ -144,6 +146,23 @@ function formatGuide(raw) {
   return { content: String(fallback), type: 'plain' }
 }
 
+/**
+ * 判断资料字段是不是真有内容。
+ * 空对象 {} 和空数组 [] 在 JS 里都是真值，直接用 !! 判断会把入口点亮，
+ * 点进去 formatGuide 兜底成 JSON.stringify，子页面就显示一个 "{}"。
+ * @param {*} raw
+ * @returns {boolean}
+ */
+function hasGuideContent(raw) {
+  if (typeof raw === 'string') return !!raw.trim()
+  if (!raw) return false
+  if (Array.isArray(raw)) return raw.length > 0
+  if (Array.isArray(raw.sections)) return raw.sections.length > 0
+  // 老数据把正文塞在 text / content 里，只有这两个字段才算有内容
+  const text = raw.text || raw.content
+  return typeof text === 'string' ? !!text.trim() : !!text
+}
+
 module.exports = {
   STATUS_GROUPS,
   parseDeviceId,
@@ -152,5 +171,6 @@ module.exports = {
   buildStatusGroups,
   buildStatusSummary,
   buildBarState,
-  formatGuide
+  formatGuide,
+  hasGuideContent
 }

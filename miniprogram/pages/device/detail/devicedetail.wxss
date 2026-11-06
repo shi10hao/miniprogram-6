@@ -223,6 +223,8 @@
   line-height: 1.7;
   color: var(--ds-text-secondary);
   word-break: break-all;
+  /* 管理端用 textarea 录入，换行要原样保留，否则几段说明会挤成一坨 */
+  white-space: pre-wrap;
 }
 
 .desc-text.is-empty {

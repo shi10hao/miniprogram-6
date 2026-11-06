@@ -1,331 +1,472 @@
-<view class="container">
-  <view wx:if="{{!isAuthenticated}}" class="login-tip">
-    <text>登录后可查看使用记录、预约及上传照片</text>
-    <button bindtap="goAuth">去登录</button>
-  </view>
-  <!-- 未读提醒 -->
-  <view wx:if="{{unreadReminder}}" bindtap="goToReminder" style="margin: 24rpx 0; padding: 24rpx; border-radius: 20rpx; background: linear-gradient(135deg, #fff8e8 0%, #fff2cc 100%); border: 1px solid #f0d48a;">
-    <view style="display: flex; justify-content: space-between; align-items: center; gap: 16rpx;">
-      <text style="font-size: 30rpx; font-weight: 600; color: #8a5a00;">未读提醒</text>
-      <text style="font-size: 22rpx; color: #8a5a00;">{{unreadReminder.create_time}}</text>
-    </view>
-    <view style="margin-top: 12rpx;">
-      <text style="display: block; font-size: 28rpx; font-weight: 600; color: #333;">{{unreadReminder.title}}</text>
-      <text style="display: block; margin-top: 8rpx; font-size: 24rpx; line-height: 1.6; color: #6b7280;">{{unreadReminder.content}}</text>
-    </view>
-  </view>
-
-  <!-- 2 当前使用状态模块 -->
-  <view class="status-section">
-    <view class="section-header">
-      <text class="section-title">当前使用状态</text>
+<!-- 仪器使用页 -->
+<view class="page">
+  <!-- 顶部渐变头：一眼看到「现在在用什么仪器」 -->
+  <view class="hero">
+    <view class="hero-row">
+      <view class="hero-main">
+        <text class="hero-eyebrow">仪器使用</text>
+        <text class="hero-title">{{currentUsage ? currentUsage.device_name : '准备就绪'}}</text>
+      </view>
+      <view class="hero-badge {{currentUsage ? 'is-using' : ''}}">
+        <view class="hero-badge-dot"></view>
+        <text class="hero-badge-text">{{currentUsage ? '使用中' : '空闲'}}</text>
+      </view>
     </view>
 
-    <!-- 2.1 如果没有正在使用的仪器 -->
-    <view wx:if="{{!currentUsage}}" class="idle-block">
-      <view class="idle-icon">🔬</view>
-      <text class="idle-text">当前没有使用中的仪器</text>
-      <!-- <button class="primary-btn" bindtap="startUsage" disabled="{{isLoading || !isAuthenticated}}">
-        <text>拍照开始使用</text>
-      </button> -->
+    <view wx:if="{{currentUsage}}" class="hero-meta">
+      <text class="hero-meta-text">{{currentUsage.start_time_display}} 起</text>
+      <text wx:if="{{elapsedText}}" class="hero-meta-pill">{{elapsedText}}</text>
     </view>
-
-    <!-- 2.2 如果有正在使用的仪器 -->
-    <view wx:else class="using-block">
-      <view class="using-info-row">
-        <text class="using-label">仪器名称</text>
-        <text class="using-value">{{currentUsage.device_name}}</text>
-      </view>
-      <view class="using-info-row">
-        <text class="using-label">仪器编号</text>
-        <text class="using-value">{{currentUsage.device_id}}</text>
-      </view>
-      <view class="using-info-row">
-        <text class="using-label">开始时间</text>
-        <text class="using-value">{{currentUsage.start_time_display}}</text>
-      </view>
-
-      <!-- 2.3 如果没结束 -->
-      <view wx:if="{{!endMode}}" class="using-actions">
-        <button class="upload-mid-btn" bindtap="uploadUsagePhoto" disabled="{{isLoading || !isAuthenticated}}">
-          <text>上传使用照片</text>
-        </button>
-        <button class="end-btn" bindtap="startEndUsage" disabled="{{isLoading || !isAuthenticated}}">
-          <text>正常结束使用</text>
-        </button>
-      </view>
-      <!-- 新增：使用中问题反馈按钮 -->
-      <button class="feedback-btn-inline" bindtap="openUsageFeedback" disabled="{{isLoading || !isAuthenticated}}">
-        <text>异常问题反馈并结束使用</text>
-      </button>
-    </view>
+    <text wx:else class="hero-sub">扫码开始使用 · 上传过程照片 · 正常结束</text>
   </view>
 
-  <!-- 3 待使用的预约 -->
-  <view wx:if="{{pendingReserves.length > 0 && !currentUsage}}" class="pending-section">
-    <view class="section-header">
-      <text class="section-title">待使用预约</text>
+  <view class="body">
+    <!-- 未认证 -->
+    <view wx:if="{{!isAuthenticated}}" class="ds-card state-card">
+      <text class="state-icon">🔒</text>
+      <text class="state-title">还没有完成身份认证</text>
+      <text class="state-desc">认证后才能预约仪器、开始使用和上传照片</text>
+      <view class="ds-btn ds-btn-block state-btn" bindtap="goAuth">去认证</view>
     </view>
 
-    <!-- 预约列表 -->
-    <view class="pending-list">
-      <view class="pending-item {{item.state}}" wx:for="{{pendingReserves}}" wx:key="_id">
-        <view class="pending-header">
-          <text class="pending-device">{{item.device_name}}</text>
-          <text class="pending-state {{item.state}}">{{item.state === 'ready' ? '可开始' : item.state === 'pending' ? '未到时间' : '已过期'}}</text>
+    <block wx:else>
+      <!-- 未读提醒 -->
+      <view wx:if="{{unreadReminder}}" class="remind" bindtap="goToReminder">
+        <view class="remind-mark"></view>
+        <view class="remind-main">
+          <view class="remind-head">
+            <text class="remind-title">{{unreadReminder.title}}</text>
+            <text class="remind-time">{{unreadReminder.time_text}}</text>
+          </view>
+          <text class="remind-text">{{unreadReminder.content}}</text>
         </view>
-        <view class="pending-row">
-          <text class="pending-label">预约时段：</text>
-          <text class="pending-val">{{item.start_display}} - {{item.end_display}}</text>
-        </view>
-        <view class="pending-row">
-          <text class="pending-label">仪器编号：</text>
-          <text class="pending-val">{{item.device_id}}</text>
-        </view>
-        <button class="start-reserve-btn" data-reserveid="{{item._id}}" bindtap="startUsageFromReserve" disabled="{{isLoading || !isAuthenticated|| item.state === 'expired'}}">扫码拍照开始使用</button>
+        <text class="remind-action">查看</text>
+        <view class="remind-close" catchtap="closeReminder">✕</view>
       </view>
-    </view>
+
+      <!-- 当前使用 -->
+      <block wx:if="{{currentUsage}}">
+        <view class="ds-card">
+          <view class="card-row">
+            <view class="card-row-main">
+              <text class="card-row-label">本次使用</text>
+              <text class="card-row-value">{{currentUsage.device_id || currentUsage.device_name}}</text>
+            </view>
+            <text class="ds-tag {{currentUsage.status_tag}}">{{currentUsage.status_text}}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">开始时间</text>
+            <text class="info-value">{{currentUsage.start_time_display}}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">已使用</text>
+            <text class="info-value info-strong">{{elapsedText || '刚刚开始'}}</text>
+          </view>
+
+          <view class="card-actions">
+            <view class="ds-btn ds-btn-block" bindtap="startEndUsage">正常结束使用</view>
+            <view class="ghost-actions">
+              <view class="ds-btn ds-btn-ghost ghost-btn" bindtap="uploadUsagePhoto">上传照片</view>
+              <view class="ds-btn ds-btn-danger ghost-btn" bindtap="openUsageFeedback">遇到问题</view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 使用过程照片 -->
+        <view id="photoSection" class="ds-card">
+          <view class="ds-section-head photo-head">
+            <text class="ds-section-title">使用过程照片</text>
+            <text class="photo-count">{{selfUsageImages.length}}/{{photoLimit}}</text>
+          </view>
+
+          <view class="photo-grid">
+            <view wx:for="{{selfUsageImages}}" wx:key="fileId" class="photo-tile">
+              <image
+                wx:if="{{!item.failed}}"
+                class="photo-img"
+                src="{{item.url}}"
+                mode="aspectFill"
+                data-url="{{item.url}}"
+                data-index="{{index}}"
+                bindtap="previewUsagePhoto"
+                binderror="onUsagePhotoError"
+              />
+              <view wx:else class="photo-broken">加载失败</view>
+            </view>
+
+            <view
+              wx:if="{{selfUsageImages.length < photoLimit}}"
+              class="photo-tile photo-add"
+              bindtap="uploadUsagePhoto"
+            >
+              <text class="photo-add-icon">+</text>
+              <text class="photo-add-text">上传</text>
+            </view>
+          </view>
+
+          <text wx:if="{{!selfUsageImages.length}}" class="photo-hint">还没有过程照片，上传时会给照片打上时间与仪器水印</text>
+          <text wx:else class="photo-hint">照片会自动添加时间与仪器水印，最多 {{photoLimit}} 张</text>
+        </view>
+      </block>
+
+      <view wx:else class="ds-card state-card">
+        <text class="state-icon">🧪</text>
+        <text class="state-title">当前没有进行中的使用</text>
+        <text class="state-desc">在下方「待使用预约」里点「扫码开始」，扫描仪器上的二维码即可开始</text>
+      </view>
+
+      <!-- 待使用预约 -->
+      <view class="ds-section-head section-gap">
+        <text class="ds-section-title">待使用预约</text>
+        <text class="ds-section-more">{{pendingReserves.length}} 个</text>
+      </view>
+
+      <block wx:if="{{pendingReserves.length}}">
+        <view wx:for="{{pendingReserves}}" wx:key="_id" class="ds-card reserve-card">
+          <view class="card-row">
+            <view class="card-row-main">
+              <text class="reserve-name">{{item.device_name}}</text>
+              <text class="reserve-id">{{item.device_id}}</text>
+            </view>
+            <text class="ds-tag {{item.tag_class}}">{{item.state_text}}</text>
+          </view>
+
+          <view class="info-row">
+            <text class="info-label">预约日期</text>
+            <text class="info-value">{{item.reserve_date}}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">预约时段</text>
+            <text class="info-value">{{item.period_text}}</text>
+          </view>
+
+          <view class="reserve-foot">
+            <text class="reserve-hint {{item.state === 'ready' ? 'is-ready' : ''}}">{{item.time_text}}</text>
+            <view
+              wx:if="{{item.can_start}}"
+              class="ds-btn reserve-btn"
+              data-reserveid="{{item._id}}"
+              catchtap="startUsageFromReserve"
+            >扫码开始</view>
+            <view wx:else class="reserve-btn is-disabled">已结束</view>
+          </view>
+        </view>
+      </block>
+
+      <view wx:else class="ds-card ds-empty">
+        <text class="ds-empty-icon">📅</text>
+        <text class="ds-empty-title">暂无待使用的预约</text>
+        <text class="ds-empty-desc">在「预约」页申请通过后，这里会出现扫码入口</text>
+      </view>
+
+      <!-- 使用历史 -->
+      <view class="ds-section-head section-gap">
+        <text class="ds-section-title">使用历史</text>
+        <text wx:if="{{!isHistoryLoading}}" class="ds-section-more">最近 {{usageHistory.length}} 条</text>
+      </view>
+
+      <block wx:if="{{isHistoryLoading}}">
+        <view wx:for="{{[1, 2]}}" wx:key="*this" class="ds-skeleton-card">
+          <view class="ds-skeleton sk-line sk-line-title"></view>
+          <view class="ds-skeleton sk-line"></view>
+          <view class="ds-skeleton sk-line sk-line-short"></view>
+        </view>
+      </block>
+
+      <block wx:elif="{{usageHistory.length}}">
+        <view
+          wx:for="{{usageHistory}}"
+          wx:key="_id"
+          class="ds-card history-card"
+          data-reserveid="{{item.reserve_id}}"
+          bindtap="openHistoryDetail"
+        >
+          <view class="card-row">
+            <view class="card-row-main">
+              <text class="history-name">{{item.device_name}}</text>
+              <text class="reserve-id">{{item.device_id}}</text>
+            </view>
+            <text class="ds-tag {{item.status_tag}}">{{item.status_text}}</text>
+          </view>
+
+          <view class="info-row">
+            <text class="info-label">时间</text>
+            <text class="info-value">{{item.usage_period_display}}</text>
+          </view>
+          <view wx:if="{{item.duration_text}}" class="info-row">
+            <text class="info-label">时长</text>
+            <text class="info-value">{{item.duration_text}}</text>
+          </view>
+
+          <view wx:if="{{item.has_feedback}}" class="history-feedback">
+            <text class="history-feedback-label">异常反馈</text>
+            <text class="history-feedback-text">{{item.feedback_title || item.feedback_content}}</text>
+          </view>
+
+          <text wx:if="{{item.reserve_id}}" class="history-more">查看详情 ›</text>
+        </view>
+      </block>
+
+      <view wx:else class="ds-card ds-empty">
+        <text class="ds-empty-icon">📋</text>
+        <text class="ds-empty-title">还没有使用记录</text>
+        <text class="ds-empty-desc">结束第一次使用后，记录会显示在这里</text>
+      </view>
+    </block>
+  </view>
+</view>
+
+<!-- ==================== 异常反馈 ==================== -->
+<view wx:if="{{showFeedback}}" class="sheet-mask" catchtap="closeFeedback" catchtouchmove="noop"></view>
+<view wx:if="{{showFeedback}}" class="sheet" catchtouchmove="noop">
+  <view class="sheet-head">
+    <text class="sheet-title">{{feedbackScene === 'using' ? '反馈问题并结束使用' : '仪器无法正常启动'}}</text>
+    <text class="sheet-close" catchtap="closeFeedback">✕</text>
   </view>
 
-  <!-- 4 上传照片模块 -->
-  <view wx:if="{{currentUsage}}" class="photo-section">
-
-    <!-- 4.1 上传正在使用 -->
-    <view wx:if="{{!endMode}}" class="photo-block">
-      <view class="section-header">
-        <text class="section-title">上传照片板块</text>
-      </view>
-      <text style="display: block; margin-bottom: 16rpx; color: #6b7280; font-size: 24rpx;">使用过程中拍摄的照片请在这里上传，提醒消息中的“上传照片板块”即此处。</text>
-
-      <!-- 4.1.1 如果有正在使用的，就进行正在使用的仪器照片循环 -->
-      <view wx:if="{{selfUsageImages.length > 0}}" class="photos-grid">
-        <view class="photo-item" wx:for="{{selfUsageImages}}" wx:key="fileId">
-          <image
-            wx:if="{{!item.failed}}"
-            class="photo-img"
-            src="{{item.url}}"
-            mode="aspectFill"
-            lazy-load
-            binderror="onUsagePhotoError"
-            data-index="{{index}}"
-            bindtap="previewUsagePhoto"
-            data-url="{{item.url}}"
-          ></image>
-          <view wx:else class="photo-fallback">
-            <text class="photo-fallback-text">图片加载失败</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 4.1.2 如果没有正在使用的 -->
-      <view wx:else class="empty-photos">
-        <text class="empty-photos-text">暂无使用中照片</text>
-      </view>
+  <scroll-view scroll-y class="sheet-scroll">
+    <view class="sheet-tip">
+      <text wx:if="{{feedbackScene === 'using'}}">提交后本次使用会立即结束，管理员将收到异常通知。</text>
+      <text wx:else>提交后管理员将收到异常通知，本次使用不会开始。</text>
     </view>
 
-  </view>
-
-  <view class="history-section">
-    <view class="section-header">
-      <text class="section-title">使用记录</text>
+    <view class="form-block">
+      <text class="form-label">问题标题</text>
+      <input
+        class="form-input"
+        value="{{feedbackTitle}}"
+        placeholder="例如：仪器无法启动"
+        placeholder-class="form-placeholder"
+        maxlength="40"
+        bindinput="onFeedbackTitleInput"
+      />
     </view>
 
-    <view wx:if="{{isLoading && !currentUsage}}" class="loading-text">加载中...</view>
-    <view wx:elif="{{usageHistory.length === 0}}" class="empty-history">暂无使用记录</view>
+    <view class="form-block">
+      <text class="form-label">问题描述<text class="form-required">*</text></text>
+      <textarea
+        class="form-textarea"
+        value="{{feedbackContent}}"
+        placeholder="请描述具体现象，方便管理员定位"
+        placeholder-class="form-placeholder"
+        maxlength="300"
+        bindinput="onFeedbackContentInput"
+      />
+      <text class="form-counter">{{feedbackContent.length}}/300</text>
+    </view>
 
-    <view wx:else class="history-list">
-      <view class="history-item" wx:for="{{usageHistory}}" wx:key="_id">
-        <view class="history-header">
-          <text class="history-device">{{item.device_name}}</text>
-          <text class="history-status {{item.status}}">{{item.status === 'completed' ? '已完成' : '异常结束'}}</text>
+    <view class="form-block">
+      <text class="form-label">现场照片（最多 {{maxFeedbackPhotos}} 张）</text>
+      <view class="photo-grid">
+        <view wx:for="{{feedbackPhotos}}" wx:key="*this" class="photo-tile">
+          <image class="photo-img" src="{{item}}" mode="aspectFill" data-url="{{item}}" bindtap="previewFeedbackPhoto" />
+          <view class="photo-remove" data-index="{{index}}" catchtap="deleteFeedbackPhoto">✕</view>
         </view>
-        <view class="history-row">
-          <text class="history-label">仪器编号：</text>
-          <text class="history-val">{{item.device_id}}</text>
-        </view>
-        <view class="history-row">
-          <text class="history-label">预约日期：</text>
-          <text class="history-val">{{item.reserve_date}}</text>
-        </view>
-        <view class="history-row">
-          <text class="history-label">使用时段：</text>
-          <text class="history-val">{{item.usage_period_display}}</text>
+        <view
+          wx:if="{{feedbackPhotos.length < maxFeedbackPhotos}}"
+          class="photo-tile photo-add"
+          bindtap="chooseFeedbackPhoto"
+        >
+          <text class="photo-add-icon">+</text>
         </view>
       </view>
     </view>
-  </view>
+  </scroll-view>
 
-  <!-- 问题反馈弹窗 -->
-  <view class="feedback-mask" wx:if="{{!ifWorkingOK}}">
-    <view class="feedback-card">
-      <view class="feedback-header">
-        <text class="feedback-title">{{feedbackScene === 'start' ? '仪器启动异常反馈' : '使用问题反馈'}}</text>
-        <text class="feedback-close" bind:tap="closeFeedback">×</text>
-      </view>
-
-      <!-- 问题类型选择
-      <view class="feedback-type-group">
-        <text class="feedback-label">问题类型</text>
-        <view class="type-options">
-          <view class="type-item {{feedbackType === item.value ? 'active' : ''}}" wx:for="{{feedbackTypeOptions}}" wx:key="value" data-value="{{item.value}}" bindtap="selectFeedbackType">
-            {{item.label}}
-          </view>
-        </view>
-      </view> -->
-
-      <input class="feedback-input" placeholder="请输入问题标题（选填）" value="{{feedbackTitle}}" bindinput="onTitleInput" />
-      <textarea value="{{feedbackContent}}" class="feedback-textarea" placeholder="请详细描述您遇到的问题，例如故障现象、报错信息等" bindinput="onContentInput" maxlength="500" />
-      <!-- 故障照片上传 -->
-      <view class="feedback-photo-section">
-        <text class="feedback-label">故障照片（选填）</text>
-        <view class="photo-upload-grid">
-          <view class="photo-slot" wx:for="{{feedbackPhotos}}" wx:key="*this">
-            <image class="slot-img" src="{{item}}" mode="aspectFill"></image>
-          </view>
-          <view class="photo-add-slot" wx:if="{{feedbackPhotos.length < 3}}" bindtap="chooseFeedbackPhoto">
-            <text class="slot-plus">+</text>
-            <text class="slot-tip">添加照片</text>
-          </view>
-        </view>
-      </view>
-      <!-- 结束使用选项 -->
-      <!-- <view class="feedback-end-option" wx:if="{{feedbackScene === 'using'}}">
-        <label class="checkbox-label">
-          <checkbox value="1" checked="{{endWithFeedback}}" color="#62BCC4" bindchange="onEndWithFeedbackChange" />
-          <text>仪器无法使用，同步结束本次使用</text>
-        </label>
-        <text class="option-hint">勾选后将直接终止使用，仅适用于严重故障</text>
-      </view> -->
-
-      <button class="feedback-submit-btn" bind:tap="submitFeedback" disabled="{{isLoading}}">
-        {{isLoading ? '提交中...' : '提交反馈'}}
-      </button>
-    </view>
-  </view>
-  <!-- 结束信息表单浮层 -->
-  <view class="end-form-mask" wx:if="{{showEndForm}}">
-    <view class="end-form-card">
-      <view class="end-form-header">
-        <text class="end-form-title">结束使用信息</text>
-        <text class="end-form-close" bindtap="cancelEndForm">✕</text>
-      </view>
-
-      <scroll-view scroll-y class="end-form-body">
-        <!-- 仪器是否关闭 -->
-        <view class="form-row">
-          <text class="form-label required">仪器是否关闭</text>
-          <view class="form-options">
-            <text class="option-btn {{endForm.instrumentOff === true ? 'active' : ''}}" data-value="true" bindtap="selectInstrumentOff">是</text>
-            <text class="option-btn {{endForm.instrumentOff === false ? 'active' : ''}}" data-value="false" bindtap="selectInstrumentOff">否</text>
-          </view>
-        </view>
-
-        <!-- 电脑是否关闭 -->
-        <view class="form-row">
-          <text class="form-label required">电脑是否关闭</text>
-          <view class="form-options">
-            <text class="option-btn {{endForm.computerOff === true ? 'active' : ''}}" data-value="true" bindtap="selectComputerOff">是</text>
-            <text class="option-btn {{endForm.computerOff === false ? 'active' : ''}}" data-value="false" bindtap="selectComputerOff">否</text>
-          </view>
-        </view>
-        <view wx:if="{{endForm.computerOff === false}}" class="form-row">
-          <text class="form-label required">下一个使用者姓名</text>
-          <input class="form-input" type="text" placeholder="请输入下一个使用者姓名" value="{{endForm.nextUser}}" bindinput="onNextUserInput" />
-        </view>
-
-        <!-- 运行样品总数 -->
-        <view class="form-row">
-          <text class="form-label required">运行样品总数</text>
-          <input class="form-input" type="number" placeholder="请输入正整数" value="{{endForm.sampleCount}}" bindinput="onSampleCountInput" />
-        </view>
-        <view class="form-row">
-          <text class="form-label required">是否过多预约</text>
-          <view class="form-options">
-            <text class="option-btn {{endForm.moreSample === true ? 'active' : ''}}" data-value="true" bindtap="selectMoreSample">是</text>
-            <text class="option-btn {{endForm.moreSample === false ? 'active' : ''}}" data-value="false" bindtap="selectMoreSample">否</text>
-          </view>
-        </view>
-        <view wx:if="{{endForm.moreSample}}" class="form-row">
-          <text class="form-label required">剩余的样品数量</text>
-          <input class="form-input" type="number" placeholder="请输入剩余样品数量" value="{{endForm.moreSampleCount}}" bindinput="onMoreSampleCountInput" />
-        </view>
-        <!-- 总的预约单 -->
-        <view class="form-row">
-          <text class="form-label required">总的预约单</text>
-          <view class="form-upload" bindtap="pickTotalPage">
-            <view wx:if="{{endForm.totalPage}}" class="upload-preview">
-              <image class="upload-img" src="{{endForm.totalPage}}" mode="aspectFill" />
-              <text class="upload-change">重新选择</text>
-            </view>
-            <view wx:else class="upload-empty">
-              <text class="upload-plus">+</text>
-              <text class="upload-tip">点击上传预约单截图</text>
-            </view>
-          </view>
-        </view>
-
-        <!-- 仪器照片，实验室关门照片 -->
-        <view class="form-row">
-          <text class="form-label required">仪器关闭照片</text>
-          <view class="form-upload" bind:tap="pickDevicePage">
-            <view wx:if="{{endForm.devicePage}}" class="upload-preview" mode="aspectFill">
-              <image src="{{endForm.devicePage}}" mode="aspectFill" class="upload-img" />
-              <text class="upload-change">重新选择</text>
-            </view>
-            <view wx:else class="upload-empty">
-              <text class="upload-plus">+</text>
-              <text class="upload-tip">点击上传仪器关闭图像</text>
-            </view>
-          </view>
-        </view>
-        <view class="form-row">
-          <text class="form-label required">实验室关门照片</text>
-          <view class="form-upload" bind:tap="pickRoomPage">
-            <view wx:if="{{endForm.roomPage}}" class="upload-preview" mode="aspectFill">
-              <image src="{{endForm.roomPage}}" mode="aspectFill" class="upload-img" />
-              <text class="upload-change">重新选择</text>
-            </view>
-            <view wx:else class="upload-empty">
-              <text class="upload-plus">+</text>
-              <text class="upload-tip">点击上传实验室关门图像</text>
-            </view>
-          </view>
-        </view>
-        <!-- 是否需要补充预约 -->
-        <view class="form-row">
-          <text class="form-label required">是否需要补充预约</text>
-          <view class="form-options">
-            <text class="option-btn {{endForm.needSupplement === true ? 'active' : ''}}" data-value="true" bindtap="selectNeedSupplement">是</text>
-            <text class="option-btn {{endForm.needSupplement === false ? 'active' : ''}}" data-value="false" bindtap="selectNeedSupplement">否</text>
-          </view>
-        </view>
-
-        <!-- 补充预约单 -->
-        <view wx:if="{{endForm.needSupplement}}" class="form-row">
-          <text class="form-label required">补充预约单</text>
-          <view class="form-upload" bindtap="pickSupplementPage">
-            <view wx:if="{{endForm.supplementPage}}" class="upload-preview">
-              <image class="upload-img" src="{{endForm.supplementPage}}" mode="aspectFill" />
-              <text class="upload-change">重新选择</text>
-            </view>
-            <view wx:else class="upload-empty">
-              <text class="upload-plus">+</text>
-              <text class="upload-tip">点击上传补充预约单截图</text>
-            </view>
-          </view>
-        </view>
-      </scroll-view>
-
-      <!-- 提交按钮 -->
-      <view class="end-form-footer">
-        <button class="form-cancel-btn" bindtap="cancelEndForm">取消</button>
-        <button class="form-submit-btn" bindtap="submitEndForm" disabled="{{isLoading}}">
-          {{isLoading ? '提交中...' : '确认结束使用'}}
-        </button>
-      </view>
+  <view class="sheet-foot">
+    <view class="ds-btn ds-btn-ghost sheet-btn" catchtap="closeFeedback">取消</view>
+    <view class="ds-btn sheet-btn {{isSubmittingFeedback ? 'is-busy' : ''}}" catchtap="submitFeedback">
+      {{isSubmittingFeedback ? '提交中…' : '提交反馈'}}
     </view>
   </view>
 </view>
 
-<!-- ===== 新增：隐藏的 Canvas，用于绘制水印 ===== -->
-<canvas type="2d" id="watermarkCanvas" style="width:750px;height:1000px;position:fixed;left:-9999px;top:-9999px;pointer-events:none;"></canvas>
+<!-- ==================== 正常结束使用 ==================== -->
+<view wx:if="{{showEndForm}}" class="sheet-mask" catchtap="cancelEndForm" catchtouchmove="noop"></view>
+<view wx:if="{{showEndForm}}" class="sheet" catchtouchmove="noop">
+  <view class="sheet-head">
+    <text class="sheet-title">结束使用</text>
+    <text class="sheet-close" catchtap="cancelEndForm">✕</text>
+  </view>
+
+  <scroll-view scroll-y class="sheet-scroll">
+    <view class="sheet-tip">请如实填写现场情况，并上传照片留档，共 3 项必传。</view>
+
+    <!-- 仪器是否关闭 -->
+    <view class="form-block">
+      <text class="form-label">仪器是否关闭<text class="form-required">*</text></text>
+      <view class="seg">
+        <view
+          class="seg-item {{endForm.instrumentOff === true ? 'is-on' : ''}}"
+          data-value="true"
+          bindtap="selectInstrumentOff"
+        >已关闭</view>
+        <view
+          class="seg-item {{endForm.instrumentOff === false ? 'is-on' : ''}}"
+          data-value="false"
+          bindtap="selectInstrumentOff"
+        >未关闭</view>
+      </view>
+    </view>
+
+    <!-- 电脑是否关闭 -->
+    <view class="form-block">
+      <text class="form-label">电脑是否关闭<text class="form-required">*</text></text>
+      <view class="seg">
+        <view
+          class="seg-item {{endForm.computerOff === true ? 'is-on' : ''}}"
+          data-value="true"
+          bindtap="selectComputerOff"
+        >已关闭</view>
+        <view
+          class="seg-item {{endForm.computerOff === false ? 'is-on' : ''}}"
+          data-value="false"
+          bindtap="selectComputerOff"
+        >未关闭</view>
+      </view>
+    </view>
+
+    <!-- 电脑未关时必须交代下一个使用者 -->
+    <view wx:if="{{endForm.computerOff === false}}" class="form-block">
+      <text class="form-label">下一个使用者<text class="form-required">*</text></text>
+      <input
+        class="form-input"
+        value="{{endForm.nextUser}}"
+        placeholder="填写接手的同学姓名"
+        placeholder-class="form-placeholder"
+        maxlength="20"
+        bindinput="onNextUserInput"
+      />
+    </view>
+
+    <!-- 样品数量 -->
+    <view class="form-block">
+      <text class="form-label">运行样品总数<text class="form-required">*</text></text>
+      <input
+        class="form-input"
+        type="number"
+        value="{{endForm.sampleCount}}"
+        placeholder="本次一共测试了几个样品"
+        placeholder-class="form-placeholder"
+        bindinput="onSampleCountInput"
+      />
+    </view>
+
+    <view class="form-block">
+      <text class="form-label">是否还有未测试的样品<text class="form-required">*</text></text>
+      <view class="seg">
+        <view
+          class="seg-item {{endForm.moreSample === true ? 'is-on' : ''}}"
+          data-value="true"
+          bindtap="selectMoreSample"
+        >有</view>
+        <view
+          class="seg-item {{endForm.moreSample === false ? 'is-on' : ''}}"
+          data-value="false"
+          bindtap="selectMoreSample"
+        >没有</view>
+      </view>
+    </view>
+
+    <view wx:if="{{endForm.moreSample === true}}" class="form-block">
+      <text class="form-label">剩余样品数量<text class="form-required">*</text></text>
+      <input
+        class="form-input"
+        type="number"
+        value="{{endForm.moreSampleCount}}"
+        placeholder="不能大于运行样品总数"
+        placeholder-class="form-placeholder"
+        bindinput="onMoreSampleCountInput"
+      />
+    </view>
+
+    <!-- 三张必传照片 -->
+    <view class="form-block">
+      <text class="form-label">总的预约单<text class="form-required">*</text></text>
+      <view class="end-photo" data-key="totalPage" bindtap="pickEndPhoto">
+        <block wx:if="{{endForm.totalPage}}">
+          <image class="photo-img end-photo-img" src="{{endForm.totalPage}}" mode="aspectFill" />
+          <view class="photo-remove" data-key="totalPage" catchtap="clearEndPhoto">✕</view>
+        </block>
+        <view wx:else class="end-photo-empty">
+          <text class="photo-add-icon">+</text>
+          <text class="end-photo-text">拍摄预约单</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="form-block">
+      <text class="form-label">仪器关闭照片<text class="form-required">*</text></text>
+      <view class="end-photo" data-key="devicePage" bindtap="pickEndPhoto">
+        <block wx:if="{{endForm.devicePage}}">
+          <image class="photo-img end-photo-img" src="{{endForm.devicePage}}" mode="aspectFill" />
+          <view class="photo-remove" data-key="devicePage" catchtap="clearEndPhoto">✕</view>
+        </block>
+        <view wx:else class="end-photo-empty">
+          <text class="photo-add-icon">+</text>
+          <text class="end-photo-text">拍摄仪器关闭状态</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="form-block">
+      <text class="form-label">实验室关门照片<text class="form-required">*</text></text>
+      <view class="end-photo" data-key="roomPage" bindtap="pickEndPhoto">
+        <block wx:if="{{endForm.roomPage}}">
+          <image class="photo-img end-photo-img" src="{{endForm.roomPage}}" mode="aspectFill" />
+          <view class="photo-remove" data-key="roomPage" catchtap="clearEndPhoto">✕</view>
+        </block>
+        <view wx:else class="end-photo-empty">
+          <text class="photo-add-icon">+</text>
+          <text class="end-photo-text">拍摄关灯后的实验室</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="form-block">
+      <text class="form-label">是否需要补充预约<text class="form-required">*</text></text>
+      <view class="seg">
+        <view
+          class="seg-item {{endForm.needSupplement === true ? 'is-on' : ''}}"
+          data-value="true"
+          bindtap="selectNeedSupplement"
+        >需要</view>
+        <view
+          class="seg-item {{endForm.needSupplement === false ? 'is-on' : ''}}"
+          data-value="false"
+          bindtap="selectNeedSupplement"
+        >不需要</view>
+      </view>
+    </view>
+
+    <view wx:if="{{endForm.needSupplement === true}}" class="form-block">
+      <text class="form-label">补充预约单<text class="form-required">*</text></text>
+      <view class="end-photo" data-key="supplementPage" bindtap="pickEndPhoto">
+        <block wx:if="{{endForm.supplementPage}}">
+          <image class="photo-img end-photo-img" src="{{endForm.supplementPage}}" mode="aspectFill" />
+          <view class="photo-remove" data-key="supplementPage" catchtap="clearEndPhoto">✕</view>
+        </block>
+        <view wx:else class="end-photo-empty">
+          <text class="photo-add-icon">+</text>
+          <text class="end-photo-text">拍摄补充预约单</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="sheet-bottom-space"></view>
+  </scroll-view>
+
+  <view class="sheet-foot">
+    <view class="ds-btn ds-btn-ghost sheet-btn" catchtap="cancelEndForm">取消</view>
+    <view class="ds-btn sheet-btn {{isSubmittingEnd ? 'is-busy' : ''}}" catchtap="submitEndForm">
+      {{isSubmittingEnd ? '提交中…' : '确认结束'}}
+    </view>
+  </view>
+</view>
+
+<!-- 水印画布：必须保留，addWatermarkToPhoto 依赖它离屏绘制 -->
+<canvas
+  type="2d"
+  id="watermarkCanvas"
+  class="watermark-canvas"
+></canvas>

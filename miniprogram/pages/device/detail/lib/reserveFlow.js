@@ -77,9 +77,9 @@ function enter(params) {
     }
   }
 
-  // 可用实例超过 6 台时说清"这里只列了一部分"，剩下的去预约页里换
+  // 空闲实例超过 6 台时说清"这里只列了一部分"，剩下的去预约页里换
   if (list.length > items.length) {
-    const tips = '共 ' + list.length + ' 台可用，这里先列 ' + items.length + ' 台'
+    const tips = '共 ' + list.length + ' 台空闲，这里先列 ' + items.length + ' 台'
     options.alertText = tips
   }
 

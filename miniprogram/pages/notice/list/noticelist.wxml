@@ -1,29 +1,98 @@
-<view class="container">
+<view class="ds-page">
+  <!-- 页面标题：与首页 / 消息页同一套 hero 样式 -->
+  <view class="hero">
+    <text class="hero-title">公告通知</text>
+    <text class="hero-subtitle">{{summaryText}}</text>
+  </view>
 
-  <!-- 加载状态 -->
-  <view wx:if="{{isLoading}}" class="loading">
-    <text>加载中...</text>
+  <!-- 加载中：骨架屏比转圈更接近最终形态，切换时不跳版 -->
+  <block wx:if="{{isLoading}}">
+    <view class="ds-skeleton-card" wx:for="{{skeletonRows}}" wx:key="*this">
+      <view class="skeleton-main">
+        <view class="ds-skeleton skeleton-date"></view>
+        <view class="skeleton-body">
+          <view class="ds-skeleton skeleton-line skeleton-line-title"></view>
+          <view class="ds-skeleton skeleton-line"></view>
+          <view class="ds-skeleton skeleton-line skeleton-line-short"></view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <!-- 加载失败：与"暂无公告"区分开，否则用户会以为公告被删了 -->
+  <view wx:elif="{{hasError}}" class="ds-card">
+    <view class="ds-empty">
+      <text class="ds-empty-icon">😵</text>
+      <text class="ds-empty-title">公告加载失败</text>
+      <text class="ds-empty-desc">网络不稳定或服务繁忙，稍后再试</text>
+      <view
+        class="ds-btn ds-btn-ghost retry-btn"
+        hover-class="retry-btn-hover"
+        bindtap="onRetry"
+      >重新加载</view>
+    </view>
   </view>
 
   <!-- 空状态 -->
-  <view wx:if="{{!isLoading && noticeList.length === 0}}" class="empty">
-    <text>暂无公告</text>
+  <view wx:elif="{{noticeList.length === 0}}" class="ds-card">
+    <view class="ds-empty">
+      <text class="ds-empty-icon">📢</text>
+      <text class="ds-empty-title">暂无公告</text>
+      <text class="ds-empty-desc">管理员发布公告后会显示在这里</text>
+    </view>
   </view>
 
-  <!-- 公告列表（显示日期） -->
-  <view wx:else class="notice-list">
-  <view 
-    class="notice-item" 
-    wx:for="{{noticeList}}" 
-    wx:key="_id"
-    bindtap="goToDetail"
-    data-noticeid="{{item.notice_id || item._id}}" 
-  >
-    <view class="notice-item-body">
-      <text class="notice-title">{{item.title}}</text>
-      <text class="notice-doc-tag" wx:if="{{item.doc_url}}">含文档</text>
+  <!-- 公告列表 -->
+  <block wx:else>
+    <view
+      class="notice-card"
+      wx:for="{{noticeList}}"
+      wx:key="key"
+      data-noticeid="{{item.id}}"
+      hover-class="notice-card-hover"
+      hover-stay-time="80"
+      aria-role="button"
+      aria-label="{{item.title}}，{{item.timeLabel}}"
+      bindtap="goToDetail"
+    >
+      <!-- 左侧日期块：一眼能排出发布先后，比纯文字日期更好扫 -->
+      <view class="notice-date">
+        <text class="notice-date-day">{{item.dayLabel}}</text>
+        <text class="notice-date-month">{{item.monthLabel}}</text>
+      </view>
+
+      <view class="notice-main">
+        <view class="notice-head">
+          <text class="notice-title">{{item.title}}</text>
+          <text class="notice-new" wx:if="{{item.isNew}}">NEW</text>
+        </view>
+
+        <text class="notice-preview" wx:if="{{item.preview}}">{{item.preview}}</text>
+
+        <view class="notice-foot">
+          <text class="ds-tag ds-tag-warning" wx:if="{{item.hasDoc}}">含文档</text>
+          <text class="notice-time">{{item.timeLabel}}</text>
+          <text class="notice-more">阅读全文 ›</text>
+        </view>
+      </view>
     </view>
-    <text class="notice-date">{{item.publish_date}}</text>
-  </view>
-</view>
+
+    <!-- 底部状态：只有超过一页或正在加载时才占位，短列表不留空档 -->
+    <view
+      class="list-foot"
+      wx:if="{{isLoadingMore || hasMore || noticeList.length > pageSize}}"
+    >
+      <view class="list-foot-loading" wx:if="{{isLoadingMore}}">
+        <view class="ds-spinner small"></view>
+        <text>加载中…</text>
+      </view>
+      <view
+        class="load-more-btn"
+        wx:elif="{{hasMore}}"
+        hover-class="load-more-hover"
+        bindtap="loadMore"
+      >加载更多</view>
+      <text class="list-foot-text" wx:else>已经到底啦</text>
+    </view>
+  </block>
 </view>
