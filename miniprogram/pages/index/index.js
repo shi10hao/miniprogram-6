@@ -1,9 +1,23 @@
 const db = wx.cloud.database()
-const cloudFile = require('../../utils/cloudFile.js')
+const commonDeviceService = require('./commonDeviceService.js')
+const {
+  readSubscribeStatus,
+  isSubscribed,
+  buildSubscribeFailText,
+  readSubMsgResult
+} = require('./subscribeModel.js')
+
+// 首页常用仪器的数量：三宫格，多一台就会换行
+const COMMON_DEVICE_LIMIT = 3
+// 常用仪器随使用记录变化，从别的页面返回时最多每 60 秒重算一次，避免每次切页都打云函数
+const COMMON_DEVICE_REFRESH_INTERVAL = 60 * 1000
 
 const PHOTO_REMINDER_TYPES = ['usage_photo_remind', 'usage_end_remind']
 const BANNER_REMINDER_TYPES = ['reservation_remind', 'usage_photo_remind', 'usage_end_remind']
+// 公告推送用的一次性订阅模板，必须和 cloudfunctions/sendNoticeSubMsg 里的常量一致
 const NOTICE_TMPL_ID = '9Lr3yHaJzl8LyzC5qbNGFYgu5ILBFc3XSowjJRv1-eg'
+// 订阅次数的展示节流：切页返回时不必每次都打云函数
+const SUB_MSG_REFRESH_INTERVAL = 60 * 1000
 
 // 首页快捷入口：把原先散落在首页/应用页的重复入口收敛到一处
 const QUICK_ENTRIES = [
@@ -22,6 +36,7 @@ Page({
     currentGroupName: '',
     unreadReminder: null,
     subMsgCount: 0,
+    isSubscribing: false,
     quickEntries: QUICK_ENTRIES
   },
 
@@ -29,14 +44,24 @@ Page({
     this._authPromptShown = false
     // 首次 checkAuthStatus 已经会拉取数据，onShow 紧接着触发时不要再拉一遍
     this._subMsgCountLoadedAt = 0
+    this._commonDeviceLoadedAt = 0
     this.checkAuthStatus(true)
   },
 
   onShow() {
     // 从其他页面返回：只有登录态/课题组真的变了才重新拉数据
     this.checkAuthStatus()
+    // 刚用过/刚约过仪器，常用仪器顺序会变，节流重算一次
+    this.refreshCommonDevicesIfStale()
     getApp().refreshMessageBadge()
     this.loadSubMsgCount()
+  },
+
+  // 常用仪器按最近使用时间排序，返回首页时按 60 秒节流刷新
+  refreshCommonDevicesIfStale() {
+    const loadedAt = this._commonDeviceLoadedAt || 0
+    if (Date.now() - loadedAt < COMMON_DEVICE_REFRESH_INTERVAL) return
+    this.getCommonDevices()
   },
 
   /**
@@ -79,6 +104,8 @@ Page({
       }
 
       this.setData({ currentGroupName: groupName })
+      // 登录态变了，订阅次数跟着换人，必须绕过节流重新拉
+      this._subMsgCountLoadedAt = 0
 
       // 加载公开数据（仪器、公告）
       this.getCommonDevices()
@@ -107,7 +134,9 @@ Page({
     Promise.all([
       this.getCommonDevices(),
       this.getLatestNotices(),
-      this.loadUnreadReminder()
+      this.loadUnreadReminder(),
+      // 手动下拉就是要最新值，绕开 60 秒节流
+      this.loadSubMsgCount(true)
     ]).then(() => {
       wx.stopPullDownRefresh()
     }).catch(() => {
@@ -115,183 +144,130 @@ Page({
     })
   },
 
-  // 加载用户剩余订阅消息次数
-  async loadSubMsgCount() {
+  /**
+   * 拉取「还能收到几条公告推送」
+   * 次数由云端记账：用户每点一次订阅 +1，管理员每发一条公告 -1
+   * @param {boolean} force 忽略节流强制刷新（下拉刷新用）
+   */
+  async loadSubMsgCount(force) {
     if (!this.data.isAuthenticated) {
-      if (this.data.subMsgCount !== 0) {
-        this.setData({
-          subMsgCount: 0
-        })
-      }
       this._subMsgCountLoadedAt = 0
+      if (this.data.subMsgCount !== 0) {
+        this.setData({ subMsgCount: 0 })
+      }
       return
     }
 
-    // 60 秒内不重复请求（onLoad 与首次 onShow 会连续触发）
+    // 60 秒内不重复请求（onLoad 与首次 onShow 会连续触发）；
+    // 时间戳只在请求成功后才写，失败不能把重试窗口一起关掉
     const now = Date.now()
-    if (this._subMsgCountLoadedAt && (now - this._subMsgCountLoadedAt) < 60000) {
-      return
-    }
-    this._subMsgCountLoadedAt = now
+    const loadedAt = this._subMsgCountLoadedAt || 0
+    if (!force && loadedAt && now - loadedAt < SUB_MSG_REFRESH_INTERVAL) return
 
     try {
       const res = await wx.cloud.callFunction({
         name: 'getSubMsgCount'
       })
-
-      if (res.result && res.result.success) {
-        this.setData({
-          subMsgCount: res.result.count || 0
-        })
+      const result = readSubMsgResult(res && res.result)
+      if (!result.ok) return
+      this._subMsgCountLoadedAt = Date.now()
+      if (this.data.subMsgCount !== result.count) {
+        this.setData({ subMsgCount: result.count })
       }
     } catch (err) {
-      console.error('加载订阅消息次数失败', err)
+      console.error('[index] 加载订阅消息次数失败', err)
     }
   },
 
-  // 点击订阅按钮
-  onSubscribeTap() {
+  /**
+   * 点订阅条：先向微信要一次下发额度，再让云端记账
+   * requestSubscribeMessage 必须由用户点击同步触发，所以拿到授权前不能 await 别的请求
+   */
+  async onSubscribeTap() {
+    if (this.data.isSubscribing) return
     if (!this.data.isAuthenticated) {
-      wx.showToast({
-        title: '请先登录',
-        icon: 'none'
-      })
+      this.showAuthPrompt()
       return
     }
 
-    wx.requestSubscribeMessage({
-      tmplIds: [NOTICE_TMPL_ID],
-      success: (res) => {
-        console.log('requestSubscribeMessage res', res)
-
-        // 用户允许了这个模板才加计数
-        if (res[NOTICE_TMPL_ID] === 'accept' || res.errMsg === 'requestSubscribeMessage:ok') {
-          wx.cloud.callFunction({
-            name: 'addSubMsgCount',
-            data: {
-              tmplId: NOTICE_TMPL_ID,
-              count: 1
-            },
-            success: (r) => {
-              if (r.result && r.result.success) {
-                // 订阅成功后刷新缓存时间戳，避免紧接着重新拉取
-                this._subMsgCountLoadedAt = Date.now()
-                this.setData({
-                  subMsgCount: r.result.count || 0
-                })
-                wx.showToast({
-                  title: `订阅成功，剩余${r.result.count || 0}次`,
-                  icon: 'success',
-                  duration: 2000
-                })
-              } else {
-                wx.showToast({
-                  title: '订阅记录失败',
-                  icon: 'none'
-                })
-              }
-            },
-            fail: (err) => {
-              console.error('addSubMsgCount 失败', err)
-              wx.showToast({
-                title: '订阅失败',
-                icon: 'none'
-              })
-            }
-          })
-        } else {
-          wx.showToast({
-            title: '未授权订阅',
-            icon: 'none'
-          })
-        }
-      },
-      fail: (err) => {
-        console.error('requestSubscribeMessage 失败', err)
+    this.setData({ isSubscribing: true })
+    try {
+      const res = await wx.requestSubscribeMessage({
+        tmplIds: [NOTICE_TMPL_ID]
+      })
+      // 只有 accept 才算拿到额度，errMsg 恒为 ok，判断不了用户的选择
+      if (!isSubscribed(res, NOTICE_TMPL_ID)) {
         wx.showToast({
-          title: '订阅调用失败',
+          title: buildSubscribeFailText(readSubscribeStatus(res, NOTICE_TMPL_ID)),
           icon: 'none'
         })
+        return
       }
-    })
+
+      const added = await wx.cloud.callFunction({
+        name: 'addSubMsgCount',
+        // 次数固定由云端 +1，客户端只告诉它订的是哪个模板
+        data: { tmplId: NOTICE_TMPL_ID }
+      })
+      const result = readSubMsgResult(added && added.result)
+      if (!result.ok) {
+        wx.showToast({
+          title: '订阅成功，但次数同步失败',
+          icon: 'none'
+        })
+        return
+      }
+
+      // 记账成功后刷新节流时间戳，避免紧接着重新拉一次
+      this._subMsgCountLoadedAt = Date.now()
+      this.setData({ subMsgCount: result.count })
+      wx.showToast({
+        title: `订阅成功，可收 ${result.count} 条`,
+        icon: 'success',
+        duration: 2000
+      })
+    } catch (err) {
+      console.error('[index] 订阅消息失败', err)
+      wx.showToast({
+        title: '订阅调用失败，请稍后重试',
+        icon: 'none'
+      })
+    } finally {
+      this.setData({ isSubscribing: false })
+    }
   },
-  //
-  getCommonDevices() {
+
+  // 常用仪器：按「我的使用记录」算最近/最常用的三台，记录不够用可预约仪器补位
+  async getCommonDevices() {
+    // 并发/切页时用代次丢弃过期结果，避免旧响应覆盖新响应
+    const seq = (this._commonDeviceSeq || 0) + 1
+    this._commonDeviceSeq = seq
+    // 记一次加载时间，配合 onShow 的 60 秒节流
+    this._commonDeviceLoadedAt = Date.now()
     const userInfo = wx.getStorageSync('userInfo') || {}
-    const groupName = String(userInfo.groupName || '').trim()
-    const _ = db.command
-    const visibilityCondition = groupName
-      ? _.or([{
-          lab_type: 'public'
-        }, {
-          lab_name: groupName
-        }])
-      : {
-          lab_type: 'public'
-        }
+    const groupName = String((userInfo && userInfo.groupName) || '').trim()
 
-    return db.collection('devices')
-      .where(_.and([{
-        status: 'available'
-      }, visibilityCondition]))
-      .field({
-        device_id: true,
-        device_name: true,
-        picture: true,
-        lab_name: true,
-        device_room: true,
-        specifications: true
+    try {
+      const cards = await commonDeviceService.loadCommonDevices({
+        userId: userInfo && userInfo.userId,
+        groupName,
+        limit: COMMON_DEVICE_LIMIT
       })
-      .orderBy('device_id', 'asc')
-      .get()
-      .then((res) => {
-        const groupedDevices = {};
-        (res.data || []).forEach((device) => {
-          const specs = device.specifications || {}
-          const model = specs && typeof specs === 'object'
-            ? (specs['型号'] || specs.model || '')
-            : ''
-          const key = `${device.device_name || ''}::${String(model || '').trim()}`
-          if (!groupedDevices[key]) {
-            groupedDevices[key] = {
-              device_id: device.device_id,
-              device_name: device.device_name,
-              picture: device.picture,
-              lab_name: device.lab_name,
-              device_room: device.device_room
-            }
-          }
-        })
-
-        const topDevices = Object.values(groupedDevices).slice(0, 3)
-
-        this.setData({
-          commonDevices: topDevices,
-          isLoading: false,
-          currentGroupName: groupName
-        })
-
-        // 图片是 cloud:// fileID，必须换成临时链接再交给 <image>，
-        // 否则渲染层会报 Failed to load local image resource ... 500
-        return cloudFile.resolveListField(topDevices, 'picture')
-          .then((resolved) => {
-            if (resolved !== topDevices) {
-              this.setData({ commonDevices: resolved })
-            }
-          })
-          .catch((err) => {
-            // 图片解析失败不影响列表本身
-            console.error('解析常用仪器图片失败:', err)
-          })
+      if (this._commonDeviceSeq !== seq) return
+      this.setData({
+        commonDevices: cards,
+        isLoading: false,
+        currentGroupName: groupName
       })
-      .catch((err) => {
-        // console.error('获取常用仪器失败:', err)
-        this.setData({
-          isLoading: false,
-          commonDevices: [],
-          currentGroupName: groupName
-        })
+    } catch (err) {
+      console.error('[index] 加载常用仪器失败', err)
+      if (this._commonDeviceSeq !== seq) return
+      this.setData({
+        commonDevices: [],
+        isLoading: false,
+        currentGroupName: groupName
       })
+    }
   },
 
   // 首页仪器缩略图加载失败 → 显示占位，避免反复重试刷屏

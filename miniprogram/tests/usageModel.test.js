@@ -40,6 +40,34 @@ function testUsagePeriodText() {
   assert.strictEqual(usageModel.buildUsagePeriodText('', ''), '')
 }
 
+// 守住 datetime 的导出：少导一个 formatClock，整段历史列表就会直接抛错（线上踩过）
+function testFormatFullTime() {
+  const iso = new Date(2024, 4, 6, 9, 5).toISOString()
+  assert.strictEqual(usageModel.formatFullTime(iso), '2024-05-06 09:05')
+  assert.strictEqual(usageModel.formatFullTime('2024-05-06 09:05'), '2024-05-06 09:05')
+  assert.strictEqual(usageModel.formatFullTime(''), '')
+  // 解析不出来时原样返回，界面不会空白
+  assert.strictEqual(usageModel.formatFullTime('待定'), '待定')
+}
+
+function testBuildHistoryList() {
+  const list = usageModel.buildHistoryList([
+    {
+      _id: 'u1',
+      device_name: '液相色谱',
+      status: 'completed',
+      start_time: new Date(2024, 4, 6, 11, 52).toISOString(),
+      end_time: new Date(2024, 4, 6, 11, 53).toISOString()
+    }
+  ])
+  assert.strictEqual(list.length, 1)
+  assert.strictEqual(list[0].start_time_display, '2024-05-06 11:52')
+  assert.strictEqual(list[0].usage_period_display, '2024-05-06 11:52 - 11:53')
+  assert.strictEqual(list[0].duration_text, '1 分钟')
+  assert.strictEqual(list[0].status_text, '已完成')
+  assert.deepStrictEqual(usageModel.buildHistoryList(null), [])
+}
+
 function testReservePeriodText() {
   assert.strictEqual(
     usageModel.buildReservePeriodText('2024-05-06 15:00', '2024-05-06 16:30'),
@@ -230,6 +258,8 @@ function testEmptyEndForm() {
 
 testFormatDuration()
 testUsagePeriodText()
+testFormatFullTime()
+testBuildHistoryList()
 testReservePeriodText()
 testElapsedText()
 testBuildReserveView()

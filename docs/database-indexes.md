@@ -133,6 +133,36 @@ orderBy('publish_date', 'desc').limit(3)
 
 建议索引：`publish_date` ↓（单字段即可，用于排序）
 
+### 7. `device_usage` / `reserves` —— 首页「常用仪器」
+
+来源：`cloudfunctions/getCommonDevices`（服务端聚合）、
+`miniprogram/pages/index/commonDeviceService.js`（云函数不可用时的兜底）
+
+```js
+// 聚合：只按 user_id 等值过滤后 group
+db.collection('device_usage').aggregate()
+  .match({ user_id }).group({ _id: '$device_id', count: $.sum(1), last: $.max('$start_time') })
+db.collection('reserves').aggregate()
+  .match({ user_id }).group({ _id: { device_id: '$device_id', status: '$status' } })
+
+// 兜底：小程序端两条最近记录
+where({ user_id, status: _.in(['using','completed','abnormal']) }).orderBy('start_time', 'desc')
+where({ user_id, status: _.in(['approved','completed']) }).orderBy('start_time', 'desc')
+```
+
+建议索引：
+
+| 集合 | 字段顺序 | 说明 |
+| --- | --- | --- |
+| `device_usage` | `user_id` ↑ | 等值（聚合 match 用） |
+| `device_usage` | `user_id` ↑、`status` ↑、`start_time` ↓ | 兜底查询，与上面第 3 条是同一索引 |
+| `reserves` | `user_id` ↑ | 等值（聚合 match 用） |
+| `reserves` | `user_id` ↑、`status` ↑、`start_time` ↓ | 兜底查询（`_.in` 只能命中前缀等值） |
+
+> 聚合的 `match` 里只有一个等值条件，第 3 条那种三字段复合索引就能覆盖，
+> 不需要为聚合单独再建。真正会报「缺索引」的是兜底那两条
+> 「等值 + IN + 排序」的查询，所以第 3 条的索引务必建好。
+
 ---
 
 ## 三、创建方式

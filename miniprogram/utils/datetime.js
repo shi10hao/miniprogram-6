@@ -111,6 +111,7 @@ module.exports = {
   pad2,
   parseDateTime,
   isSameDay,
+  formatClock,
   formatDateKey,
   formatMoment,
   formatTimeRange,

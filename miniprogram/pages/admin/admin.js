@@ -895,10 +895,20 @@ Page({
           title: title,
           content: content,
           publishDate: publishDate,
-          page: 'pages/notice/list' // 按你实际路径改
+          // 必须和 app.json 注册的路径一致，否则用户点通知打不开页面
+          page: 'pages/notice/list/noticelist'
         }
       }).then(function (res) {
-        console.log('订阅消息推送结果:', res.result)
+        const result = (res && res.result) || {}
+        const payload = result.data || result
+        console.log('订阅消息推送结果:', result)
+        if (typeof payload.sent === 'number') {
+          wx.showToast({
+            title: `已推送给 ${payload.sent} 位订阅用户`,
+            icon: 'none',
+            duration: 2500
+          })
+        }
       }).catch(function (err) {
         console.error('订阅消息推送失败:', err)
       })

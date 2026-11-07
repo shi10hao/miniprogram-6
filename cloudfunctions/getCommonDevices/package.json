@@ -1,0 +1,14 @@
+{
+  "name": "getCommonDevices",
+  "version": "1.0.0",
+  "description": "按使用/预约记录计算首页常用仪器",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "wx-server-sdk": "~4.0.2"
+  }
+}
