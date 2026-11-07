@@ -53,6 +53,10 @@ exports.main = async (event, context) => {
 
     // 4. 组装每条设备记录（同组共享字段完全一致）
     const now = new Date().toISOString()
+    // 型号同时落到 model 字段：前端分组、详情、删除都按 model 匹配，只写 specifications 会对不上
+    const modelText = String(
+      (specifications && (specifications['型号'] || specifications.model)) || ''
+    ).trim()
     const deviceRecords = cleanIds.map(deviceId => ({
       device_id: deviceId,
       device_name: device_name.trim(),
@@ -60,6 +64,7 @@ exports.main = async (event, context) => {
       lab_type: lab_type,
       device_room: device_room.trim(),
       device_type: device_type,
+      model: modelText,
       status: 'available', // 默认可用状态
       picture: picture,
       operation_procedure: operation_procedure.trim(),

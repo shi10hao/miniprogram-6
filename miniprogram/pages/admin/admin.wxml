@@ -1,41 +1,46 @@
-<!-- 退出确认弹窗（替换原来的 page-container） -->
-<view class="modal-mask" wx:if="{{showExitConfirm}}" bindtap="cancelExit">
-  <view class="exit-confirm-panel" catchtap="">
-    <text class="exit-confirm-title">退出管理端</text>
-    <text class="exit-confirm-desc">确定要退出管理端吗？退出后需重新登录。</text>
-    <view class="exit-confirm-btns">
-      <button class="exit-cancel-btn" bindtap="cancelExit">取消</button>
-      <button class="exit-confirm-btn" bindtap="doLogout">退出</button>
-    </view>
-  </view>
-</view>
+<!-- 管理端首页：顶部信息卡 + 悬浮 Tab + 四个功能页 -->
 
-<view class="container">
+<view class="admin-page">
+  <!-- 顶部信息 -->
   <view class="admin-header">
-    <view class="admin-avatar">⚙️</view>
-    <view class="admin-info">
-      <text class="admin-title">欢迎您，{{adminName}}</text>
+    <view class="header-glow"></view>
+    <view class="header-main">
+      <view class="admin-avatar">
+        <text class="avatar-emoji">⚙️</text>
+      </view>
+      <view class="admin-info">
+        <text class="admin-title ds-ellipsis">{{adminName}}</text>
+        <view class="admin-sub">
+          <text class="role-tag">{{adminRoleText}}</text>
+          <text wx:if="{{allGroupTotal > 0}}" class="admin-meta">在管 {{allGroupTotal}} 组仪器</text>
+        </view>
+      </view>
     </view>
-    <view class="subscribe-btn" bindtap="requestSubscribeMessage">
-      <text class="subscribe-text">订阅信息</text>
-    </view>
-    <view class="admin-logout" bindtap="confirmLogout">
-      <text class="logout-text">退出</text>
+    <view class="header-actions">
+      <view class="header-action" bindtap="requestSubscribeMessage">
+        <text class="action-icon">🔔</text>
+        <text class="action-text">订阅提醒</text>
+      </view>
+      <view class="header-action" bindtap="confirmLogout">
+        <text class="action-icon">⏼</text>
+        <text class="action-text">退出</text>
+      </view>
     </view>
   </view>
 
+  <!-- 悬浮 Tab -->
   <view class="tab-bar">
     <view class="tab-item {{activeTab === 0 ? 'active' : ''}}" bindtap="switchTab" data-tab="0">
       <text class="tab-icon">🔬</text>
-      <text class="tab-label">仪器状态</text>
+      <text class="tab-label">仪器</text>
     </view>
     <view class="tab-item {{activeTab === 1 ? 'active' : ''}}" bindtap="switchTab" data-tab="1">
       <text class="tab-icon">📋</text>
-      <text class="tab-label">预约记录</text>
+      <text class="tab-label">预约</text>
     </view>
     <view class="tab-item {{activeTab === 2 ? 'active' : ''}}" bindtap="switchTab" data-tab="2">
       <text class="tab-icon">📢</text>
-      <text class="tab-label">发布通知</text>
+      <text class="tab-label">通知</text>
     </view>
     <view class="tab-item {{activeTab === 3 ? 'active' : ''}}" bindtap="switchTab" data-tab="3">
       <text class="tab-icon">🧰</text>
@@ -43,348 +48,463 @@
     </view>
   </view>
 
-  <view wx:if="{{activeTab === 0}}" class="tab-content">
+  <view class="page-body">
 
-    <view class="search-section">
-      <view class="search-box">
-        <input class="search-input" placeholder="搜索仪器名称、实验室..." bindinput="onSearchInput" value="{{filters.searchKeyword}}" />
-        <text class="search-icon">🔍</text>
-        <text class="clear-search" wx:if="{{filters.searchKeyword}}" bindtap="clearSearch">✕</text>
-      </view>
-    </view>
-
-    <view class="device-op-bar">
-      <button class="add-device-btn" bind:tap="openAddDeviceModal">
-        <text class="add-icon">+</text>
-        <text>新增仪器</text>
-      </button>
-    </view>
-
-    <view class="filter-section">
-      <!-- 实验室类型筛选 -->
-      <view class="filter-group">
-        <text class="filter-label">实验室类型</text>
-        <view class="filter-buttons">
-          <text class="filter-btn {{filters.labType === 'all' ? 'active' : ''}}" data-type="all" bindtap="onLabTypeChange">全部</text>
-          <text class="filter-btn {{filters.labType === 'public' ? 'active' : ''}}" data-type="public" bindtap="onLabTypeChange">公共实验室</text>
-          <text class="filter-btn {{filters.labType === 'group' ? 'active' : ''}}" data-type="group" bindtap="onLabTypeChange">课题组</text>
+    <!-- ==================== Tab 0：仪器状态 ==================== -->
+    <view wx:if="{{activeTab === 0}}" class="tab-content">
+      <view class="search-row">
+        <view class="search-box">
+          <text class="search-icon">🔍</text>
+          <input
+            class="search-input"
+            placeholder="搜索仪器、实验室或房间"
+            placeholder-class="search-placeholder"
+            value="{{filters.searchKeyword}}"
+            confirm-type="search"
+            bindinput="onSearchInput"
+          />
+          <view wx:if="{{filters.searchKeyword}}" class="clear-search" catchtap="clearSearch">✕</view>
+        </view>
+        <view class="add-device-btn" bindtap="openAddDeviceModal">
+          <text class="add-icon">+</text>
+          <text>新增</text>
         </view>
       </view>
 
-      <!-- 仪器类型筛选 -->
-      <view class="filter-group">
-        <text class="filter-label">仪器类型</text>
-        <view class="filter-buttons">
-          <text class="filter-btn {{filters.deviceType === 'all' ? 'active' : ''}}" data-type="all" bindtap="onDeviceTypeChange">全部</text>
-          <text class="filter-btn {{filters.deviceType === 'large' ? 'active' : ''}}" data-type="large" bindtap="onDeviceTypeChange">大型仪器</text>
-          <text class="filter-btn {{filters.deviceType === 'small' ? 'active' : ''}}" data-type="small" bindtap="onDeviceTypeChange">小型仪器</text>
-        </view>
-      </view>
-    </view>
-
-    <view wx:if="{{isLoadingDevices}}" class="center-hint">
-      <view class="loading-spin"></view>
-      <text>加载中...</text>
-    </view>
-
-    <view wx:elif="{{deviceGroups.length === 0}}" class="center-hint">
-      <text class="hint-icon">-</text>
-      <text>暂无仪器数据</text>
-    </view>
-
-    <view wx:else class="device-list">
-      <view class="device-card" wx:for="{{displayedGroups}}" wx:key="group_key" bindtap="goToDeviceDetail" data-device-name="{{item.device_name}}" data-lab-name="{{item.lab_name}}" data-device-type="{{item.device_type}}" data-model="{{item.model}}" data-group-key="{{item.group_key}}">
-
-        <view class="card-delete-btn" catch:tap="deleteDeviceGroup" data-device-name="{{item.device_name}}" data-lab-name="{{item.lab_name}}" data-device-room="{{item.device_room}}" data-device-type="{{item.device_type}}" data-model="{{item.model}}">
-          删除
-        </view>
-        <image
-          wx:if="{{!item.imgFailed}}"
-          class="device-img"
-          src="{{item.picture}}"
-          mode="aspectFill"
-          lazy-load
-          binderror="onGroupImageError"
-          data-index="{{index}}"
-        ></image>
-        <view wx:else class="device-img device-img-fallback">
-          <text class="img-fallback-text">图片加载失败</text>
-        </view>
-
-        <view class="card-body">
-          <view class="card-top">
-            <text class="d-name">{{item.device_name}}</text>
-            <text class="d-type {{item.device_type}}">{{item.device_type === 'large' ? '大型' : '小型'}}</text>
-          </view>
-          <text class="d-lab">{{item.device_room}}</text>
-          <text wx:if="{{item.model}}" class="d-lab">型号：{{item.model}}</text>
-
-          <view class="badge-row">
-            <view class="badge available">
-              <text class="badge-num">{{item.available}}</text>
-              <text class="badge-label">可用</text>
-            </view>
-            <view class="badge {{item.using > 0 ? 'using-active' : 'using'}}">
-              <text class="badge-num">{{item.using}}</text>
-              <text class="badge-label">使用中</text>
-            </view>
-            <view class="badge {{item.maintenance > 0 ? 'maint-active' : 'maint'}}">
-              <text class="badge-num">{{item.maintenance}}</text>
-              <text class="badge-label">维护</text>
-            </view>
+      <view class="filter-panel">
+        <view class="filter-row">
+          <text class="filter-row-label">实验室</text>
+          <view class="filter-chips">
+            <text class="filter-chip {{filters.labType === 'all' ? 'active' : ''}}" data-type="all" bindtap="onLabTypeChange">全部</text>
+            <text class="filter-chip {{filters.labType === 'public' ? 'active' : ''}}" data-type="public" bindtap="onLabTypeChange">公共实验室</text>
+            <text class="filter-chip {{filters.labType === 'group' ? 'active' : ''}}" data-type="group" bindtap="onLabTypeChange">课题组</text>
           </view>
         </view>
-
-        <text class="card-arrow">></text>
-      </view>
-    </view>
-
-    <!-- 加载更多按钮 -->
-    <view wx:if="{{hasMore && !isLoadingDevices}}" class="load-more-wrap">
-      <button class="load-more-btn" bindtap="loadMoreDevices">加载更多仪器</button>
-    </view>
-
-  </view>
-
-  <view wx:if="{{activeTab === 1}}" class="tab-content">
-    <view class="reserve-summary">
-      <view class="summary-card" bind:tap="gotoUpcoming">
-        <text class="summary-num">{{reserveStats.upcoming}}</text>
-        <text class="summary-label">即将使用</text>
-      </view>
-      <view class="summary-card" bind:tap="gotoUsing">
-        <text class="summary-num using-color">{{reserveStats.using}}</text>
-        <text class="summary-label">使用中</text>
-      </view>
-      <view class="summary-card" bind:tap="gotoCompleted">
-        <text class="summary-num completed-color">{{reserveStats.completed}}</text>
-        <text class="summary-label">已完成</text>
-      </view>
-      <view class="summary-card" bind:tap="gotoAbnormal">
-        <text class="summary-num abnormal-color">{{reserveStats.abnormal}}</text>
-        <text class="summary-label">异常</text>
-      </view>
-      <view class="summary-card" bind:tap="gotoAll">
-        <text class="summary-num total-color">{{reserveStats.total}}</text>
-        <text class="summary-label">总预约</text>
-      </view>
-    </view>
-
-    <view wx:if="{{isLoadingReserves}}" class="center-hint">
-      <view class="loading-spin"></view>
-      <text>加载中...</text>
-    </view>
-
-    <view wx:elif="{{recentReserves.length === 0}}" class="center-hint">
-      <text class="hint-icon">📋</text>
-      <text>暂无预约记录</text>
-    </view>
-
-    <view wx:else class="reserve-list">
-      <view class="reserve-card" wx:for="{{recentReserves}}" wx:key="_id" bind:tap="gotoReserveDetail" data-id="{{item._id}}">
-        <view class="card-top">
-          <text class="d-name">{{item.device_name}}</text>
-          <view class="status-tag {{item.displayStatus}}">{{item.displayStatusText}}</view>
-        </view>
-        <view class="reserve-info">
-          <text class="reserve-person">{{item.student_name || item.user_id}}</text>
-          <text class="reserve-time">{{item.timeDisplay}}</text>
-        </view>
-      </view>
-    </view>
-
-    <view wx:if="{{recentReserves.length > 0}}" class="view-all-btn" bindtap="goToReserveList">
-      <text>查看全部预约记录</text>
-    </view>
-  </view>
-
-  <view wx:if="{{activeTab === 2}}" class="tab-content">
-
-    <!-- 发布卡片 -->
-    <view class="compose-card">
-      <view class="compose-header">
-        <text class="compose-icon">📢</text>
-        <view class="compose-title-group">
-          <text class="compose-heading">发布通知</text>
-          <text class="compose-hint">发布后学生端将立即看到</text>
+        <view class="filter-row">
+          <text class="filter-row-label">类型</text>
+          <view class="filter-chips">
+            <text class="filter-chip {{filters.deviceType === 'all' ? 'active' : ''}}" data-type="all" bindtap="onDeviceTypeChange">全部</text>
+            <text class="filter-chip {{filters.deviceType === 'large' ? 'active' : ''}}" data-type="large" bindtap="onDeviceTypeChange">大型</text>
+            <text class="filter-chip {{filters.deviceType === 'small' ? 'active' : ''}}" data-type="small" bindtap="onDeviceTypeChange">小型</text>
+          </view>
         </view>
       </view>
 
-      <view class="input-group">
-        <text class="input-label">标题</text>
-        <input class="title-input" placeholder="请输入通知标题" value="{{msgTitle}}" bindinput="onTitleInput" maxlength="50" />
+      <view class="list-head">
+        <text class="list-head-title">仪器组</text>
+        <text class="list-head-sub">共 {{allGroupTotal}} 组 · 已显示 {{displayedGroups.length}}</text>
       </view>
 
-      <view class="input-group">
-        <text class="input-label">内容</text>
-        <textarea class="content-textarea" placeholder="请输入通知内容..." value="{{msgContent}}" bindinput="onContentInput" maxlength="500" auto-height />
-      </view>
-
-      <!-- 协作文档链接 -->
-      <view class="input-group">
-        <text class="input-label">协作文档链接（选填）</text>
-        <view class="doc-url-row">
-          <input class="title-input doc-url-input" placeholder="粘贴腾讯文档链接" value="{{msgDocUrl}}" bindinput="onDocUrlInput" />
-          <view class="doc-url-tip-icon" bindtap="showDocUrlHint">?</view>
+      <!-- 骨架屏 -->
+      <view wx:if="{{isLoadingDevices}}" class="device-list">
+        <view class="device-card skeleton-card" wx:for="{{skeletonRows}}" wx:key="*this">
+          <view class="device-thumb ds-skeleton"></view>
+          <view class="device-body">
+            <view class="ds-skeleton sk-line sk-line-title"></view>
+            <view class="ds-skeleton sk-line sk-line-meta"></view>
+            <view class="ds-skeleton sk-line sk-line-stats"></view>
+          </view>
         </view>
-        <text class="form-hint">权限需设为"任何人可编辑"，学生点击即可协作</text>
       </view>
 
-      <button class="send-btn {{isSending ? 'sending' : ''}}" bindtap="sendMessage" disabled="{{isSending}}">
-        <text wx:if="{{!isSending}}">📤 立即发布</text>
-        <text wx:else>发布中...</text>
-      </button>
+      <view wx:elif="{{displayedGroups.length === 0}}" class="ds-empty">
+        <text class="ds-empty-icon">🔬</text>
+        <text class="ds-empty-title">没有匹配的仪器</text>
+        <text class="ds-empty-desc">换个筛选条件，或点右上角「新增」录入仪器</text>
+      </view>
+
+      <view wx:else class="device-list">
+        <view
+          class="device-card"
+          wx:for="{{displayedGroups}}"
+          wx:key="group_key"
+          bindtap="goToDeviceDetail"
+          data-device-name="{{item.device_name}}"
+          data-lab-name="{{item.lab_name}}"
+          data-device-type="{{item.device_type}}"
+          data-model="{{item.model}}"
+          data-group-key="{{item.group_key}}"
+        >
+          <image
+            wx:if="{{item.picture && !item.imgFailed}}"
+            class="device-thumb"
+            src="{{item.picture}}"
+            mode="aspectFill"
+            lazy-load
+            binderror="onGroupImageError"
+            data-index="{{index}}"
+          />
+          <view wx:else class="device-thumb thumb-fallback">
+            <text class="thumb-icon">🔬</text>
+          </view>
+
+          <view class="device-body">
+            <view class="device-name-row">
+              <text class="device-name ds-ellipsis">{{item.device_name}}</text>
+              <text class="type-tag {{item.device_type}}">{{item.device_type === 'large' ? '大型' : '小型'}}</text>
+            </view>
+
+            <view class="device-meta ds-ellipsis">
+              <text class="meta-item">{{item.lab_name || '未填实验室'}}</text>
+              <text class="meta-dot">·</text>
+              <text class="meta-item">{{item.device_room}}</text>
+            </view>
+
+            <text wx:if="{{item.model}}" class="device-model ds-ellipsis">型号 {{item.model}}</text>
+
+            <view class="device-stats">
+              <view class="stat {{item.available > 0 ? 'stat-ok' : 'stat-idle'}}">
+                <text class="stat-num">{{item.available}}</text>
+                <text class="stat-label">可用</text>
+              </view>
+              <view class="stat {{item.using > 0 ? 'stat-busy' : 'stat-idle'}}">
+                <text class="stat-num">{{item.using}}</text>
+                <text class="stat-label">使用中</text>
+              </view>
+              <view class="stat {{item.maintenance > 0 ? 'stat-warn' : 'stat-idle'}}">
+                <text class="stat-num">{{item.maintenance}}</text>
+                <text class="stat-label">维护</text>
+              </view>
+              <text class="stat-total">共 {{item.total}} 台</text>
+            </view>
+          </view>
+
+          <view class="device-side">
+            <text class="chevron">›</text>
+            <text
+              class="group-del {{deletingGroupKey === item.group_key ? 'disabled' : ''}}"
+              catchtap="deleteDeviceGroup"
+              data-device-name="{{item.device_name}}"
+              data-lab-name="{{item.lab_name}}"
+              data-device-room="{{item.device_room}}"
+              data-device-type="{{item.device_type}}"
+              data-model="{{item.model}}"
+              data-group-key="{{item.group_key}}"
+            >{{deletingGroupKey === item.group_key ? '删除中' : '删除'}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view wx:if="{{hasMore && !isLoadingDevices}}" class="load-more-wrap">
+        <view class="load-more-btn {{isLoadingMoreDevices ? 'loading' : ''}}" bindtap="loadMoreDevices">
+          {{isLoadingMoreDevices ? '加载中...' : '加载更多仪器'}}
+        </view>
+      </view>
+      <view wx:elif="{{displayedGroups.length > 0 && !hasMore}}" class="list-end">已经到底了</view>
     </view>
 
-    <!-- 历史通知 -->
-    <view class="sent-section">
-      <view class="sent-header">
-        <text class="sent-heading">历史通知</text>
-        <text class="sent-count" wx:if="{{sentMessages.length > 0}}">{{sentMessages.length}} 条</text>
+    <!-- ==================== Tab 1：预约记录 ==================== -->
+    <view wx:if="{{activeTab === 1}}" class="tab-content">
+      <view class="overview-card">
+        <view class="overview-item" bindtap="gotoUpcoming">
+          <text class="overview-num">{{reserveStats.upcoming}}</text>
+          <text class="overview-label">即将使用</text>
+        </view>
+        <view class="overview-item" bindtap="gotoUsing">
+          <text class="overview-num busy">{{reserveStats.using}}</text>
+          <text class="overview-label">使用中</text>
+        </view>
+        <view class="overview-item" bindtap="gotoCompleted">
+          <text class="overview-num done">{{reserveStats.completed}}</text>
+          <text class="overview-label">已完成</text>
+        </view>
+        <view class="overview-item" bindtap="gotoAbnormal">
+          <text class="overview-num danger">{{reserveStats.abnormal}}</text>
+          <text class="overview-label">异常</text>
+        </view>
+        <view class="overview-item" bindtap="gotoAll">
+          <text class="overview-num total">{{reserveStats.total}}</text>
+          <text class="overview-label">总预约</text>
+        </view>
       </view>
 
-      <view wx:if="{{isLoadingMessages}}" class="center-hint">
-        <view class="loading-spin"></view>
-        <text>加载中...</text>
+      <view class="ds-section-head">
+        <text class="ds-section-title">最近预约</text>
+        <text class="ds-section-more" bindtap="goToReserveList">全部记录 ›</text>
       </view>
 
-      <view wx:elif="{{sentMessages.length === 0}}" class="empty-state">
-        <text class="empty-icon">📭</text>
-        <text class="empty-text">暂无发布记录</text>
+      <view wx:if="{{isLoadingReserves}}" class="ds-loading">
+        <view class="ds-spinner"></view>
+        <text>正在统计预约数据</text>
       </view>
 
-      <view wx:else class="sent-list">
-        <view class="sent-item" wx:for="{{sentMessages}}" wx:key="_id">
-          <view class="sent-top">
-            <text class="sent-title">{{item.title}}</text>
-            <view class="sent-top-right">
+      <view wx:elif="{{recentReserves.length === 0}}" class="ds-empty">
+        <text class="ds-empty-icon">📋</text>
+        <text class="ds-empty-title">暂无预约记录</text>
+        <text class="ds-empty-desc">学生提交并审批通过后会出现在这里</text>
+      </view>
+
+      <view wx:else class="reserve-list">
+        <view
+          class="reserve-card"
+          wx:for="{{recentReserves}}"
+          wx:key="_id"
+          bindtap="gotoReserveDetail"
+          data-id="{{item._id}}"
+        >
+          <view class="reserve-top">
+            <text class="reserve-name ds-ellipsis">{{item.device_name}}</text>
+            <text class="status-tag {{item.displayStatus}}">{{item.displayStatusText}}</text>
+          </view>
+          <view class="reserve-meta">
+            <text class="reserve-person ds-ellipsis">👤 {{item.student_name || item.user_id}}</text>
+            <text class="reserve-arrow">›</text>
+          </view>
+          <text class="reserve-time">🕒 {{item.timeDisplay}}</text>
+        </view>
+      </view>
+
+      <view wx:if="{{recentReserves.length > 0}}" class="view-all-btn" bindtap="goToReserveList">
+        查看全部预约记录
+      </view>
+    </view>
+
+    <!-- ==================== Tab 2：发布通知 ==================== -->
+    <view wx:if="{{activeTab === 2}}" class="tab-content">
+      <view class="compose-card">
+        <view class="compose-head">
+          <view class="compose-icon">📢</view>
+          <view class="compose-head-text">
+            <text class="compose-title">发布通知</text>
+            <text class="compose-hint">发布后学生端立即看到，并推送订阅消息</text>
+          </view>
+        </view>
+
+        <view class="field">
+          <view class="field-head">
+            <text class="field-label">标题</text>
+            <text class="field-count">{{msgTitle.length}}/50</text>
+          </view>
+          <input
+            class="field-input"
+            placeholder="例如：本周五 14:00 停机维护"
+            placeholder-class="search-placeholder"
+            value="{{msgTitle}}"
+            maxlength="50"
+            bindinput="onTitleInput"
+          />
+        </view>
+
+        <view class="field">
+          <view class="field-head">
+            <text class="field-label">内容</text>
+            <text class="field-count">{{msgContent.length}}/500</text>
+          </view>
+          <textarea
+            class="field-textarea"
+            placeholder="写清时间、地点和需要学生准备的事项"
+            placeholder-class="search-placeholder"
+            value="{{msgContent}}"
+            maxlength="500"
+            auto-height
+            bindinput="onContentInput"
+          />
+        </view>
+
+        <view class="field">
+          <view class="field-head">
+            <text class="field-label">协作文档链接（选填）</text>
+            <view class="field-hint-btn" bindtap="showDocUrlHint">?</view>
+          </view>
+          <input
+            class="field-input"
+            placeholder="粘贴腾讯文档分享链接"
+            placeholder-class="search-placeholder"
+            value="{{msgDocUrl}}"
+            bindinput="onDocUrlInput"
+          />
+          <text class="field-hint">权限设为「任何人可编辑」，学生点击即可协作</text>
+        </view>
+
+        <button class="publish-btn" bindtap="sendMessage" disabled="{{isSending}}">
+          {{isSending ? '发布中...' : '立即发布'}}
+        </button>
+      </view>
+
+      <view class="sent-section">
+        <view class="sent-head">
+          <text class="ds-section-title">历史通知</text>
+          <text wx:if="{{sentMessages.length > 0}}" class="sent-count">最近 {{sentMessages.length}} 条</text>
+        </view>
+
+        <view wx:if="{{isLoadingMessages}}" class="ds-loading">
+          <view class="ds-spinner"></view>
+          <text>正在加载历史通知</text>
+        </view>
+
+        <view wx:elif="{{sentMessages.length === 0}}" class="ds-empty">
+          <text class="ds-empty-icon">📭</text>
+          <text class="ds-empty-title">还没有发布过通知</text>
+          <text class="ds-empty-desc">发布后会在这里留档，便于随时删除</text>
+        </view>
+
+        <view wx:else class="sent-list">
+          <view class="sent-item" wx:for="{{sentMessages}}" wx:key="_id">
+            <view class="sent-top">
+              <text class="sent-title ds-ellipsis">{{item.title}}</text>
+              <text
+                class="sent-del {{deletingNoticeId === item._id ? 'disabled' : ''}}"
+                catchtap="deleteNotice"
+                data-id="{{item._id}}"
+                data-noticeid="{{item.notice_id}}"
+              >{{deletingNoticeId === item._id ? '删除中' : '删除'}}</text>
+            </view>
+            <text class="sent-content ds-clamp-2">{{item.content}}</text>
+            <view class="sent-foot">
               <text class="sent-date">{{item.dateDisplay}}</text>
-              <view class="sent-delete-btn" catchtap="deleteNotice" data-id="{{item._id}}" data-noticeid="{{item.notice_id}}">
-                🗑
+              <view wx:if="{{item.doc_url}}" class="doc-link" bindtap="openDoc" data-url="{{item.doc_url}}">
+                <text class="doc-link-icon">📄</text>
+                <text>打开协作文档</text>
               </view>
             </view>
           </view>
-          <text class="sent-content">{{item.content}}</text>
-          <view wx:if="{{item.doc_url}}" class="doc-link-btn" bindtap="openDoc" data-url="{{item.doc_url}}">
-            <text class="doc-link-icon">📄</text>
-            <text class="doc-link-text">打开协作文档</text>
-          </view>
         </view>
-      </view>
-
-    </view>
-  </view>
-
-  <!-- Tab 3: 更多 -->
-  <view wx:if="{{activeTab === 3}}" class="tab-content">
-    <view class="more-grid">
-      <view class="more-card" bindtap="goResetPwd">
-        <text class="more-card-icon">🔑</text>
-        <text class="more-card-label">重置密码</text>
-      </view>
-      <view class="more-card" bindtap="goToDutyRecords">
-        <text class="more-card-icon">🧹</text>
-        <text class="more-card-label">卫生记录</text>
-      </view>
-      <view class="more-card" bindtap="goToApplyReview">
-        <text class="more-card-icon">📝</text>
-        <text class="more-card-label">注册审批</text>
-        <view wx:if="{{pendingApplyCount > 0}}" class="more-card-badge">{{pendingApplyCount}}</view>
       </view>
     </view>
+
+    <!-- ==================== Tab 3：更多 ==================== -->
+    <view wx:if="{{activeTab === 3}}" class="tab-content">
+      <view class="more-grid">
+        <view class="more-card" bindtap="goResetPwd">
+          <text class="more-icon">🔑</text>
+          <text class="more-label">重置密码</text>
+          <text class="more-desc">帮学生重置登录密码</text>
+        </view>
+        <view class="more-card" bindtap="goToDutyRecords">
+          <text class="more-icon">🧹</text>
+          <text class="more-label">卫生记录</text>
+          <text class="more-desc">查看卫生打卡与照片</text>
+        </view>
+        <view class="more-card" bindtap="goToApplyReview">
+          <text class="more-icon">📝</text>
+          <text class="more-label">注册审批</text>
+          <text class="more-desc">审核新用户注册申请</text>
+          <view wx:if="{{pendingApplyCount > 0}}" class="more-badge">{{pendingApplyCount}}</view>
+        </view>
+        <view class="more-card" bindtap="goTo3DBoard">
+          <text class="more-icon">🧭</text>
+          <text class="more-label">3D 看板</text>
+          <text class="more-desc">沉浸式查看实验室布局</text>
+        </view>
+      </view>
+
+      <view class="more-tip">更多管理功能会陆续加到这一页</view>
+    </view>
+
   </view>
+</view>
 
-  <view class="modal-mask" wx:if="{{showDeviceForm}}">
-    <view class="device-form-modal" catchtap="">
-      <view class="form-title">新增仪器组</view>
+<!-- ==================== 退出确认 ==================== -->
+<view class="modal-mask" wx:if="{{showExitConfirm}}" bindtap="cancelExit">
+  <view class="confirm-panel" catchtap="noop">
+    <view class="confirm-icon">👋</view>
+    <text class="confirm-title">退出管理端</text>
+    <text class="confirm-desc">退出后需要重新输入账号密码登录。</text>
+    <view class="confirm-btns">
+      <button class="btn-ghost" bindtap="cancelExit">取消</button>
+      <button class="btn-danger" bindtap="doLogout">退出登录</button>
+    </view>
+  </view>
+</view>
 
-      <!-- 1. 基础信息（必填，组共享） -->
-      <view class="form-section-title">基础信息</view>
-
-      <view class="form-item">
-        <text class="form-label">仪器名称 <text class="required">*</text></text>
-        <input class="form-input" placeholder="请输入仪器名称" value="{{deviceForm.device_name}}" bindinput="onDeviceFormInput" data-field="device_name" />
+<!-- ==================== 新增仪器 ==================== -->
+<view class="modal-mask" wx:if="{{showDeviceForm}}">
+  <view class="device-form-modal" catchtap="noop">
+    <view class="form-head">
+      <view class="form-head-text">
+        <text class="form-title">新增仪器组</text>
+        <text class="form-subtitle">同一台仪器的多个编号会合并为一组</text>
       </view>
+      <view class="form-close" bindtap="closeDeviceForm">✕</view>
+    </view>
 
-      <view class="form-item">
-        <text class="form-label">所属实验室 <text class="required">*</text></text>
-        <input class="form-input" placeholder="请输入实验室名称" value="{{deviceForm.lab_name}}" bindinput="onDeviceFormInput" data-field="lab_name" />
+    <view class="form-section-title">基础信息</view>
+
+    <view class="form-item">
+      <text class="form-label">仪器名称 <text class="required">*</text></text>
+      <input class="form-input" placeholder="例如：气相色谱仪" placeholder-class="search-placeholder" value="{{deviceForm.device_name}}" bindinput="onDeviceFormInput" data-field="device_name" />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">所属实验室 <text class="required">*</text></text>
+      <input class="form-input" placeholder="例如：分析化学实验室" placeholder-class="search-placeholder" value="{{deviceForm.lab_name}}" bindinput="onDeviceFormInput" data-field="lab_name" />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">房间位置 <text class="required">*</text></text>
+      <input class="form-input" placeholder="例如：化学楼 302" placeholder-class="search-placeholder" value="{{deviceForm.device_room}}" bindinput="onDeviceFormInput" data-field="device_room" />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">仪器类型 <text class="required">*</text></text>
+      <view class="choice-row">
+        <text class="choice {{deviceForm.device_type === 'large' ? 'active' : ''}}" bindtap="selectDeviceType" data-type="large">大型仪器</text>
+        <text class="choice {{deviceForm.device_type === 'small' ? 'active' : ''}}" bindtap="selectDeviceType" data-type="small">小型仪器</text>
       </view>
+    </view>
 
-      <view class="form-item">
-        <text class="form-label">房间位置 <text class="required">*</text></text>
-        <input class="form-input" placeholder="请输入房间号" value="{{deviceForm.device_room}}" bindinput="onDeviceFormInput" data-field="device_room" />
+    <view class="form-item">
+      <text class="form-label">实验室类型 <text class="required">*</text></text>
+      <view class="choice-row">
+        <text class="choice {{deviceForm.lab_type === 'public' ? 'active' : ''}}" bindtap="selectLabType" data-type="public">公共实验室</text>
+        <text class="choice {{deviceForm.lab_type === 'group' ? 'active' : ''}}" bindtap="selectLabType" data-type="group">课题组</text>
       </view>
+    </view>
 
-      <view class="form-item">
-        <text class="form-label">仪器类型 <text class="required">*</text></text>
-        <view class="form-radio-group">
-          <text class="form-radio {{deviceForm.device_type === 'large' ? 'active' : ''}}" bindtap="selectDeviceType" data-type="large">大型仪器</text>
-          <text class="form-radio {{deviceForm.device_type === 'small' ? 'active' : ''}}" bindtap="selectDeviceType" data-type="small">小型仪器</text>
+    <view class="form-section-title">仪器实例</view>
+
+    <view class="form-item">
+      <view class="form-label-row">
+        <text class="form-label">设备编号 <text class="required">*</text></text>
+        <text class="form-label-tip">每台一个编号</text>
+      </view>
+      <view class="instance-list">
+        <view class="instance-item" wx:for="{{deviceForm.instances}}" wx:key="index">
+          <text class="instance-index">{{index + 1}}</text>
+          <input class="instance-input" placeholder="请输入设备编号" placeholder-class="search-placeholder" value="{{item.device_id}}" bindinput="onInstanceInput" data-index="{{index}}" />
+          <text wx:if="{{deviceForm.instances.length > 1}}" class="instance-del" bindtap="deleteInstance" data-index="{{index}}">移除</text>
         </view>
       </view>
+      <view class="add-instance-btn" bindtap="addInstance">
+        <text class="add-icon-sm">+</text>
+        <text>再添加一台</text>
+      </view>
+    </view>
 
-      <view class="form-item">
-        <text class="form-label">实验室类型 <text class="required">*</text></text>
-        <view class="form-radio-group">
-          <text class="form-radio {{deviceForm.lab_type === 'public' ? 'active' : ''}}" bindtap="selectLabType" data-type="public">公共实验室</text>
-          <text class="form-radio {{deviceForm.lab_type === 'group' ? 'active' : ''}}" bindtap="selectLabType" data-type="group">课题组</text>
+    <view class="form-section-title">补充信息（选填）</view>
+
+    <view class="form-item">
+      <text class="form-label">仪器图片</text>
+      <view class="upload-box" bindtap="chooseDevicePic">
+        <image wx:if="{{deviceForm.pictureUrl}}" class="upload-preview" src="{{deviceForm.pictureUrl}}" mode="aspectFill" />
+        <view wx:else class="upload-empty">
+          <text class="upload-plus">+</text>
+          <text class="upload-tip">{{isUploadingPic ? '上传中...' : '点击上传图片'}}</text>
         </view>
       </view>
+    </view>
 
-      <!-- 2. 仪器实例列表（每台独立编号） -->
-      <view class="form-section-title">仪器实例</view>
-      <view class="form-item">
-        <text class="form-label">设备编号列表 <text class="required">*</text></text>
-        <view class="instance-list">
-          <view class="instance-item" wx:for="{{deviceForm.instances}}" wx:key="index">
-            <text class="instance-index">{{index + 1}}</text>
-            <input class="instance-input" placeholder="请输入设备编号" value="{{item.device_id}}" bindinput="onInstanceInput" data-index="{{index}}" />
-            <text class="instance-delete" bindtap="deleteInstance" data-index="{{index}}" wx:if="{{deviceForm.instances.length > 1}}">删除</text>
-          </view>
-        </view>
-        <view class="add-instance-btn" bindtap="addInstance">
-          <text class="add-icon-sm">+</text>
-          <text>添加一台</text>
-        </view>
-      </view>
+    <view class="form-item">
+      <text class="form-label">操作规程</text>
+      <textarea class="form-textarea" placeholder="开机、校准、关机步骤" placeholder-class="search-placeholder" value="{{deviceForm.operation_procedure}}" bindinput="onDeviceFormInput" data-field="operation_procedure" maxlength="2000" auto-height />
+    </view>
 
-      <!-- 3. 补充信息（可选，组共享） -->
-      <view class="form-section-title">补充信息（可选）</view>
+    <view class="form-item">
+      <text class="form-label">注意事项</text>
+      <textarea class="form-textarea" placeholder="安全提醒、禁止操作" placeholder-class="search-placeholder" value="{{deviceForm.precautions}}" bindinput="onDeviceFormInput" data-field="precautions" maxlength="2000" auto-height />
+    </view>
 
-      <view class="form-item">
-        <text class="form-label">仪器图片</text>
-        <view class="form-image-upload" bindtap="chooseDevicePic">
-          <image wx:if="{{deviceForm.pictureUrl}}" class="upload-preview" src="{{deviceForm.pictureUrl}}" mode="aspectFill"></image>
-          <view wx:else class="upload-empty">
-            <text class="upload-plus">+</text>
-            <text class="upload-tip">点击上传图片</text>
-          </view>
-        </view>
-      </view>
+    <view class="form-item">
+      <text class="form-label">规格参数</text>
+      <textarea class="form-textarea" placeholder="每行一项，格式：参数名：参数值" placeholder-class="search-placeholder" value="{{deviceForm.specificationsText}}" bindinput="onDeviceFormInput" data-field="specificationsText" maxlength="2000" auto-height />
+      <text class="field-hint">示例：型号：GC-2014</text>
+    </view>
 
-      <view class="form-item">
-        <text class="form-label">操作规程</text>
-        <textarea class="form-textarea" placeholder="请输入操作规程" value="{{deviceForm.operation_procedure}}" bindinput="onDeviceFormInput" data-field="operation_procedure" maxlength="2000" auto-height />
-      </view>
-
-      <view class="form-item">
-        <text class="form-label">注意事项</text>
-        <textarea class="form-textarea" placeholder="请输入注意事项" value="{{deviceForm.precautions}}" bindinput="onDeviceFormInput" data-field="precautions" maxlength="2000" auto-height />
-      </view>
-
-      <view class="form-item">
-        <text class="form-label">规格参数</text>
-        <textarea class="form-textarea" placeholder="每行一项，格式：参数名：参数值" value="{{deviceForm.specificationsText}}" bindinput="onDeviceFormInput" data-field="specificationsText" maxlength="2000" auto-height />
-        <text class="form-hint">示例：型号：GC-2014</text>
-      </view>
-
-      <view class="form-btns">
-        <button class="form-cancel-btn" bindtap="closeDeviceForm">取消</button>
-        <button class="form-confirm-btn" bindtap="submitDeviceForm" disabled="{{isSubmittingDevice}}">
-          {{isSubmittingDevice ? '提交中...' : '确认新增'}}
-        </button>
-      </view>
+    <view class="form-btns">
+      <button class="btn-ghost" bindtap="closeDeviceForm">取消</button>
+      <button class="btn-primary" bindtap="submitDeviceForm" disabled="{{isSubmittingDevice}}">
+        {{isSubmittingDevice ? '提交中...' : '确认新增'}}
+      </button>
     </view>
   </view>
 </view>

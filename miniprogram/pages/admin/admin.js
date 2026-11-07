@@ -1,107 +1,116 @@
 /**
- * 管理端首页 admin.js
+ * 管理端首页
  *
- * 功能模块：
- * ├── 页面生命周期 & 会话校验
- * ├── 仪器状态管理（Tab 0）—— 按实验室/类型/关键词筛选，分页加载
- * ├── 预约概览（Tab 1）—— 统计各状态数量，展示最近预约
- * ├── 通知发布（Tab 2）—— 管理员发布公告
- * ├── 卫生打卡记录（Tab 3）—— 分页加载，临时链接解析
- * ├── 仪器新增/删除 —— 弹窗表单，调用云函数
- * └── 工具方法 —— 时间格式化、数组分块、条件构建等
+ * ├── 会话校验 —— 缓存里的 userId 回查 users，确认角色仍有效
+ * ├── 仪器状态（Tab 0）—— 实验室 / 类型 / 关键词筛选，分页加载
+ * ├── 预约概览（Tab 1）—— 状态统计 + 最近预约，按角色可见范围过滤
+ * ├── 通知发布（Tab 2）—— 发布公告、触发订阅消息推送、历史管理
+ * ├── 更多（Tab 3）—— 重置密码 / 卫生记录 / 注册审批 / 3D 看板
+ * └── 仪器新增与删除 —— 弹窗表单 + 云函数
  */
 
 const db = wx.cloud.database()
 const _ = db.command
 const cloudFile = require('../../utils/cloudFile.js')
 
-// ========== 常量定义 ==========
+// ========== 常量 ==========
 
 const ALLOWED_ROLES = ['teacher', 'admin'] // 允许进入管理端的角色
-const PAGE_SIZE = 100 // 云函数单次拉取上限
-const DEVICE_ID_CHUNK_SIZE = 50 // device_id 查询分片大小（in 操作符限制）
+const ROLE_TEXT = {
+  admin: '管理员',
+  teacher: '实验室教师'
+}
+const PAGE_SIZE = 15 // 仪器组单页数量
+const RESERVE_PREVIEW_COUNT = 10 // 预约概览展示条数
+const MAX_DEVICE_SCAN = 2000 // 可见仪器扫描上限，防御性兜底
+const MAX_RESERVE_SCAN = 1000 // 云函数单集合拉取上限
+const CLIENT_BATCH_SIZE = 20 // 客户端单次查询条数
+const DOC_URL_PATTERN = /^https?:\/\/docs\.qq\.com(\/|$)/
+const SUBSCRIBE_TMPL_IDS = [
+  '9Lr3yHaJzl8LyzC5qbNGFYgu5ILBFc3XSowjJRv1-eg', // 通用（含新注册申请）
+  'rEryURnzJ73glhEiqTmrGi3sNio16MDmUcMrIc0LPiY' // 故障告警
+]
+const EMPTY_RESERVE_STATS = {
+  upcoming: 0,
+  using: 0,
+  completed: 0,
+  abnormal: 0,
+  total: 0
+}
 
 // ========== 页面实例 ==========
 
 Page({
-  // ---------- 初始数据 ----------
   data: {
-    activeTab: 0, // 当前激活的 Tab 页
-    filters: { // 仪器筛选条件
+    activeTab: 0,
+    filters: {
       labType: 'all', // all | public | group
       deviceType: 'all', // all | large | small
-      searchKeyword: '' // 搜索关键词
+      searchKeyword: ''
     },
-    allGroupTotal: 0, // 仪器组总数
-    pageSize: 15, // 前端分页大小
-    currentPage: 1, // 当前页码
-    displayedGroups: [], // 当前展示的仪器组列表
-    hasMore: false, // 是否还有更多数据
-    isLoadingDevices: true, // 仪器列表加载状态
+
+    // 仪器列表
+    pageSize: PAGE_SIZE,
+    currentPage: 1,
+    displayedGroups: [],
+    allGroupTotal: 0,
+    hasMore: false,
+    isLoadingDevices: true,
+    isLoadingMoreDevices: false,
+    deletingGroupKey: '', // 正在删除的仪器组，用于按钮态
+    skeletonRows: [1, 2, 3],
+
+    // 预约概览
+    recentReserves: [],
+    reserveStats: EMPTY_RESERVE_STATS,
+    isLoadingReserves: false,
 
     // 通知发布
     msgTitle: '',
     msgContent: '',
+    msgDocUrl: '',
     isSending: false,
     sentMessages: [],
     isLoadingMessages: false,
-    msgDocUrl: '', // ← 新增：腾讯文档链接（可选）
-
-    // 管理员信息
-    adminName: '',
-
-    // 退出确认弹窗
-    showExitConfirm: false,
-
-    // 预约概览
-    recentReserves: [],
-    reserveStats: {
-      upcoming: 0,
-      using: 0,
-      completed: 0,
-      abnormal: 0,
-      total: 0
-    },
-    isLoadingReserves: false,
+    deletingNoticeId: '',
 
     // 新增仪器弹窗
     showDeviceForm: false,
     isSubmittingDevice: false,
+    isUploadingPic: false,
     deviceForm: {
       device_name: '',
       lab_name: '',
       device_room: '',
       device_type: 'large',
       lab_type: 'public',
-      instances: [{
-        device_id: ''
-      }],
+      instances: [{ device_id: '' }],
       picture: '',
-      pictureUrl: '', // 图片预览用的临时链接（picture 里存的是 cloud:// fileID）
+      pictureUrl: '',
       operation_procedure: '',
       precautions: '',
       specificationsText: ''
     },
 
-    // 卫生打卡
-    dutyRecords: [],
-    isLoadingDuty: false,
-    dutyPage: 1,
-    dutyPageSize: 20,
-    hasMoreDuty: true,
-
     // 注册审批
-    pendingApplyCount: 0
+    pendingApplyCount: 0,
+
+    // 顶部信息
+    adminName: '',
+    adminRoleText: '管理员',
+
+    // 退出确认弹窗
+    showExitConfirm: false
   },
 
   // ==================== 工具方法 ====================
 
-  /** 补零，用于时间格式化 */
+  /** 补零 */
   pad(n) {
     return String(n).padStart(2, '0')
   },
 
-  /** 将 ISO 字符串格式化为 "YYYY-MM-DD HH:mm" */
+  /** ISO 字符串 → "YYYY-MM-DD HH:mm" */
   formatTime(isoStr) {
     if (!isoStr) return ''
     const d = this.parseDateTime(isoStr)
@@ -109,7 +118,7 @@ Page({
     return d.getFullYear() + '-' + this.pad(d.getMonth() + 1) + '-' + this.pad(d.getDate()) + ' ' + this.pad(d.getHours()) + ':' + this.pad(d.getMinutes())
   },
 
-  /** 仅格式化日期部分 "YYYY-MM-DD" */
+  /** 仅保留日期 "YYYY-MM-DD" */
   formatDateOnly(isoStr) {
     if (!isoStr) return ''
     const d = this.parseDateTime(isoStr)
@@ -118,9 +127,8 @@ Page({
   },
 
   /**
-   * 解析多种格式的日期时间字符串为 Date 对象
-   * 支持：ISO 8601、YYYY-MM-DD HH:mm、时间戳
-   * 注意：小程序端需手动处理时区偏移（-8h）
+   * 解析多种格式的时间字符串
+   * 支持 ISO 8601、YYYY-MM-DD HH:mm、时间戳；纯本地字符串按东八区还原
    */
   parseDateTime(dtStr) {
     if (!dtStr) return null
@@ -132,22 +140,22 @@ Page({
     const text = String(dtStr).trim().replace(/\//g, '-')
     const match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[ T-](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/)
     if (match) {
-      const year = Number(match[1]),
-        month = Number(match[2]),
-        day = Number(match[3])
-      const hour = match[4] ? Number(match[4]) : 0,
-        minute = match[5] ? Number(match[5]) : 0,
-        second = match[6] ? Number(match[6]) : 0
+      const year = Number(match[1])
+      const month = Number(match[2])
+      const day = Number(match[3])
+      const hour = match[4] ? Number(match[4]) : 0
+      const minute = match[5] ? Number(match[5]) : 0
+      const second = match[6] ? Number(match[6]) : 0
       return new Date(Date.UTC(year, month - 1, day, hour - 8, minute, second, 0))
     }
     const d2 = new Date(text.replace(' ', 'T'))
     return isNaN(d2.getTime()) ? null : d2
   },
 
-  /** 从日期时间字符串中提取时间部分 "HH:mm" */
+  /** 提取时间部分 "HH:mm" */
   getTimePart(dtStr) {
     if (!dtStr) return '--:--'
-    if (dtStr.indexOf(' ') !== -1) return dtStr.split(' ')[1]
+    if (dtStr.indexOf(' ') !== -1) return dtStr.split(' ')[1].substring(0, 5)
     if (dtStr.indexOf('T') !== -1) {
       const timePart = dtStr.split('T')[1]
       if (timePart) return timePart.substring(0, 5)
@@ -155,601 +163,424 @@ Page({
     return dtStr
   },
 
-  /** 将日期时间转为时间戳（毫秒），用于排序比较 */
+  /** 时间字符串 → 毫秒时间戳，失败返回 0 */
   getDateTimeValue(dtStr) {
     if (!dtStr) return 0
     const d = this.parseDateTime(dtStr)
     return d ? d.getTime() : 0
   },
 
-  /** 将数组按指定大小切分为二维数组（用于分批查询） */
-  chunkArray(list, size) {
-    const chunks = []
-    let i
-    for (i = 0; i < list.length; i += size) {
-      chunks.push(list.slice(i, i + size))
-    }
-    return chunks
+  /** 统一确认弹窗，返回 Promise<{ confirm }> */
+  showConfirm(options) {
+    return new Promise((resolve) => {
+      wx.showModal({
+        title: options.title || '提示',
+        content: options.content || '',
+        confirmText: options.confirmText || '确定',
+        confirmColor: options.confirmColor || '#ef4444',
+        success: (res) => resolve({ confirm: !!res.confirm }),
+        fail: () => resolve({ confirm: false })
+      })
+    })
   },
 
   // ==================== 生命周期 ====================
 
-  /** 页面加载：启用退出确认，启动会话校验 */
   onLoad() {
-    wx.enableAlertBeforeUnload({
-      message: '确定要退出管理端吗？'
-    })
+    wx.enableAlertBeforeUnload({ message: '确定要退出管理端吗？' })
     this.bootstrapPage()
   },
 
-  /** 页面卸载：关闭退出确认 */
   onUnload() {
     wx.disableAlertBeforeUnload()
+    clearTimeout(this._searchTimer)
   },
 
-  /** 下拉刷新：根据当前 Tab 重新加载数据 */
-  onPullDownRefresh() {
-    if (this._refreshing) return
-    this._refreshing = true
-
-    const tab = this.data.activeTab
-    if (tab === 0) this.loadDeviceStatus()
-    else if (tab === 1) this.loadReserveSummary()
-    else if (tab === 2) this.loadSentMessages()
-
-    // 各方法完成后重置（或者在 finally 里）
-    const self = this
-    setTimeout(function () {
-      self._refreshing = false
-    }, 2000)
-    wx.stopPullDownRefresh()
+  async onPullDownRefresh() {
+    try {
+      await this.refreshCurrentTab()
+    } finally {
+      wx.stopPullDownRefresh()
+    }
   },
 
-  /** 页面显示：按需刷新数据 */
+  /** 回到页面时按当前 Tab 刷新，避免从子页返回后看到旧数据 */
   onShow() {
     if (!this._ready) return
-    // 自动订阅：每天最多触发一次，避免频繁弹窗
-    const today = new Date().toDateString()
-    const lastAutoSub = wx.getStorageSync('lastAutoSubDate')
-    if (lastAutoSub !== today) {
-      this.requestSubscribeMessage()
-      wx.setStorageSync('lastAutoSubDate', today)
-    }
-    const tab = this.data.activeTab
-    if (tab === 0 && (!this.data.displayedGroups || this.data.displayedGroups.length === 0)) {
-      this.loadDeviceStatus()
-    } else if (tab === 1) {
-      this.loadReserveSummary()
-    } else if (tab === 2) {
-      this.loadSentMessages()
-    } else if (tab === 3) {
-      // 从审批页返回时，刷新红点数量
-      this.loadPendingApplyCount()
-    }
+    this.refreshCurrentTab()
   },
 
-  /** 页面隐藏：关闭退出确认弹窗 */
   onHide() {
-    this.setData({
-      showExitConfirm: false
-    })
+    this.setData({ showExitConfirm: false })
+  },
+
+  /** 刷新当前 Tab 的数据 */
+  async refreshCurrentTab() {
+    const tab = this.data.activeTab
+    if (tab === 0) await this.loadDeviceStatus()
+    else if (tab === 1) await this.loadReserveSummary()
+    else if (tab === 2) await this.loadSentMessages()
+    else await this.loadPendingApplyCount()
   },
 
   // ==================== 会话管理 ====================
 
-  /** 初始化页面：校验管理员会话 */
-  bootstrapPage() {
-    const self = this
-    self.validateAdminSession().then(function (session) {
-      if (!session) return
-      self.currentSession = session
-      self._ready = true
-      self.setData({
-        adminName: session.name || '管理员'
-      })
-      self.loadDeviceStatus()
+  /** 启动页：校验会话后加载仪器列表 */
+  async bootstrapPage() {
+    this.setData({ isLoadingDevices: true })
+    const session = await this.validateAdminSession()
+    if (!session) {
+      this.setData({ isLoadingDevices: false })
+      return
+    }
+    this.currentSession = session
+    this._ready = true
+    this.setData({
+      adminName: session.name || '管理员',
+      adminRoleText: ROLE_TEXT[session.role] || '管理员'
     })
+    await this.loadDeviceStatus()
   },
 
-  /** 清除登录态并跳转到登录页 */
+  /** 清除登录态并回到登录页 */
   redirectToLogin(message) {
     wx.removeStorageSync('adminInfo')
-    if (message) wx.showToast({
-      title: message,
-      icon: 'none'
-    })
-    const self = this
-    setTimeout(function () {
-      wx.reLaunch({
-        url: '/pages/admin/login/adminlogin'
-      })
+    if (message) wx.showToast({ title: message, icon: 'none' })
+    setTimeout(() => {
+      wx.reLaunch({ url: '/pages/admin/login/adminlogin' })
     }, 400)
   },
 
-  /**
-   * 校验管理员会话有效性
-   * 1. 从本地缓存读取 userId
-   * 2. 查询 users 集合确认角色权限
-   * 3. 更新缓存并返回标准化会话对象
-   */
-  validateAdminSession() {
-    const self = this
-    return new Promise(function (resolve) {
-      const localSession = wx.getStorageSync('adminInfo') || {}
-      const userId = String(localSession.userId || '').trim()
-      if (!userId) {
-        self.redirectToLogin('请先登录')
-        resolve(null)
-        return
-      }
-      db.collection('users')
-        .where({
-          user_id: userId,
-          role: _.in(ALLOWED_ROLES)
-        })
+  /** 校验管理员会话是否仍然有效 */
+  async validateAdminSession() {
+    const localSession = wx.getStorageSync('adminInfo') || {}
+    const userId = String(localSession.userId || '').trim()
+    if (!userId) {
+      this.redirectToLogin('请先登录')
+      return null
+    }
+    try {
+      const res = await db.collection('users')
+        .where({ user_id: userId, role: _.in(ALLOWED_ROLES) })
         .limit(1)
         .get()
-        .then(function (res) {
-          const user = (res.data || [])[0]
-          if (!user || ALLOWED_ROLES.indexOf(user.role) === -1) {
-            self.redirectToLogin('账号权限已失效，请重新登录')
-            resolve(null)
-            return
-          }
-          const normalized = {
-            userId: user.user_id,
-            name: user.name || localSession.name || '管理员',
-            role: user.role,
-            groupName: user.group_name || '',
-            loginTime: localSession.loginTime || new Date().toISOString()
-          }
-          wx.setStorageSync('adminInfo', normalized)
-          resolve(normalized)
-        })
-        .catch(function (err) {
-          console.error('校验管理端会话失败:', err)
-          self.redirectToLogin('登录状态校验失败，请重试')
-          resolve(null)
-        })
-    })
+      const user = (res.data || [])[0]
+      if (!user || ALLOWED_ROLES.indexOf(user.role) === -1) {
+        this.redirectToLogin('账号权限已失效，请重新登录')
+        return null
+      }
+      const normalized = {
+        userId: user.user_id,
+        name: user.name || localSession.name || '管理员',
+        role: user.role,
+        groupName: user.group_name || '',
+        loginTime: localSession.loginTime || new Date().toISOString()
+      }
+      wx.setStorageSync('adminInfo', normalized)
+      return normalized
+    } catch (err) {
+      console.error('[admin] 校验会话失败', err)
+      this.redirectToLogin('登录状态校验失败，请重试')
+      return null
+    }
   },
 
   // ==================== 云函数通用封装 ====================
 
   /**
-   * 通过云函数 getCollectionData 拉取全量数据
-   * 内部自动处理分页游标，适合数据量不大的集合
+   * 通过云函数 getCollectionData 拉取集合数据
+   * 云函数内部已自行翻页（单次最多返回 MAX_LIMIT 1000 条），所以这里一次调用取满
    */
-  fetchAllByCloud(collectionName, whereCondition, pageSize, sortField, startSkip) {
-    const self = this
-    if (pageSize === undefined) pageSize = 100
-    if (startSkip === undefined) startSkip = 0
-    wx.showLoading({
-      title: '加载中...'
-    })
-    return wx.cloud.callFunction({
-      name: 'getCollectionData',
-      data: {
-        collectionName: collectionName,
-        whereCondition: whereCondition || {},
-        pageSize: pageSize,
-        sortField: sortField || '',
-        startSkip: startSkip
-      }
-    }).then(function (res) {
-      wx.hideLoading()
-      if (res.result.code !== 0) throw new Error(res.result.message)
-      return res.result.data
-    }).catch(function (err) {
-      wx.hideLoading()
-      console.error('云函数查询失败:', err)
-      wx.showToast({
-        title: '加载失败',
-        icon: 'none'
+  async fetchAllByCloud(collectionName, whereCondition) {
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'getCollectionData',
+        data: {
+          collectionName,
+          whereCondition: whereCondition || {},
+          pageSize: MAX_RESERVE_SCAN,
+          startSkip: 0
+        }
       })
-      return []
-    })
+      const result = res.result || {}
+      if (result.code !== 0) throw new Error(result.message || '查询失败')
+      return result.data || []
+    } catch (err) {
+      console.error('[admin] 拉取集合失败 ' + collectionName, err)
+      throw err
+    }
   },
 
   // ==================== Tab 切换 ====================
 
-  /** 切换 Tab 页，按需加载对应数据 */
   switchTab(e) {
     const tab = Number(e.currentTarget.dataset.tab)
-    this.setData({
-      activeTab: tab
-    })
+    if (tab === this.data.activeTab) return
+    this.setData({ activeTab: tab })
 
-    if (tab === 0) {
-      if (!this.data.displayedGroups || this.data.displayedGroups.length === 0) {
-        this.loadDeviceStatus()
-      }
-    } else if (tab === 1) {
-      this.loadReserveSummary()
-    } else if (tab === 2) {
-      this.loadSentMessages()
-    } else if (tab === 3) {
-      this.loadPendingApplyCount()
-    }
+    if (tab === 0 && this.data.displayedGroups.length === 0) this.loadDeviceStatus()
+    else if (tab === 1) this.loadReserveSummary()
+    else if (tab === 2) this.loadSentMessages()
+    else if (tab === 3) this.loadPendingApplyCount()
   },
 
   // ==================== 仪器状态管理（Tab 0） ====================
 
-  /** 筛选条件变更回调 */
   onLabTypeChange(e) {
-    const self = this
-    this.setData({
-      'filters.labType': e.currentTarget.dataset.type
-    }, function () {
-      self.loadDeviceStatus()
-    })
+    const type = e.currentTarget.dataset.type
+    if (type === this.data.filters.labType) return
+    this.setData({ 'filters.labType': type }, () => this.loadDeviceStatus())
   },
 
   onDeviceTypeChange(e) {
-    const self = this
-    this.setData({
-      'filters.deviceType': e.currentTarget.dataset.type
-    }, function () {
-      self.loadDeviceStatus()
-    })
+    const type = e.currentTarget.dataset.type
+    if (type === this.data.filters.deviceType) return
+    this.setData({ 'filters.deviceType': type }, () => this.loadDeviceStatus())
   },
 
+  /** 输入防抖：停止输入 400ms 后再查询 */
   onSearchInput(e) {
-    const self = this
-    clearTimeout(self._searchTimer)
-    self._searchTimer = setTimeout(function () {
-      self.setData({
-        'filters.searchKeyword': e.detail.value.trim()
-      }, function () {
-        self.loadDeviceStatus()
-      })
-    }, 500) // 用户停止输入 500ms 后才查
+    const value = String(e.detail.value || '').trim()
+    clearTimeout(this._searchTimer)
+    this._searchTimer = setTimeout(() => {
+      if (value === this.data.filters.searchKeyword) return
+      this.setData({ 'filters.searchKeyword': value }, () => this.loadDeviceStatus())
+    }, 400)
   },
 
+  /** 清空搜索：必须同时清掉防抖定时器，否则旧关键词会被回写 */
   clearSearch() {
-    const self = this
-    this.setData({
-      'filters.searchKeyword': ''
-    }, function () {
-      self.loadDeviceStatus()
-    })
+    clearTimeout(this._searchTimer)
+    if (!this.data.filters.searchKeyword) return
+    this.setData({ 'filters.searchKeyword': '' }, () => this.loadDeviceStatus())
   },
 
   /**
-   * 根据管理员角色和筛选条件构建数据库查询条件
-   * - admin：可看所有实验室
-   * - teacher：只看公共实验室 + 自己课题组
+   * 仪器可见范围（客户端直连数据库时使用）
+   * admin 返回 null（不限制）；teacher 返回 OR 条件；其余角色一律查不到数据
    */
-  buildVisibleDeviceCondition(session) {
-    if (!session) return {
-      deny: true
+  buildDeviceScope() {
+    const session = this.currentSession || {}
+    const groupName = String(session.groupName || '').trim()
+    if (session.role === 'admin') return null
+    if (session.role === 'teacher') {
+      if (!groupName) return { lab_type: 'public' }
+      return _.or([{ lab_type: 'public' }, { lab_name: groupName }])
     }
+    return { _id: '__deny__' }
+  },
+
+  /** 仪器列表查询参数：交给云函数按 plain 字段解析，避免命令对象跨端序列化失效 */
+  buildGroupQuery() {
+    const session = this.currentSession || {}
     const filters = this.data.filters
-    const result = {
-      labCondition: null,
-      deviceType: null
-    }
-    const role = session.role
+    const isAdmin = session.role === 'admin'
     const groupName = String(session.groupName || '').trim()
 
-    if (role === 'admin') {
-      if (filters.labType === 'public') result.labCondition = {
-        lab_type: 'public'
-      }
-      else if (filters.labType === 'group') result.labCondition = {
-        lab_type: 'group'
-      }
-    } else if (role === 'teacher') {
-      if (!groupName) {
-        result.labCondition = {
-          lab_type: 'public'
-        }
-      } else if (filters.labType === 'all') {
-        result.labCondition = _.or([{
-          lab_type: 'public'
-        }, {
-          lab_name: groupName
-        }])
-      } else if (filters.labType === 'public') {
-        result.labCondition = {
-          lab_type: 'public'
-        }
-      } else if (filters.labType === 'group') {
-        result.labCondition = {
-          lab_name: groupName
-        }
-      }
-    } else {
-      return {
-        deny: true
-      }
+    let labType = filters.labType
+    // 教师没有课题组时，课题组筛选退化为公共实验室，避免查出别人的组
+    if (!isAdmin && labType === 'group' && !groupName) labType = 'public'
+
+    return {
+      labType,
+      groupName,
+      role: session.role || '',
+      deviceType: filters.deviceType === 'all' ? '' : filters.deviceType,
+      keyword: String(filters.searchKeyword || '').trim()
     }
-
-    if (filters.deviceType === 'large') result.deviceType = 'large'
-    else if (filters.deviceType === 'small') result.deviceType = 'small'
-
-    return result
   },
 
-  /** 加载仪器状态（入口） */
-  loadDeviceStatus() {
-    const self = this
-    if (!self.currentSession) {
-      self.validateAdminSession().then(function (session) {
-        if (!session) return
-        self.currentSession = session
-        self._doLoadDeviceStatus()
+  /** 加载仪器状态（入口，会话缺失时先补校验） */
+  async loadDeviceStatus(options = {}) {
+    if (!this.currentSession) {
+      const session = await this.validateAdminSession()
+      if (!session) return
+      this.currentSession = session
+    }
+    await this.doLoadDeviceStatus(options)
+  },
+
+  /** 实际拉取第一页仪器组；列表已有数据时静默刷新，避免闪骨架屏 */
+  async doLoadDeviceStatus(options = {}) {
+    const seq = (this._deviceSeq || 0) + 1
+    this._deviceSeq = seq
+    const silent = options.silent || this.data.displayedGroups.length > 0
+    this.setData({ isLoadingDevices: !silent, isLoadingMoreDevices: false })
+
+    try {
+      const query = this.buildGroupQuery()
+      const res = await wx.cloud.callFunction({
+        name: 'getAdminGroups',
+        data: { ...query, pageSize: this.data.pageSize, pageNum: 1 }
       })
-    } else {
-      self._doLoadDeviceStatus()
-    }
-  },
-
-  /** 实际执行加载仪器组（调用云函数 getAdminGroups） */
-  _doLoadDeviceStatus() {
-    const self = this
-    self.setData({
-      isLoadingDevices: true
-    })
-    wx.showLoading({
-      title: '加载中...'
-    })
-
-    const devicesCondition = self.buildVisibleDeviceCondition(self.currentSession)
-    const keyword = (self.data.filters.searchKeyword || '').toLowerCase().trim()
-
-    wx.cloud.callFunction({
-      name: 'getAdminGroups',
-      data: {
-        labCondition: devicesCondition.labCondition || null,
-        deviceType: devicesCondition.deviceType || null,
-        keyword: keyword,
-        pageSize: self.data.pageSize,
-        pageNum: 1
-      }
-    }).then(function (res) {
-      wx.hideLoading()
-      if (res.result.code !== 0) {
-        throw new Error(res.result.message || '加载失败')
-      }
-      const groups = res.result.data.groups || []
-      const total = res.result.data.total
-      const hasMore = res.result.data.hasMore
-      self.setData({
-        displayedGroups: groups,
-        allGroupTotal: total,
+      // 快速切换筛选时会并发多次请求，只认最后一次的结果
+      if (seq !== this._deviceSeq) return
+      const result = res.result || {}
+      if (result.code !== 0) throw new Error(result.message || '加载失败')
+      const data = result.data || {}
+      this.setData({
+        displayedGroups: data.groups || [],
+        allGroupTotal: data.total || 0,
         currentPage: 1,
-        hasMore: hasMore,
-        isLoadingDevices: false
+        hasMore: !!data.hasMore
       })
-      self.resolveGroupPictures('displayedGroups')
-    }).catch(function (err) {
-      wx.hideLoading()
-      console.error('加载仪器状态失败:', err)
-      self.setData({
-        isLoadingDevices: false
-      })
-      wx.showToast({
-        title: '加载失败',
-        icon: 'none'
-      })
-    })
+      this.resolveGroupPictures('displayedGroups')
+    } catch (err) {
+      if (seq !== this._deviceSeq) return
+      console.error('[admin] 加载仪器列表失败', err)
+      wx.showToast({ title: '仪器列表加载失败', icon: 'none' })
+    } finally {
+      if (seq === this._deviceSeq && !silent) this.setData({ isLoadingDevices: false })
+    }
   },
 
-  /** 加载更多仪器组（前端分页） */
-  loadMoreDevices() {
-    if (this._loadingMore) return
-    this._loadingMore = true
+  /** 加载下一页仪器组，按 group_key 去重后追加 */
+  async loadMoreDevices() {
+    if (this.data.isLoadingMoreDevices || !this.data.hasMore || this.data.isLoadingDevices) return
+    this.setData({ isLoadingMoreDevices: true })
 
-    const self = this
-    const currentPage = self.data.currentPage
-    const pageSize = self.data.pageSize
-    const filters = self.data.filters
-
-    const devicesCondition = self.buildVisibleDeviceCondition(self.currentSession)
-    const keyword = (filters.searchKeyword || '').toLowerCase().trim()
-
-    wx.cloud.callFunction({
-      name: 'getAdminGroups',
-      data: {
-        labCondition: devicesCondition.labCondition || null,
-        deviceType: devicesCondition.deviceType || null,
-        keyword: keyword,
-        pageSize: pageSize,
-        pageNum: currentPage + 1
-      }
-    }).then(function (res) {
-      self._loadingMore = false
-      if (res.result.code !== 0) throw new Error(res.result.message || '加载失败')
-      const groups = res.result.data.groups || []
-      const hasMore = res.result.data.hasMore
-      self.setData({
-        displayedGroups: self.data.displayedGroups.concat(groups),
-        currentPage: currentPage + 1,
-        hasMore: hasMore
+    try {
+      const query = this.buildGroupQuery()
+      const res = await wx.cloud.callFunction({
+        name: 'getAdminGroups',
+        data: { ...query, pageSize: this.data.pageSize, pageNum: this.data.currentPage + 1 }
       })
-      self.resolveGroupPictures('displayedGroups')
-    }).catch(function (err) {
-      self._loadingMore = false
-      console.error('加载更多失败:', err)
-      wx.showToast({
-        title: '加载更多失败',
-        icon: 'none'
+      const result = res.result || {}
+      if (result.code !== 0) throw new Error(result.message || '加载失败')
+      const data = result.data || {}
+
+      const merged = this.data.displayedGroups.slice()
+      const seen = {}
+      merged.forEach((group) => {
+        seen[group.group_key] = true
       })
-    })
+      const incoming = data.groups || []
+      incoming.forEach((group) => {
+        if (seen[group.group_key]) return
+        seen[group.group_key] = true
+        merged.push(group)
+      })
+
+      this.setData({
+        displayedGroups: merged,
+        currentPage: this.data.currentPage + 1,
+        hasMore: !!data.hasMore,
+        allGroupTotal: data.total || this.data.allGroupTotal
+      })
+      this.resolveGroupPictures('displayedGroups')
+    } catch (err) {
+      console.error('[admin] 加载更多仪器失败', err)
+      wx.showToast({ title: '加载更多失败', icon: 'none' })
+    } finally {
+      this.setData({ isLoadingMoreDevices: false })
+    }
   },
 
-  /** 解析仪器组列表的图片（cloud:// → 临时链接），避免 <image> 渲染 500 */
-  resolveGroupPictures(field) {
-    const self = this
+  /** 把 cloud:// 图片换成临时链接，否则 <image> 渲染报 500 */
+  async resolveGroupPictures(field) {
     const list = this.data[field] || []
-    if (!list.length) return Promise.resolve()
-
-    return cloudFile.resolveListField(list, 'picture')
-      .then(function (resolved) {
-        if (resolved === list) return
-        const patch = {}
-        patch[field] = resolved
-        self.setData(patch)
-      })
-      .catch(function (err) {
-        console.error('解析仪器组图片失败:', err)
-      })
+    if (!list.length) return
+    try {
+      const resolved = await cloudFile.resolveListField(list, 'picture')
+      if (resolved === list) return
+      this.setData({ [field]: resolved })
+    } catch (err) {
+      console.error('[admin] 解析仪器图片失败', err)
+    }
   },
 
-  // 仪器组缩略图加载失败 → 隐藏图片，避免反复重试刷屏
+  /** 缩略图加载失败 → 标记后显示占位图，避免反复重试 */
   onGroupImageError(e) {
     const index = e.currentTarget.dataset.index
     if (index === undefined || index === null) return
-    const patch = {}
-    patch['displayedGroups[' + index + '].imgFailed'] = true
-    this.setData(patch)
+    this.setData({ ['displayedGroups[' + index + '].imgFailed']: true })
   },
 
   // ==================== 预约概览（Tab 1） ====================
 
-  /** 根据 device_id 列表分批查询正在使用的记录 */
-  fetchUsingRecordsByDeviceIds(deviceIds) {
-    const self = this
-    if (!deviceIds || deviceIds.length === 0) return Promise.resolve([])
-    const chunks = self.chunkArray(deviceIds, DEVICE_ID_CHUNK_SIZE)
-    let all = []
-    let promise = Promise.resolve()
+  /**
+   * 可见仪器编号集合
+   * 返回 null 表示不限制（管理员）；返回空集合表示无可见仪器
+   */
+  async fetchVisibleDeviceIds() {
+    const scope = this.buildDeviceScope()
+    if (!scope) return null
 
-    for (let i = 0; i < chunks.length; i++) {
-      promise = promise.then(function (chunk) {
-        return self.fetchAllByCloud('device_usage', {
-          status: 'using',
-          device_id: _.in(chunk)
-        }).then(function (rows) {
-          all = all.concat(rows)
-        })
-      }.bind(null, chunks[i]))
+    const ids = {}
+    for (let skip = 0; skip < MAX_DEVICE_SCAN; skip += CLIENT_BATCH_SIZE) {
+      const res = await db.collection('devices')
+        .where(scope)
+        .field({ device_id: true })
+        .skip(skip)
+        .limit(CLIENT_BATCH_SIZE)
+        .get()
+      const rows = res.data || []
+      rows.forEach((row) => {
+        if (row.device_id) ids[row.device_id] = true
+      })
+      if (rows.length < CLIENT_BATCH_SIZE) break
     }
-    return promise.then(function () {
-      return all
-    })
+    return ids
   },
 
-  /** 加载预约概览：统计各状态数量 + 最近预约列表 */
-  loadReserveSummary() {
-    const self = this
-    if (!self.currentSession) return
-    self.setData({
-      isLoadingReserves: true
-    })
-
-    const visibleCondition = self.buildVisibleDeviceCondition(self.currentSession)
-    let visibleDeviceIds = null
-
-    let promise = Promise.resolve()
-    if (visibleCondition) {
-      promise = self.fetchAllByCloud('devices', visibleCondition).then(function (devices) {
-        visibleDeviceIds = []
-        for (let i = 0; i < devices.length; i++) {
-          if (devices[i].device_id) visibleDeviceIds.push(devices[i].device_id)
-        }
-        // 手动去重
-        const dedup = []
-        for (let j = 0; j < visibleDeviceIds.length; j++) {
-          if (dedup.indexOf(visibleDeviceIds[j]) === -1) dedup.push(visibleDeviceIds[j])
-        }
-        visibleDeviceIds = dedup
-        if (visibleDeviceIds.length === 0) {
-          self.setData({
-            recentReserves: [],
-            reserveStats: {
-              upcoming: 0,
-              using: 0,
-              completed: 0,
-              abnormal: 0,
-              total: 0
-            },
-            isLoadingReserves: false
-          })
-          return 'skip'
-        }
-        return null
-      })
+  /** 加载预约概览：状态统计 + 最近预约 */
+  async loadReserveSummary() {
+    if (!this.currentSession) {
+      const session = await this.validateAdminSession()
+      if (!session) return
+      this.currentSession = session
     }
+    this.setData({ isLoadingReserves: true })
 
-    promise = promise.then(function (skipFlag) {
-      if (skipFlag === 'skip') return 'skip'
-
-      const reserveCondition = {
-        status: 'approved'
+    try {
+      const visibleIds = await this.fetchVisibleDeviceIds()
+      if (visibleIds && Object.keys(visibleIds).length === 0) {
+        this.setData({ recentReserves: [], reserveStats: EMPTY_RESERVE_STATS })
+        return
       }
-      if (visibleDeviceIds) reserveCondition.device_id = _.in(visibleDeviceIds)
 
-      return Promise.all([
-        self.fetchAllByCloud('reserves', reserveCondition),
-        self.fetchAllByCloud('device_usage', {
-          status: 'using'
-        })
-      ]).then(function (results) {
-        const allReserves = results[0]
-        const activeUsages = results[1]
+      const [allReserves, allUsages] = await Promise.all([
+        this.fetchAllByCloud('reserves', { status: 'approved' }),
+        this.fetchAllByCloud('device_usage', { status: 'using' })
+      ])
 
-        // 构建正在使用的预约映射
-        const usingReserveIdMap = {}
-        for (let u = 0; u < activeUsages.length; u++) {
-          if (activeUsages[u].reserve_id) usingReserveIdMap[activeUsages[u].reserve_id] = true
-        }
+      // 教师角色只统计自己可见的仪器，避免看到别人的预约
+      const reserves = visibleIds ? allReserves.filter((item) => visibleIds[item.device_id]) : allReserves
+      const usages = visibleIds ? allUsages.filter((item) => visibleIds[item.device_id]) : allUsages
 
-        const now = new Date()
-        const stats = {
-          upcoming: 0,
-          using: 0,
-          completed: 0,
-          abnormal: 0,
-          total: allReserves.length
-        }
-
-        const processed = []
-        for (let i = 0; i < allReserves.length; i++) {
-          const item = allReserves[i]
-          const statusInfo = self.getReserveDisplayStatus(item, usingReserveIdMap, now)
-          const displayStatus = statusInfo.displayStatus
-          const displayStatusText = statusInfo.displayStatusText
-
-          // 统计各状态数量
-          if (displayStatus === 'using') stats.using++
-          else if (displayStatus === 'completed') stats.completed++
-          else if (displayStatus === 'upcoming') stats.upcoming++
-          else if (displayStatus === 'abnormal') stats.abnormal++
-
-          const timeDisplay = self.buildTimeDisplay(item)
-
-          processed.push({
-            ...item,
-            displayStatus: displayStatus,
-            displayStatusText: displayStatusText,
-            timeDisplay: timeDisplay
-          })
-        }
-
-        // 按开始时间倒序排列
-        processed.sort(function (a, b) {
-          return self.getDateTimeValue(b.start_time) - self.getDateTimeValue(a.start_time)
-        })
-
-        self.setData({
-          recentReserves: processed.slice(0, 10),
-          reserveStats: stats,
-          isLoadingReserves: false
-        })
+      const usingReserveIdMap = {}
+      usages.forEach((usage) => {
+        if (usage.reserve_id) usingReserveIdMap[usage.reserve_id] = true
       })
-    })
 
-    promise.catch(function (err) {
-      console.error('加载预约概览失败:', err)
-      self.setData({
-        isLoadingReserves: false
+      const now = new Date()
+      const stats = { ...EMPTY_RESERVE_STATS, total: reserves.length }
+      const processed = reserves.map((item) => {
+        const statusInfo = this.getReserveDisplayStatus(item, usingReserveIdMap, now)
+        if (stats[statusInfo.displayStatus] !== undefined) stats[statusInfo.displayStatus] += 1
+        return {
+          ...item,
+          displayStatus: statusInfo.displayStatus,
+          displayStatusText: statusInfo.displayStatusText,
+          timeDisplay: this.buildTimeDisplay(item)
+        }
       })
-    })
+
+      processed.sort((a, b) => this.getDateTimeValue(b.start_time) - this.getDateTimeValue(a.start_time))
+
+      this.setData({
+        recentReserves: processed.slice(0, RESERVE_PREVIEW_COUNT),
+        reserveStats: stats
+      })
+    } catch (err) {
+      console.error('[admin] 加载预约概览失败', err)
+      wx.showToast({ title: '预约数据加载失败', icon: 'none' })
+    } finally {
+      this.setData({ isLoadingReserves: false })
+    }
   },
 
-  /** 构建预约时间显示文本（处理跨天情况） */
+  /** 预约时间展示文本，处理跨天情况 */
   buildTimeDisplay(item) {
     if (!item.start_time || !item.end_time) return ''
     const startDateOnly = this.formatDateOnly(item.start_time)
@@ -768,537 +599,243 @@ Page({
     return item.reserve_date + ' ' + this.getTimePart(item.start_time) + '-' + this.getTimePart(item.end_time)
   },
 
-  /** 计算预约的展示状态（即将使用/使用中/已完成/异常/已过期） */
+  /** 计算预约的展示状态 */
   getReserveDisplayStatus(item, usingReserveIdMap, now) {
-    if (!item) return {
-      displayStatus: 'past',
-      displayStatusText: '已过期'
-    }
-    if (item.usage_status === 'abnormal') return {
-      displayStatus: 'abnormal',
-      displayStatusText: '异常'
-    }
-    if (item.usage_status === 'completed') return {
-      displayStatus: 'completed',
-      displayStatusText: '已完成'
-    }
+    if (!item) return { displayStatus: 'past', displayStatusText: '已过期' }
+    if (item.usage_status === 'abnormal') return { displayStatus: 'abnormal', displayStatusText: '异常' }
+    if (item.usage_status === 'completed') return { displayStatus: 'completed', displayStatusText: '已完成' }
     if ((usingReserveIdMap && usingReserveIdMap[item._id]) || item.usage_status === 'active') {
-      return {
-        displayStatus: 'using',
-        displayStatusText: '使用中'
-      }
+      return { displayStatus: 'using', displayStatusText: '使用中' }
     }
 
     const startTs = this.resolveReserveTimestamp(item, 'start')
     const endTs = this.resolveReserveTimestamp(item, 'end')
     const nowTs = (now || new Date()).getTime()
-    if (!startTs || !endTs) return {
-      displayStatus: 'past',
-      displayStatusText: '已过期'
-    }
+    if (!startTs || !endTs) return { displayStatus: 'past', displayStatusText: '已过期' }
 
-    if (nowTs < startTs) return {
-      displayStatus: 'upcoming',
-      displayStatusText: '即将使用'
-    }
-    if (nowTs < endTs) return {
-      displayStatus: 'upcoming',
-      displayStatusText: '可开始使用'
-    }
-    return {
-      displayStatus: 'past',
-      displayStatusText: '已过期'
-    }
+    if (nowTs < startTs) return { displayStatus: 'upcoming', displayStatusText: '即将使用' }
+    if (nowTs < endTs) return { displayStatus: 'upcoming', displayStatusText: '可开始使用' }
+    return { displayStatus: 'past', displayStatusText: '已过期' }
   },
 
-  /** 解析预约时间戳（优先用 _ts 字段，兜底解析时间字符串） */
+  /** 优先用 *_ts 时间戳，兜底解析时间字符串 */
   resolveReserveTimestamp(reserve, field) {
-    const tsKey = field + '_ts'
-    const timeKey = field + '_time'
-    const ts = Number(reserve && reserve[tsKey])
+    const ts = Number(reserve && reserve[field + '_ts'])
     if (isFinite(ts) && ts > 0) return ts
-    const d = this.parseDateTime(reserve && reserve[timeKey])
+    const d = this.parseDateTime(reserve && reserve[field + '_time'])
     return d ? d.getTime() : 0
   },
 
   // ==================== 通知发布（Tab 2） ====================
 
   onTitleInput(e) {
-    this.setData({
-      msgTitle: e.detail.value
-    })
+    this.setData({ msgTitle: e.detail.value })
   },
+
   onContentInput(e) {
-    this.setData({
-      msgContent: e.detail.value
-    })
+    this.setData({ msgContent: e.detail.value })
   },
+
   onDocUrlInput(e) {
-    this.setData({
-      msgDocUrl: e.detail.value.trim()
-    })
+    this.setData({ msgDocUrl: e.detail.value.trim() })
   },
 
-  /** 发布通知到 notice 集合，并触发订阅消息全推 */
-  sendMessage() {
-    const self = this
-    const title = String(self.data.msgTitle || '').trim()
-    const content = String(self.data.msgContent || '').trim()
-    const docUrl = String(self.data.msgDocUrl || '').trim()
+  /** 发布通知：写 notice 集合，再异步触发订阅消息推送 */
+  async sendMessage() {
+    if (this.data.isSending) return
 
-    if (!title) return wx.showToast({
-      title: '请填写标题',
-      icon: 'none'
-    })
+    const title = String(this.data.msgTitle || '').trim()
+    const content = String(this.data.msgContent || '').trim()
+    const docUrl = String(this.data.msgDocUrl || '').trim()
 
-    if (!content) return wx.showToast({
-      title: '请填写内容',
-      icon: 'none'
-    })
-
-    if (docUrl) {
-      const urlPattern = /^https?:\/\/docs\.qq\.com(\/|$)/
-      if (!urlPattern.test(docUrl)) {
-        self.setData({
-          isSending: false
-        })
-        return wx.showToast({
-          title: '请输入有效的腾讯文档链接',
-          icon: 'none'
-        })
-      }
+    if (!title) return wx.showToast({ title: '请填写标题', icon: 'none' })
+    if (!content) return wx.showToast({ title: '请填写内容', icon: 'none' })
+    if (docUrl && !DOC_URL_PATTERN.test(docUrl)) {
+      return wx.showToast({ title: '请填写腾讯文档分享链接', icon: 'none' })
     }
 
-    self.setData({
-      isSending: true
-    })
-
+    this.setData({ isSending: true })
     const now = new Date()
-    const noticeId = 'ADMIN_' + now.getTime()
     const publishDate = now.toISOString()
 
-    db.collection('notice').add({
-      data: {
-        title: title,
-        content: content,
-        doc_url: docUrl || '',
-        publish_date: publishDate,
-        notice_id: noticeId,
-        type: 'admin',
-        created_by: self.data.adminName || '管理员'
-      }
-    }).then(function () {
-      // 发布成功后再触发订阅消息全推，不阻塞用户提示
-      wx.cloud.callFunction({
+    try {
+      await db.collection('notice').add({
+        data: {
+          title,
+          content,
+          doc_url: docUrl,
+          publish_date: publishDate,
+          notice_id: 'ADMIN_' + now.getTime(),
+          type: 'admin',
+          created_by: this.data.adminName || '管理员'
+        }
+      })
+
+      this.setData({ msgTitle: '', msgContent: '', msgDocUrl: '' })
+      wx.showToast({ title: '发布成功', icon: 'success' })
+      this.loadSentMessages()
+      this.pushNotice({ title, content, publishDate })
+    } catch (err) {
+      console.error('[admin] 发布通知失败', err)
+      wx.showToast({ title: '发布失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ isSending: false })
+    }
+  },
+
+  /** 订阅消息全推，失败不影响发布结果 */
+  async pushNotice({ title, content, publishDate }) {
+    try {
+      const res = await wx.cloud.callFunction({
         name: 'sendNoticeSubMsg',
         data: {
-          title: title,
-          content: content,
-          publishDate: publishDate,
+          title,
+          content,
+          publishDate,
           // 必须和 app.json 注册的路径一致，否则用户点通知打不开页面
           page: 'pages/notice/list/noticelist'
         }
-      }).then(function (res) {
-        const result = (res && res.result) || {}
-        const payload = result.data || result
-        console.log('订阅消息推送结果:', result)
-        if (typeof payload.sent === 'number') {
-          wx.showToast({
-            title: `已推送给 ${payload.sent} 位订阅用户`,
-            icon: 'none',
-            duration: 2500
-          })
-        }
-      }).catch(function (err) {
-        console.error('订阅消息推送失败:', err)
       })
-
-      self.setData({
-        isSending: false,
-        msgTitle: '',
-        msgContent: '',
-        msgDocUrl: ''
-      })
-
-      wx.showToast({
-        title: '发布成功',
-        icon: 'success'
-      })
-
-      self.loadSentMessages()
-    }).catch(function (err) {
-      self.setData({
-        isSending: false
-      })
-      console.error('发布失败:', err)
-      wx.showToast({
-        title: '发布失败，请重试',
-        icon: 'none'
-      })
-    })
+      const result = (res && res.result) || {}
+      const payload = result.data || result
+      console.log('[admin] 订阅消息推送结果', payload)
+      if (typeof payload.sent === 'number') {
+        wx.showToast({ title: '已推送给 ' + payload.sent + ' 位订阅用户', icon: 'none', duration: 2500 })
+      }
+    } catch (err) {
+      console.error('[admin] 订阅消息推送失败', err)
+    }
   },
 
+  /** 打开腾讯文档：跳小程序，失败则复制链接 */
   openDoc(e) {
     const url = e.currentTarget.dataset.url
     wx.navigateToMiniProgram({
       appId: 'wxd45c635d754dbf59', // 腾讯文档小程序 AppID
       path: 'pages/detail/detail?url=' + encodeURIComponent(url),
-      fail() {
-        // 兜底：跳转失败就复制链接，让用户去微信粘贴打开
+      fail: () => {
         wx.setClipboardData({
           data: url,
-          success() {
-            wx.showToast({
-              title: '链接已复制，去微信粘贴打开',
-              icon: 'none'
-            })
+          success: () => {
+            wx.showToast({ title: '链接已复制，去微信粘贴打开', icon: 'none' })
           }
         })
       }
     })
   },
 
-  /** 显示文档链接填写提示 */
   showDocUrlHint() {
     wx.showModal({
       title: '协作文档链接',
-      content: '请粘贴腾讯文档的分享链接（需以 https://docs.qq.com/ 开头）。\n\n在腾讯文档中点击"分享"→"复制链接"，权限需设为"任何人可编辑"，学生点击即可协作。',
+      content: '请粘贴腾讯文档的分享链接（需以 https://docs.qq.com/ 开头）。\n\n在腾讯文档中点击「分享 → 复制链接」，权限设为「任何人可编辑」，学生点击即可协作。',
       showCancel: false,
       confirmText: '知道了'
     })
   },
 
-  /** 删除通知（带二次确认） */
-  deleteNotice(e) {
-    const self = this
+  /** 删除通知，先在本地列表移除，再同步云端 */
+  async deleteNotice(e) {
     const dataset = e.currentTarget.dataset
-    // 优先用 _id，兜底用 notice_id
     const noticeId = dataset.id || dataset.noticeid
+    if (!noticeId) return wx.showToast({ title: '参数错误', icon: 'none' })
 
-    if (!noticeId) {
-      wx.showToast({
-        title: '参数错误',
-        icon: 'none'
+    const modal = await this.showConfirm({
+      title: '删除通知',
+      content: '删除后学生端将不再展示，且不可恢复。',
+      confirmText: '删除'
+    })
+    if (!modal.confirm) return
+
+    this.setData({ deletingNoticeId: noticeId })
+    try {
+      const res = await wx.cloud.callFunction({ name: 'deleteNotice', data: { noticeId } })
+      const result = res.result || {}
+      if (result.code !== 0) throw new Error(result.message || '删除失败')
+      this.setData({
+        sentMessages: this.data.sentMessages.filter((item) => item._id !== noticeId && item.notice_id !== noticeId)
       })
-      return
+      wx.showToast({ title: '已删除', icon: 'success' })
+    } catch (err) {
+      console.error('[admin] 删除通知失败', err)
+      wx.showToast({ title: '删除失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ deletingNoticeId: '' })
     }
-
-    wx.showModal({
-      title: '确认删除',
-      content: '确定要删除这条通知吗？删除后不可恢复。',
-      confirmColor: '#e74c3c',
-      success(modal) {
-        if (!modal.confirm) return
-
-        wx.showLoading({
-          title: '删除中...'
-        })
-
-        wx.cloud.callFunction({
-          name: 'deleteNotice',
-          data: {
-            noticeId: noticeId
-          }
-        }).then(function (res) {
-          wx.hideLoading()
-
-          if (res.result.code === 0) {
-            wx.showToast({
-              title: '删除成功',
-              icon: 'success'
-            })
-            // 前端列表立即移除，无需重新拉取
-            const list = self.data.sentMessages.filter(function (item) {
-              return item._id !== noticeId && item.notice_id !== noticeId
-            })
-            self.setData({
-              sentMessages: list
-            })
-          } else {
-            wx.showToast({
-              title: res.result.message || '删除失败',
-              icon: 'none'
-            })
-          }
-        }).catch(function (err) {
-          wx.hideLoading()
-          console.error('删除通知失败:', err)
-          wx.showToast({
-            title: '删除失败，请重试',
-            icon: 'none'
-          })
-        })
-      }
-    })
-  },
-  /** 加载已发布的历史通知 */
-  loadSentMessages() {
-    const self = this
-    self.setData({
-      isLoadingMessages: true
-    })
-    db.collection('notice')
-      .where({
-        type: 'admin'
-      })
-      .orderBy('publish_date', 'desc')
-      .limit(20)
-      .get()
-      .then(function (res) {
-        const list = []
-        for (let i = 0; i < (res.data || []).length; i++) {
-          list.push({
-            ...res.data[i],
-            dateDisplay: self.formatTime(res.data[i].publish_date)
-          })
-        }
-        self.setData({
-          sentMessages: list,
-          isLoadingMessages: false
-        })
-      })
-      .catch(function (err) {
-        console.error('加载通知历史失败:', err)
-        self.setData({
-          isLoadingMessages: false
-        })
-      })
   },
 
-  // ==================== 卫生打卡记录（Tab 3） ====================
-
-  /** 加载卫生打卡记录（第一页） */
-  loadDutyRecords() {
-    const self = this
-    if (!self.currentSession) return
-    self.setData({
-      isLoadingDuty: true,
-      dutyPage: 1
-    })
-
-    self.fetchAllByCloud('duty_records', {}, self.data.dutyPageSize, 'submit_time').then(function (records) {
-      return self.resolveDutyImages(records).then(function (formatted) {
-        self.setData({
-          dutyRecords: formatted,
-          hasMoreDuty: records.length === self.data.dutyPageSize,
-          isLoadingDuty: false
-        })
-      })
-    }).catch(function (err) {
-      console.error('加载卫生记录失败', err)
-      self.setData({
-        isLoadingDuty: false
-      })
-      wx.showToast({
-        title: '加载失败',
-        icon: 'none'
-      })
-    })
-  },
-
-  /** 加载更多卫生记录 */
-  loadMoreDuty() {
-    const self = this
-    if (self.data.isLoadingDuty || !self.data.hasMoreDuty) return
-    self.setData({
-      isLoadingDuty: true
-    })
-    const nextPage = self.data.dutyPage + 1
-    const skip = (nextPage - 1) * self.data.dutyPageSize
-
-    wx.cloud.callFunction({
-      name: 'getCollectionData',
-      data: {
-        collectionName: 'duty_records',
-        whereCondition: {},
-        pageSize: self.data.dutyPageSize,
-        startSkip: skip,
-        sortField: 'submit_time'
-      }
-    }).then(function (res) {
-      if (res.result.code !== 0) throw new Error(res.result.message)
-      return self.resolveDutyImages(res.result.data).then(function (newRecords) {
-        self.setData({
-          dutyRecords: self.data.dutyRecords.concat(newRecords),
-          dutyPage: nextPage,
-          hasMoreDuty: newRecords.length === self.data.dutyPageSize,
-          isLoadingDuty: false
-        })
-      })
-    }).catch(function (err) {
-      console.error('加载更多失败:', err)
-      self.setData({
-        isLoadingDuty: false
-      })
-      wx.showToast({
-        title: '加载失败',
-        icon: 'none'
-      })
-    })
-  },
-
-  /**
-   * 解析卫生记录中的图片 fileID 为临时访问链接
-   * 先收集所有 fileID → 调用 getBatchTempUrl 云函数 → 映射回记录
-   */
-  resolveDutyImages(records) {
-    const self = this
-    return new Promise(function (resolve) {
-      if (!records || records.length === 0) {
-        resolve([])
-        return
-      }
-      const allFileIds = []
-      for (let i = 0; i < records.length; i++) {
-        if (records[i].images && records[i].images.length) {
-          for (let j = 0; j < records[i].images.length; j++) {
-            allFileIds.push(records[i].images[j])
-          }
-        }
-      }
-      // 去重
-      const dedupIds = []
-      for (let k = 0; k < allFileIds.length; k++) {
-        if (allFileIds[k] && dedupIds.indexOf(allFileIds[k]) === -1) dedupIds.push(allFileIds[k])
-      }
-      if (dedupIds.length === 0) {
-        const emptyResult = []
-        for (let m = 0; m < records.length; m++) emptyResult.push({
-          ...records[m],
-          imageUrls: []
-        })
-        resolve(emptyResult)
-        return
-      }
-      wx.cloud.callFunction({
-        name: 'getBatchTempUrl',
-        data: {
-          fileList: dedupIds
-        }
-      }).then(function (res) {
-        const map = {}
-        for (let f = 0; f < res.result.length; f++) {
-          map[res.result[f].fileID] = res.result[f].tempFileURL || ''
-        }
-        const result = []
-        for (let r = 0; r < records.length; r++) {
-          const item = records[r]
-          const urls = []
-          if (item.images) {
-            for (let u = 0; u < item.images.length; u++) {
-              const url = map[item.images[u]] || ''
-              if (url) urls.push(url)
-            }
-          }
-          result.push({
-            ...item,
-            submit_time_display: self.formatTime(item.submit_time),
-            imageUrls: urls
-          })
-        }
-        resolve(result)
-      })
-    })
-  },
-
-  /** 预览卫生打卡图片 */
-  previewDutyImage(e) {
-    const src = e.currentTarget.dataset.src
-    const list = e.currentTarget.dataset.list
-    wx.previewImage({
-      current: src,
-      urls: list
-    })
+  /** 加载最近 20 条已发布通知 */
+  async loadSentMessages() {
+    this.setData({ isLoadingMessages: true })
+    try {
+      const res = await db.collection('notice')
+        .where({ type: 'admin' })
+        .orderBy('publish_date', 'desc')
+        .limit(20)
+        .get()
+      const list = (res.data || []).map((item) => ({
+        ...item,
+        dateDisplay: this.formatTime(item.publish_date)
+      }))
+      this.setData({ sentMessages: list })
+    } catch (err) {
+      console.error('[admin] 加载通知历史失败', err)
+      wx.showToast({ title: '通知历史加载失败', icon: 'none' })
+    } finally {
+      this.setData({ isLoadingMessages: false })
+    }
   },
 
   // ==================== 注册审批 ====================
 
-  /** 查询待审批申请数量，用于卡片红点 */
-  loadPendingApplyCount() {
-    const self = this
-    wx.cloud.callFunction({
-      name: 'getCollectionData',
-      data: {
-        collectionName: 'user_apply',
-        whereCondition: {
-          status: 'pending'
-        },
-        pageSize: 100
-      }
-    }).then(function (res) {
-      if (res.result.code !== 0) return
-      const list = res.result.data || []
-      self.setData({
-        pendingApplyCount: list.length
-      })
-    }).catch(function (err) {
-      console.error('查询待审批数量失败:', err)
-    })
+  /** 待审批数量，用于「更多」页红点 */
+  async loadPendingApplyCount() {
+    try {
+      const res = await db.collection('user_apply').where({ status: 'pending' }).count()
+      this.setData({ pendingApplyCount: res.total || 0 })
+    } catch (err) {
+      console.error('[admin] 查询待审批数量失败', err)
+    }
   },
 
-  /** 跳转到注册审批页面 */
   goToApplyReview() {
-    wx.navigateTo({
-      url: '/pages/admin/apply-review/applyreview'
-    })
+    wx.navigateTo({ url: '/pages/admin/apply-review/applyreview' })
   },
 
   // ==================== 退出登录 ====================
 
   confirmLogout() {
-    this.setData({
-      showExitConfirm: true
-    })
-  },
-  cancelExit() {
-    this.setData({
-      showExitConfirm: false
-    })
-  },
-  onBeforeLeaveExit() {
-    this.setData({
-      showExitConfirm: false
-    })
+    this.setData({ showExitConfirm: true })
   },
 
-  /** 确认退出：清除缓存，跳转到登录页 */
+  cancelExit() {
+    this.setData({ showExitConfirm: false })
+  },
+
+  /** 确认退出：关掉系统的返回拦截，清缓存后回登录页 */
   doLogout() {
-    const self = this
-    // 先关闭系统退出确认，防止 reLaunch 被拦截
     wx.disableAlertBeforeUnload()
-    // 关闭弹窗
-    this.setData({
-      showExitConfirm: false
-    }, function () {
-      // setData 回调里再执行跳转，确保弹窗状态已更新
+    this.setData({ showExitConfirm: false }, () => {
       wx.removeStorageSync('adminInfo')
-      wx.reLaunch({
-        url: '/pages/admin/login/adminlogin'
-      })
+      wx.reLaunch({ url: '/pages/admin/login/adminlogin' })
     })
   },
 
   // ==================== 订阅消息 ====================
 
-  /** 请求订阅消息授权 */
+  /** 请求订阅授权：必须由用户点击触发 */
   requestSubscribeMessage() {
-    const TMPL_IDS = [
-      '9Lr3yHaJzl8LyzC5qbNGFYgu5ILBFc3XSowjJRv1-eg', // 通用（含新注册申请）
-      'rEryURnzJ73glhEiqTmrGi3sNio16MDmUcMrIc0LPiY' // 故障告警
-    ]
     wx.requestSubscribeMessage({
-      tmplIds: TMPL_IDS,
-      success(res) {
-        TMPL_IDS.forEach(function (id) {
-          if (res[id] === 'accept') {
-            console.log('已订阅:', id)
-          } else {
-            console.log('未订阅:', id, res[id])
-          }
+      tmplIds: SUBSCRIBE_TMPL_IDS,
+      success: (res) => {
+        const accepted = SUBSCRIBE_TMPL_IDS.filter((id) => res[id] === 'accept')
+        wx.showToast({
+          title: accepted.length ? '订阅成功' : '未订阅，可稍后再试',
+          icon: 'none'
         })
       },
-      fail(err) {
-        console.error('订阅授权失败:', err)
+      fail: (err) => {
+        console.error('[admin] 订阅授权失败', err)
+        wx.showToast({ title: '订阅失败，请在设置中开启通知', icon: 'none' })
       }
     })
   },
@@ -1306,19 +843,15 @@ Page({
   // ==================== 页面跳转 ====================
 
   goToReserveList() {
-    wx.navigateTo({
-      url: '/pages/admin/reserve-list/adminreservelist'
-    })
+    wx.navigateTo({ url: '/pages/admin/reserve-list/adminreservelist' })
   },
 
+  /** 3D 看板（分包页面，按角色传参） */
   goTo3DBoard() {
     const role = this.currentSession ? this.currentSession.role : 'admin'
-    wx.navigateTo({
-      url: '/pages/webview/3dscene/scene3d?role=' + encodeURIComponent(role)
-    })
+    wx.navigateTo({ url: '/pages/webview/3dscene/scene3d?role=' + encodeURIComponent(role) })
   },
 
-  /** 跳转到仪器详情页 */
   goToDeviceDetail(e) {
     const dataset = e.currentTarget.dataset
     const deviceName = String(dataset.deviceName || '')
@@ -1327,68 +860,68 @@ Page({
     const model = String(dataset.model || '')
     const groupKey = String(dataset.groupKey || '')
     const rawKeyword = String(this.data.filters.searchKeyword || '').trim()
-    const keyword = (rawKeyword && deviceName.toLowerCase().indexOf(rawKeyword.toLowerCase()) !== -1) ? '' : rawKeyword
+    // 详情页会按关键词二次过滤，命中当前搜索词的组会把自身过滤掉，这里主动清空
+    const keyword = rawKeyword && deviceName.toLowerCase().indexOf(rawKeyword.toLowerCase()) === -1 ? rawKeyword : ''
 
     wx.navigateTo({
-      url: '/pages/admin/device-detail/admindevicedetail?deviceName=' + encodeURIComponent(deviceName) + '&labName=' + encodeURIComponent(labName) + '&deviceType=' + encodeURIComponent(deviceType) + '&model=' + encodeURIComponent(model) + '&groupKey=' + encodeURIComponent(groupKey) + '&keyword=' + encodeURIComponent(keyword)
+      url: '/pages/admin/device-detail/admindevicedetail?deviceName=' + encodeURIComponent(deviceName)
+        + '&labName=' + encodeURIComponent(labName)
+        + '&deviceType=' + encodeURIComponent(deviceType)
+        + '&model=' + encodeURIComponent(model)
+        + '&groupKey=' + encodeURIComponent(groupKey)
+        + '&keyword=' + encodeURIComponent(keyword)
     })
   },
 
-  // 预约状态快捷跳转
   gotoUpcoming() {
-    wx.navigateTo({
-      url: '/pages/admin/reserve-list/adminreservelist?status=upcoming'
-    })
+    wx.navigateTo({ url: '/pages/admin/reserve-list/adminreservelist?status=upcoming' })
   },
+
   gotoUsing() {
-    wx.navigateTo({
-      url: '/pages/admin/reserve-list/adminreservelist?status=using'
-    })
+    wx.navigateTo({ url: '/pages/admin/reserve-list/adminreservelist?status=using' })
   },
+
   gotoCompleted() {
-    wx.navigateTo({
-      url: '/pages/admin/reserve-list/adminreservelist?status=completed'
-    })
+    wx.navigateTo({ url: '/pages/admin/reserve-list/adminreservelist?status=completed' })
   },
-  gotoAll() {
-    wx.navigateTo({
-      url: '/pages/admin/reserve-list/adminreservelist?status=all'
-    })
-  },
+
   gotoAbnormal() {
-    wx.navigateTo({
-      url: '/pages/admin/reserve-list/adminreservelist?status=abnormal'
-    })
+    wx.navigateTo({ url: '/pages/admin/reserve-list/adminreservelist?status=abnormal' })
+  },
+
+  gotoAll() {
+    wx.navigateTo({ url: '/pages/admin/reserve-list/adminreservelist?status=all' })
   },
 
   gotoReserveDetail(e) {
-    wx.navigateTo({
-      url: '/pages/reserve-detail/reserve-detail?id=' + e.currentTarget.dataset.id
-    })
+    wx.navigateTo({ url: '/pages/reserve-detail/reserve-detail?id=' + e.currentTarget.dataset.id })
   },
 
   goResetPwd() {
-    wx.navigateTo({
-      url: '/pages/resetPwd/resetPwd'
-    })
+    wx.navigateTo({ url: '/pages/resetPwd/resetPwd' })
   },
+
+  goToDutyRecords() {
+    wx.navigateTo({ url: '/pages/admin/duty-list/duty-list' })
+  },
+
+  /** 表单遮罩层吞掉点击，避免误关弹窗 */
+  noop() {},
 
   // ==================== 新增仪器 ====================
 
-  /** 打开新增仪器弹窗，重置表单 */
   openAddDeviceModal() {
     this.setData({
       showDeviceForm: true,
       isSubmittingDevice: false,
+      isUploadingPic: false,
       deviceForm: {
         device_name: '',
         lab_name: '',
         device_room: '',
         device_type: 'large',
         lab_type: 'public',
-        instances: [{
-          device_id: ''
-        }],
+        instances: [{ device_id: '' }],
         picture: '',
         pictureUrl: '',
         operation_procedure: '',
@@ -1399,269 +932,208 @@ Page({
   },
 
   closeDeviceForm() {
-    this.setData({
-      showDeviceForm: false
-    })
+    if (this.data.isSubmittingDevice) return
+    this.setData({ showDeviceForm: false })
   },
 
   onDeviceFormInput(e) {
     const field = e.currentTarget.dataset.field
-    const value = e.detail.value
-    this.setData({
-      ['deviceForm.' + field]: value
-    })
+    this.setData({ ['deviceForm.' + field]: e.detail.value })
   },
 
   selectDeviceType(e) {
-    this.setData({
-      'deviceForm.device_type': e.currentTarget.dataset.type
-    })
+    this.setData({ 'deviceForm.device_type': e.currentTarget.dataset.type })
   },
+
   selectLabType(e) {
-    this.setData({
-      'deviceForm.lab_type': e.currentTarget.dataset.type
-    })
+    this.setData({ 'deviceForm.lab_type': e.currentTarget.dataset.type })
   },
 
-  /** 添加一台设备编号输入框 */
   addInstance() {
-    const instances = this.data.deviceForm.instances.slice()
-    instances.push({
-      device_id: ''
-    })
-    this.setData({
-      'deviceForm.instances': instances
-    })
+    const instances = this.data.deviceForm.instances.concat([{ device_id: '' }])
+    this.setData({ 'deviceForm.instances': instances })
   },
 
-  /** 删除指定索引的设备编号输入框 */
   deleteInstance(e) {
-    const index = e.currentTarget.dataset.index
+    const index = Number(e.currentTarget.dataset.index)
     const instances = this.data.deviceForm.instances.slice()
+    if (instances.length <= 1) return
     instances.splice(index, 1)
-    this.setData({
-      'deviceForm.instances': instances
-    })
+    this.setData({ 'deviceForm.instances': instances })
   },
 
   onInstanceInput(e) {
-    const index = e.currentTarget.dataset.index
-    const value = e.detail.value
-    const instances = this.data.deviceForm.instances.slice()
-    instances[index].device_id = value
-    this.setData({
-      'deviceForm.instances': instances
-    })
+    const index = Number(e.currentTarget.dataset.index)
+    this.setData({ ['deviceForm.instances[' + index + '].device_id']: e.detail.value })
   },
 
-  /** 选择并上传仪器图片 */
-  chooseDevicePic() {
-    const self = this
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      success(res) {
-        const tempPath = res.tempFiles[0].tempFilePath
-        wx.showLoading({
-          title: '上传中...'
-        })
-        wx.cloud.uploadFile({
-          cloudPath: 'device_pics/' + Date.now() + '.jpg',
-          filePath: tempPath,
-          success(uploadRes) {
-            wx.hideLoading()
-            const fileID = uploadRes.fileID
-            // 预览需要临时链接；cloud:// 直接渲染会报渲染层 500
-            // deviceForm.picture 仍保存 fileID，保证入库的是云文件地址
-            cloudFile.resolveTempUrls([fileID]).then(function (map) {
-              const previewUrl = map[fileID] || ''
-              self.setData({
-                'deviceForm.picture': fileID,
-                'deviceForm.pictureUrl': previewUrl
-              })
-            }).catch(function () {
-              self.setData({
-                'deviceForm.picture': fileID,
-                'deviceForm.pictureUrl': ''
-              })
-            })
-          },
-          fail(err) {
-            wx.hideLoading()
-            console.error('图片上传失败:', err)
-            wx.showToast({
-              title: '图片上传失败',
-              icon: 'none'
-            })
-          }
-        })
+  /** 选择并上传仪器图片：picture 存 fileID，pictureUrl 只用于预览 */
+  async chooseDevicePic() {
+    if (this.data.isUploadingPic) return
+    try {
+      const media = await wx.chooseMedia({
+        count: 1,
+        mediaType: ['image'],
+        sourceType: ['album', 'camera'],
+        sizeType: ['compressed']
+      })
+      const tempPath = media.tempFiles && media.tempFiles[0] && media.tempFiles[0].tempFilePath
+      if (!tempPath) return
+
+      this.setData({ isUploadingPic: true })
+      this._picLoading = true
+      wx.showLoading({ title: '图片上传中', mask: true })
+      const uploadRes = await wx.cloud.uploadFile({
+        cloudPath: 'device_pics/' + Date.now() + '.jpg',
+        filePath: tempPath
+      })
+      const fileID = uploadRes.fileID
+      let previewUrl = ''
+      try {
+        const map = await cloudFile.resolveTempUrls([fileID])
+        previewUrl = map[fileID] || ''
+      } catch (err) {
+        console.error('[admin] 解析图片临时链接失败', err)
       }
-    })
+      this.setData({ 'deviceForm.picture': fileID, 'deviceForm.pictureUrl': previewUrl })
+    } catch (err) {
+      const errMsg = String((err && err.errMsg) || '')
+      if (errMsg.indexOf('cancel') !== -1) return
+      console.error('[admin] 上传仪器图片失败', err)
+      wx.showToast({ title: '图片上传失败', icon: 'none' })
+    } finally {
+      // 只有真的调用过 showLoading 才 hide，否则控制台会报警告
+      if (this._picLoading) {
+        wx.hideLoading()
+        this._picLoading = false
+      }
+      this.setData({ isUploadingPic: false })
+    }
   },
 
-  /** 将规格文本（key:value 每行一个）解析为对象 */
+  /** 规格文本（每行 key:value）→ 对象 */
   parseSpecs(text) {
     const specs = {}
     if (!text) return specs
-    const lines = text.split('\n')
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim()
-      if (!line) continue
-      const sepIndex = line.indexOf('\uff1a') !== -1 ? line.indexOf('\uff1a') : line.indexOf(':')
-      if (sepIndex === -1) continue
+    text.split('\n').forEach((rawLine) => {
+      const line = rawLine.trim()
+      if (!line) return
+      const cnIndex = line.indexOf('\uff1a')
+      const sepIndex = cnIndex !== -1 ? cnIndex : line.indexOf(':')
+      if (sepIndex === -1) return
       const key = line.substring(0, sepIndex).trim()
       const val = line.substring(sepIndex + 1).trim()
       if (key) specs[key] = val
-    }
+    })
     return specs
   },
 
-  /** 提交新增仪器表单（校验 → 去重 → 调用云函数） */
-  submitDeviceForm() {
-    const self = this
-    const form = self.data.deviceForm
+  /** 提交新增仪器表单（校验 → 去重 → 云函数） */
+  async submitDeviceForm() {
+    if (this.data.isSubmittingDevice) return
+    const form = this.data.deviceForm
 
-    if (!form.device_name.trim()) return wx.showToast({
-      title: '请输入仪器名称',
-      icon: 'none'
-    })
-    if (!form.lab_name.trim()) return wx.showToast({
-      title: '请输入所属实验室',
-      icon: 'none'
-    })
-    if (!form.device_room.trim()) return wx.showToast({
-      title: '请输入房间位置',
-      icon: 'none'
-    })
+    const deviceName = String(form.device_name || '').trim()
+    const labName = String(form.lab_name || '').trim()
+    const deviceRoom = String(form.device_room || '').trim()
+    if (!deviceName) return wx.showToast({ title: '请输入仪器名称', icon: 'none' })
+    if (!labName) return wx.showToast({ title: '请输入所属实验室', icon: 'none' })
+    if (!deviceRoom) return wx.showToast({ title: '请输入房间位置', icon: 'none' })
 
-    // 收集并校验设备编号
-    const idList = []
-    for (let i = 0; i < form.instances.length; i++) {
-      const v = form.instances[i].device_id.trim()
-      if (v) idList.push(v)
-    }
-    if (idList.length === 0) return wx.showToast({
-      title: '请至少填写一台设备编号',
-      icon: 'none'
-    })
+    const idList = form.instances.map((item) => String(item.device_id || '').trim()).filter(Boolean)
+    if (idList.length === 0) return wx.showToast({ title: '请至少填写一台设备编号', icon: 'none' })
 
-    // 去重校验
-    const dedup = []
-    for (let j = 0; j < idList.length; j++) {
-      if (dedup.indexOf(idList[j]) === -1) dedup.push(idList[j])
-    }
-    if (dedup.length !== idList.length) return wx.showToast({
-      title: '设备编号不能重复',
-      icon: 'none'
-    })
-
-    self.setData({
-      isSubmittingDevice: true
-    })
-
-    const submitData = {
-      device_name: form.device_name.trim(),
-      lab_name: form.lab_name.trim(),
-      device_room: form.device_room.trim(),
-      device_type: form.device_type,
-      lab_type: form.lab_type,
-      device_ids: idList,
-      picture: form.picture,
-      operation_procedure: form.operation_procedure.trim(),
-      precautions: form.precautions.trim(),
-      specifications: self.parseSpecs(form.specificationsText)
+    const seen = {}
+    for (let i = 0; i < idList.length; i++) {
+      if (seen[idList[i]]) return wx.showToast({ title: '设备编号不能重复', icon: 'none' })
+      seen[idList[i]] = true
     }
 
-    wx.cloud.callFunction({
-      name: 'addDeviceGroup',
-      data: submitData
-    })
-      .then(function (res) {
-        self.setData({
-          isSubmittingDevice: false
-        })
-        if (res.result.code === 0) {
-          wx.showToast({
-            title: '新增成功',
-            icon: 'success'
-          })
-          setTimeout(function () {
-            self.closeDeviceForm()
-            self.loadDeviceStatus()
-          }, 1500)
-        } else {
-          wx.showToast({
-            title: res.result.message || '新增失败',
-            icon: 'none'
-          })
+    this.setData({ isSubmittingDevice: true })
+    try {
+      const res = await wx.cloud.callFunction({
+        name: 'addDeviceGroup',
+        data: {
+          device_name: deviceName,
+          lab_name: labName,
+          device_room: deviceRoom,
+          device_type: form.device_type,
+          lab_type: form.lab_type,
+          device_ids: idList,
+          picture: form.picture,
+          operation_procedure: String(form.operation_procedure || '').trim(),
+          precautions: String(form.precautions || '').trim(),
+          specifications: this.parseSpecs(form.specificationsText)
         }
       })
-      .catch(function (err) {
-        self.setData({
-          isSubmittingDevice: false
-        })
-        console.error('新增仪器失败:', err)
-        wx.showToast({
-          title: '新增失败，请重试',
-          icon: 'none'
-        })
-      })
+      const result = res.result || {}
+      if (result.code !== 0) {
+        wx.showToast({ title: result.message || '新增失败', icon: 'none' })
+        return
+      }
+      wx.showToast({ title: '新增成功', icon: 'success' })
+      this.setData({ showDeviceForm: false })
+      await this.loadDeviceStatus()
+    } catch (err) {
+      console.error('[admin] 新增仪器失败', err)
+      wx.showToast({ title: '新增失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ isSubmittingDevice: false })
+    }
   },
 
   // ==================== 删除仪器组 ====================
 
-  /** 删除仪器组（带二次确认） */
-  deleteDeviceGroup(e) {
-    const self = this
+  async deleteDeviceGroup(e) {
     const dataset = e.currentTarget.dataset
-    wx.showModal({
-      title: '确认删除',
-      content: '确定要删除「' + dataset.deviceName + '」该组所有仪器吗？删除后不可恢复。',
-      confirmColor: '#e74c3c',
-      success(modal) {
-        if (!modal.confirm) return
-        wx.showLoading({
-          title: '删除中...'
-        })
-        wx.cloud.callFunction({
-          name: 'deleteDeviceGroup',
-          data: {
-            device_name: dataset.deviceName,
-            lab_name: dataset.labName,
-            device_room: dataset.deviceRoom,
-            device_type: dataset.deviceType,
-            model: dataset.model || ''
-          }
-        }).then(function (res) {
-          wx.hideLoading()
-          if (res.result.code === 0) {
-            wx.showToast({
-              title: '删除成功',
-              icon: 'success'
-            })
-            self.loadDeviceStatus()
-          } else {
-            wx.showToast({
-              title: res.result.message || '删除失败',
-              icon: 'none'
-            })
-          }
-        }).catch(function (err) {
-          wx.hideLoading()
-          console.error('删除仪器组失败:', err)
-          wx.showToast({
-            title: '删除失败，请重试',
-            icon: 'none'
-          })
-        })
-      }
+    const groupKey = String(dataset.groupKey || '')
+    if (!groupKey) return
+
+    const payload = {
+      device_name: dataset.deviceName,
+      lab_name: dataset.labName,
+      device_room: dataset.deviceRoom,
+      device_type: dataset.deviceType,
+      model: dataset.model || ''
+    }
+
+    const modal = await this.showConfirm({
+      title: '删除仪器组',
+      content: '将删除「' + dataset.deviceName + '」这一组的全部仪器，删除后不可恢复。',
+      confirmText: '删除'
     })
+    if (!modal.confirm) return
+
+    this.setData({ deletingGroupKey: groupKey })
+    try {
+      // 云函数发现组内还有未结束的预约会返回 1004，这里再确认一次后强制删除
+      let result = await this.callDeleteGroup(payload)
+      if (result.code === 1004) {
+        const second = await this.showConfirm({
+          title: '该组还有进行中的预约',
+          content: (result.message || '') + '。仍然删除吗？',
+          confirmText: '仍然删除'
+        })
+        if (!second.confirm) return
+        result = await this.callDeleteGroup({ ...payload, force: true })
+      }
+      if (result.code !== 0) {
+        wx.showToast({ title: result.message || '删除失败', icon: 'none' })
+        return
+      }
+      wx.showToast({ title: '删除成功', icon: 'success' })
+      await this.loadDeviceStatus()
+    } catch (err) {
+      console.error('[admin] 删除仪器组失败', err)
+      wx.showToast({ title: '删除失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ deletingGroupKey: '' })
+    }
   },
 
-  goToDutyRecords() {
-    wx.navigateTo({
-      url: '/pages/admin/duty-list/duty-list'
-    })
+  /** 调用 deleteDeviceGroup 云函数，统一取 result 对象 */
+  async callDeleteGroup(payload) {
+    const res = await wx.cloud.callFunction({ name: 'deleteDeviceGroup', data: payload })
+    return res.result || {}
   }
 })

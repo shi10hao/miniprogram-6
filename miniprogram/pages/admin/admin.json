@@ -1,7 +1,9 @@
 {
-  "navigationBarTitleText": "管理员后台",
+  "navigationBarTitleText": "管理中心",
   "navigationBarBackgroundColor": "#2d6a6e",
   "navigationBarTextStyle": "white",
+  "backgroundColor": "#f4f6f8",
+  "backgroundTextStyle": "dark",
   "enablePullDownRefresh": true,
   "usingComponents": {}
 }
