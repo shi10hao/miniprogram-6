@@ -84,10 +84,6 @@
       <text class="form-label">密码</text>
       <input class="form-input" placeholder="请输入密码" value="{{password}}" bindinput="onPwdInput" password maxlength="20" />
     </view>
-    <!-- <view class="form-item">
-      <text class="form-label">手机号</text>
-      <input class="form-input" placeholder="请输入11位手机号" value="{{phone}}" bindinput="onPhoneInput" type="number" maxlength="11" />
-    </view> -->
     <button class="verify-button {{isVerifying ? 'verifying' : ''}}" bindtap="doLogin" disabled="{{isVerifying || !canSubmit}}">
       {{isVerifying ? '登录中...' : '登录'}}
     </button>

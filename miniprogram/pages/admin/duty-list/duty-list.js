@@ -268,10 +268,6 @@ Page({
     this.bootstrap()
   },
 
-  onRefresh() {
-    this.bootstrap()
-  },
-
   goBack() {
     if (getCurrentPages().length > 1) {
       wx.navigateBack({ delta: 1 })

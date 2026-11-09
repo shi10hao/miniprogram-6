@@ -55,7 +55,7 @@ function formatTime(input) {
 
   const parts = CHINA_TIME_FORMAT.formatToParts(date)
   const pick = (type) => {
-    const hit = parts.find((item) => item.type === type)
+    const hit = parts.find(item => item.type === type)
     return hit ? hit.value : ''
   }
   const year = pick('year')
@@ -112,7 +112,7 @@ async function sendOne(user, messageData, options) {
   try {
     await cloud.openapi.subscribeMessage.send({
       touser: user._openid,
-      template_id: NOTICE_TMPL_ID,
+      templateId: NOTICE_TMPL_ID,
       page: options.page,
       data: messageData,
       miniprogramState: options.miniprogramState,
@@ -203,12 +203,12 @@ exports.main = async (event = {}) => {
     for (let i = 0; i < users.length; i += safeConcurrency) {
       const batch = users.slice(i, i + safeConcurrency)
       const batchResults = await Promise.all(
-        batch.map((user) => sendOne(user, messageData, { page, miniprogramState }))
+        batch.map(user => sendOne(user, messageData, { page, miniprogramState }))
       )
       sendResults.push(...batchResults)
     }
 
-    const sent = sendResults.filter((item) => item.ok).length
+    const sent = sendResults.filter(item => item.ok).length
     return {
       code: 0,
       msg: 'ok',

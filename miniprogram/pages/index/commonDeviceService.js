@@ -59,31 +59,31 @@ async function loadFromCloud(params) {
 async function loadRecentRecords(params) {
   const usageTask = params.userId
     ? db.collection('device_usage')
-      .where({ user_id: params.userId, status: _.in(USAGE_STATUS) })
-      .field({ device_id: true, device_name: true, start_time: true })
-      .orderBy('start_time', 'desc')
-      .limit(commonDeviceModel.RECENT_SCAN)
-      .get()
-      .catch((err) => {
-        console.error('[commonDeviceService] 取使用记录失败', err)
-        return { data: [] }
-      })
+        .where({ user_id: params.userId, status: _.in(USAGE_STATUS) })
+        .field({ device_id: true, device_name: true, start_time: true })
+        .orderBy('start_time', 'desc')
+        .limit(commonDeviceModel.RECENT_SCAN)
+        .get()
+        .catch((err) => {
+          console.error('[commonDeviceService] 取使用记录失败', err)
+          return { data: [] }
+        })
     : Promise.resolve({ data: [] })
 
   const reserveTask = params.userId
     ? db.collection('reserves')
-      .where({
-        user_id: params.userId,
-        status: _.in(commonDeviceModel.USABLE_RESERVE_STATUS)
-      })
-      .field({ device_id: true, device_name: true, status: true, start_time: true })
-      .orderBy('start_time', 'desc')
-      .limit(commonDeviceModel.RECENT_SCAN)
-      .get()
-      .catch((err) => {
-        console.error('[commonDeviceService] 取预约记录失败', err)
-        return { data: [] }
-      })
+        .where({
+          user_id: params.userId,
+          status: _.in(commonDeviceModel.USABLE_RESERVE_STATUS)
+        })
+        .field({ device_id: true, device_name: true, status: true, start_time: true })
+        .orderBy('start_time', 'desc')
+        .limit(commonDeviceModel.RECENT_SCAN)
+        .get()
+        .catch((err) => {
+          console.error('[commonDeviceService] 取预约记录失败', err)
+          return { data: [] }
+        })
     : Promise.resolve({ data: [] })
 
   const results = await Promise.all([usageTask, reserveTask])
@@ -104,7 +104,7 @@ function loadAvailableDevices(groupName, excludeIds) {
     .orderBy('device_id', 'asc')
     .limit(AVAILABLE_LIMIT)
     .get()
-    .then((res) => res.data || [])
+    .then(res => res.data || [])
     .catch((err) => {
       console.error('[commonDeviceService] 取可预约仪器失败', err)
       return []
@@ -119,7 +119,7 @@ function loadUsedDevices(ids, groupName) {
     .field(deviceField())
     .limit(DEVICE_LIMIT)
     .get()
-    .then((res) => res.data || [])
+    .then(res => res.data || [])
     .catch((err) => {
       console.error('[commonDeviceService] 取使用过的仪器失败', err)
       return []

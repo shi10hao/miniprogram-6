@@ -574,11 +574,14 @@
   color: var(--ds-danger);
 }
 
+/* input 是原生组件，没写 height 时用的是基础库给的默认高度（约 1.4rem）。
+   之前这里只给了上下 padding，又配了 box-sizing: border-box，
+   默认高度被 40rpx 的上下内边距吃掉，真正装文字的内容区只剩几条 rpx —— 看上去就是输入栏被压扁。
+   所以输入框一律写死高度、内边距只留左右；textarea 的换行留白继续走上下 padding。 */
 .form-input,
 .form-textarea {
   width: 100%;
   box-sizing: border-box;
-  padding: 20rpx var(--ds-gap);
   border-radius: var(--ds-radius-sm);
   border: 1rpx solid var(--ds-border);
   background: var(--ds-fill);
@@ -586,8 +589,14 @@
   color: var(--ds-text);
 }
 
+.form-input {
+  height: 88rpx;
+  padding: 0 var(--ds-gap);
+}
+
 .form-textarea {
   height: 190rpx;
+  padding: 20rpx var(--ds-gap);
   line-height: 1.6;
 }
 

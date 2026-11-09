@@ -1,66 +1,261 @@
-<!-- pages/device-instance-detail/device-instance-detail.wxml -->
-<view class="container">
+<view class="page">
+  <!-- ==================== 顶部：实例身份 ==================== -->
+  <view class="hero">
+    <view class="hero-deco"></view>
 
-  <!-- ===== 顶部 Header ===== -->
-  <view class="header">
-    <text class="device-name">{{deviceInstanceInfo.device_name || ''}}</text>
-    <view class="header-meta">
-      <text class="meta-item">📍 {{deviceInstanceInfo.lab_name || ''}} · {{deviceInstanceInfo.device_room || ''}}</text>
-      <view class="status-badge {{deviceInstanceInfo.displayStatus}}">
-        {{deviceInstanceInfo.displayStatus === 'available' ? '可用' : deviceInstanceInfo.displayStatus === 'using' ? '使用中' : '维护中'}}
+    <view class="hero-top">
+      <view class="hero-eyebrow">
+        <view class="hero-dot"></view>
+        <text class="hero-eyebrow-text">实例详情</text>
       </view>
+      <view class="hero-chip {{deviceView ? deviceView.chipClass : 'chip-none'}}">{{deviceView ? deviceView.statusText : '加载中'}}</view>
     </view>
-    <view class="header-device-id">
-      <text class="meta-item">设备编号：{{deviceInstanceInfo.device_id || ''}}</text>
+
+    <view class="hero-title">{{deviceView ? deviceView.deviceName : (notFound ? '实例不存在' : '加载中…')}}</view>
+
+    <view wx:if="{{deviceView}}" class="hero-sub">
+      <text class="hero-sub-item">{{deviceView.labName || '实验室未填'}}</text>
+      <text class="hero-sub-dot">·</text>
+      <text class="hero-sub-item">{{deviceView.room || '房间未填'}}</text>
+    </view>
+    <view wx:else class="hero-sub">
+      <text class="hero-sub-item">{{notFound ? '未找到对应记录' : '正在读取实例信息…'}}</text>
+    </view>
+
+    <view class="hero-tags">
+      <text class="hero-tag">编号 {{deviceId || '—'}}</text>
+      <text wx:if="{{deviceView.model}}" class="hero-tag">{{deviceView.model}}</text>
+      <text wx:if="{{deviceView.labType}}" class="hero-tag">{{deviceView.labType}}</text>
+    </view>
+
+    <view wx:if="{{deviceView.isUsing}}" class="hero-using">
+      <view class="hero-using-dot"></view>
+      <view class="hero-using-body">
+        <text class="hero-using-name">{{deviceView.usingUser}}</text>
+        <text wx:if="{{deviceView.usingDetail}}" class="hero-using-detail">{{deviceView.usingDetail}}</text>
+      </view>
     </view>
   </view>
 
-  <!-- ===== 加载中 ===== -->
-  <view wx:if="{{isLoading}}" class="center-hint">
-    <view class="loading-spin"></view>
-    <text>加载中...</text>
-  </view>
+  <view class="body">
+    <!-- ==================== 加载中 ==================== -->
+    <view wx:if="{{isLoading}}" class="ds-card">
+      <view class="ds-skeleton sk-title"></view>
+      <view class="ds-skeleton sk-line"></view>
+      <view class="ds-skeleton sk-line sk-line-short"></view>
+      <view class="ds-skeleton sk-block"></view>
+    </view>
 
-  <!-- ===== 主体内容 ===== -->
-  <view wx:else class="content">
+    <!-- ==================== 加载失败 ==================== -->
+    <view wx:elif="{{loadError}}" class="ds-card ds-empty">
+      <view class="ds-empty-icon">⚠️</view>
+      <view class="ds-empty-title">详情没能加载出来</view>
+      <view class="ds-empty-desc">可能是网络抖动，重试一次即可</view>
+      <view class="ds-btn ds-btn-ghost empty-btn" bindtap="retryLoad">重新加载</view>
+    </view>
 
-    <!-- ===== 1. 今日时间轴（核心功能） ===== -->
-    <view class="section">
-      <view class="section-title-wrap" bindtap="toggleSection" data-section="timeline">
-        <text class="section-title">📊 今日时间轴</text>
-        <text class="section-arrow {{sectionCollapsed.timeline ? 'collapsed' : ''}}">▼</text>
-      </view>
+    <!-- ==================== 没有这台实例 ==================== -->
+    <view wx:elif="{{notFound}}" class="ds-card ds-empty">
+      <view class="ds-empty-icon">🔍</view>
+      <view class="ds-empty-title">没有找到这台实例</view>
+      <view class="ds-empty-desc">设备可能已被删除，或链接里的编号不完整</view>
+    </view>
 
-      <view wx:if="{{!sectionCollapsed.timeline}}">
-        <view wx:if="{{timelineItems.length === 0}}" class="empty-hint">今日暂无使用记录</view>
-        <view wx:else class="timeline">
-          <view class="timeline-item" wx:for="{{timelineItems}}" wx:key="index">
-            <!-- 时间轴左侧：时间标记 -->
-            <view class="timeline-left">
-              <view class="timeline-dot {{item.type}}"></view>
-              <view class="timeline-line" wx:if="{{index < timelineItems.length - 1}}"></view>
-            </view>
-            <!-- 时间轴右侧：内容卡片 -->
-            <view class="timeline-right {{item.type}}">
-              <view class="timeline-time">{{item.timeRange}}</view>
-              <view class="timeline-content">
-                <text wx:if="{{item.type === 'usage'}}" class="timeline-user">{{item.userName}}</text>
-                <text wx:if="{{item.type === 'reserve'}}" class="timeline-user">{{item.userName}}（预约）</text>
-                <text wx:if="{{item.type === 'idle'}}" class="timeline-idle-text">空闲</text>
-                <text wx:if="{{item.duration}}" class="timeline-duration">{{item.duration}}</text>
-              </view>
-              <view wx:if="{{item.abnormal}}" class="timeline-abnormal">⚠️ 异常反馈</view>
-            </view>
+    <block wx:else>
+      <view wx:if="{{partialError}}" class="partial-tip">使用记录或预约没取全，下拉可以重新加载</view>
+
+      <!-- ==================== 今日概览 ==================== -->
+      <view class="ds-card">
+        <view class="card-head">
+          <text class="ds-section-title">今日概览</text>
+          <text class="card-hint">{{timeline.stats.windowText}}</text>
+        </view>
+
+        <view class="stat-grid">
+          <view class="stat-cell">
+            <text class="stat-num">{{timeline.stats.usageText}}</text>
+            <text class="stat-label">使用时长</text>
+          </view>
+          <view class="stat-cell">
+            <text class="stat-num">{{timeline.stats.reserveText}}</text>
+            <text class="stat-label">预约占用</text>
+          </view>
+          <view class="stat-cell">
+            <text class="stat-num">{{timeline.stats.idleText}}</text>
+            <text class="stat-label">空闲时长</text>
           </view>
         </view>
 
-        <!-- 今日统计 -->
-        <view wx:if="{{timelineItems.length > 0}}" class="timeline-stats">
-          <text class="stat-item">使用时长：{{todayStats.usageDuration}}</text>
-          <text class="stat-item">空闲时长：{{todayStats.idleDuration}}</text>
-          <text class="stat-item">利用率：{{todayStats.usageRate}}</text>
+        <view class="meter">
+          <view class="meter-line">
+            <text class="meter-label">时段占用率</text>
+            <text class="meter-value">{{timeline.stats.utilText}}</text>
+          </view>
+          <view class="meter-track">
+            <view class="meter-fill" style="width: {{timeline.stats.utilPercent}}%"></view>
+          </view>
+        </view>
+
+        <view wx:if="{{timeline.hasActivity}}" class="strip-wrap">
+          <view class="strip">
+            <view
+              wx:for="{{timeline.blocks}}"
+              wx:key="key"
+              class="strip-block strip-{{item.type}}"
+              style="left: {{item.left}}%; width: {{item.width}}%"
+            ></view>
+            <view
+              wx:if="{{timeline.showNow}}"
+              class="strip-now"
+              style="left: {{timeline.nowPercent}}%"
+            ></view>
+          </view>
+          <view class="strip-axis">
+            <text>08:00</text>
+            <text>15:00</text>
+            <text>22:00</text>
+          </view>
+          <view class="strip-legend">
+            <view class="legend-item">
+              <view class="legend-dot legend-usage"></view>
+              <text class="legend-text">使用</text>
+            </view>
+            <view class="legend-item">
+              <view class="legend-dot legend-reserve"></view>
+              <text class="legend-text">预约</text>
+            </view>
+            <text class="legend-note">共 {{timeline.stats.usageCount}} 次使用</text>
+          </view>
         </view>
       </view>
-    </view>
+
+      <!-- ==================== 今日时间轴 ==================== -->
+      <view class="ds-card">
+        <view class="card-head" bindtap="toggleSection" data-key="timeline">
+          <text class="ds-section-title">今日时间轴</text>
+          <view class="head-right">
+            <text class="card-hint">{{timeline.hasActivity ? timeline.items.length + ' 段' : '暂无记录'}}</text>
+            <text class="head-arrow {{sectionCollapsed.timeline ? 'is-collapsed' : ''}}">›</text>
+          </view>
+        </view>
+
+        <block wx:if="{{!sectionCollapsed.timeline}}">
+          <view wx:if="{{!timeline.hasActivity}}" class="empty-inline">
+            <text class="empty-inline-icon">🌿</text>
+            <text class="empty-inline-text">今天还没有使用或预约记录</text>
+          </view>
+
+          <view wx:else class="timeline">
+            <view wx:for="{{timeline.items}}" wx:key="key" class="tl-row tl-row-{{item.type}}">
+              <view class="tl-time">
+                <text class="tl-clock">{{item.startClock}}</text>
+                <text class="tl-clock-end">{{item.endClock}}</text>
+              </view>
+              <view class="tl-rail">
+                <view class="tl-dot"></view>
+              </view>
+              <view class="tl-body">
+                <view class="tl-head">
+                  <text class="tl-title">{{item.title}}</text>
+                  <text class="tl-duration">{{item.durationText}}</text>
+                </view>
+                <view wx:if="{{item.subtitle || item.tagText}}" class="tl-meta">
+                  <text wx:if="{{item.tagText}}" class="ds-tag {{item.tagClass}}">{{item.tagText}}</text>
+                  <text wx:if="{{item.subtitle}}" class="tl-sub">{{item.subtitle}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </block>
+      </view>
+
+      <!-- ==================== 近期使用记录 ==================== -->
+      <view wx:if="{{recentUsages.length}}" class="ds-card">
+        <view class="card-head" bindtap="toggleSection" data-key="usage">
+          <text class="ds-section-title">近期使用记录</text>
+          <view class="head-right">
+            <text class="card-hint">{{recentUsages.length}} 条</text>
+            <text class="head-arrow {{sectionCollapsed.usage ? 'is-collapsed' : ''}}">›</text>
+          </view>
+        </view>
+
+        <block wx:if="{{!sectionCollapsed.usage}}">
+          <view wx:for="{{recentUsages}}" wx:key="key" class="rec-row">
+            <view class="rec-main">
+              <view class="rec-head">
+                <text class="rec-title">{{item.title}}</text>
+                <text class="ds-tag {{item.tagClass}}">{{item.statusText}}</text>
+              </view>
+              <text class="rec-sub">{{item.dayText}} {{item.timeText}}</text>
+              <text wx:if="{{item.feedbackText}}" class="rec-feedback ds-clamp-2">{{item.feedbackText}}</text>
+            </view>
+            <text class="rec-duration">{{item.durationText}}</text>
+          </view>
+        </block>
+      </view>
+
+      <!-- ==================== 后续预约 ==================== -->
+      <view wx:if="{{upcomingReserves.length}}" class="ds-card">
+        <view class="card-head" bindtap="toggleSection" data-key="reserve">
+          <text class="ds-section-title">后续预约</text>
+          <view class="head-right">
+            <text class="card-hint">{{upcomingReserves.length}} 条</text>
+            <text class="head-arrow {{sectionCollapsed.reserve ? 'is-collapsed' : ''}}">›</text>
+          </view>
+        </view>
+
+        <block wx:if="{{!sectionCollapsed.reserve}}">
+          <view wx:for="{{upcomingReserves}}" wx:key="key" class="rec-row">
+            <view class="rec-main">
+              <view class="rec-head">
+                <text class="rec-title">{{item.title}}</text>
+                <text class="ds-tag {{item.tagClass}}">{{item.statusText}}</text>
+              </view>
+              <text class="rec-sub">{{item.dayText}} {{item.timeText}}</text>
+              <text wx:if="{{item.groupText}}" class="rec-feedback">{{item.groupText}}</text>
+            </view>
+          </view>
+        </block>
+      </view>
+
+      <!-- ==================== 仪器信息 ==================== -->
+      <view class="ds-card">
+        <view class="card-head">
+          <text class="ds-section-title">仪器信息</text>
+          <text class="card-hint">{{deviceView.isUsing ? '正在使用' : deviceView.statusText}}</text>
+        </view>
+
+        <view class="info-row">
+          <text class="info-label">仪器名称</text>
+          <text class="info-value">{{deviceView.deviceName}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">所属实验室</text>
+          <text class="info-value">{{deviceView.labName || '—'}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">房间</text>
+          <text class="info-value">{{deviceView.room || '—'}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">型号</text>
+          <text class="info-value">{{deviceView.model || '—'}}</text>
+        </view>
+        <view wx:if="{{deviceView.deviceType}}" class="info-row">
+          <text class="info-label">设备类型</text>
+          <text class="info-value">{{deviceView.deviceType}}</text>
+        </view>
+
+        <view wx:if="{{deviceView.hasDescription}}" class="info-desc">{{deviceView.description}}</view>
+
+        <view wx:if="{{deviceView.specs.length}}" class="spec-block">
+          <view class="block-label">规格参数</view>
+          <view wx:for="{{deviceView.specs}}" wx:key="key" class="spec-row">
+            <text class="spec-key">{{item.key}}</text>
+            <text class="spec-value">{{item.value || '—'}}</text>
+          </view>
+        </view>
+      </view>
+    </block>
   </view>
 </view>

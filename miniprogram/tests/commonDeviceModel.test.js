@@ -73,7 +73,7 @@ function testBuildStats() {
 
   // 权重：A = 3*3 = 9，B = 3 + 2 = 5，C = 1
   assert.deepStrictEqual(
-    model.rankStats(stats).map((item) => item.device_id),
+    model.rankStats(stats).map(item => item.device_id),
     ['A', 'B', 'C']
   )
   assert.strictEqual(model.scoreOf(stats.get('B')), 5)
@@ -146,7 +146,7 @@ function testBuildLocalList() {
 
   const list = model.buildLocalList(stats, deviceMap, available, 3)
   assert.deepStrictEqual(
-    list.map((item) => item.device_id),
+    list.map(item => item.device_id),
     ['A', 'C', 'E']
   )
   assert.strictEqual(list[0].source, 'usage')

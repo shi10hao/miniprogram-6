@@ -1,0 +1,9 @@
+{
+  "name": "addAdminSubMsgCount",
+  "version": "1.0.0",
+  "description": "管理端点订阅后，按模板记一条下发额度",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~4.0.2"
+  }
+}

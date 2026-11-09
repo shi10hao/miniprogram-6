@@ -1,250 +1,193 @@
+/**
+ * 设备实例详情
+ *
+ * 从仪器列表（管理端）点某个实例进来，看这台实例的身份信息、今日占用情况和近期使用/预约。
+ * 数据整理全部交给 lib/instanceDetailModel.js，本文件只负责取数、状态切换和 setData。
+ */
+
+const model = require('./lib/instanceDetailModel')
+
 const db = wx.cloud.database()
-const _ = db.command
+/** 使用记录 / 预约都只取最近若干条，够看，也不会一次拉太多 */
+const USAGE_LIMIT = 20
+const RESERVE_LIMIT = 20
+const RECENT_USAGE_LIMIT = 6
+const UPCOMING_RESERVE_LIMIT = 5
 
 Page({
+  // 2. data
   data: {
     deviceId: '',
-    deviceInstanceInfo: {},
-    deviceUsages: [],
-    deviceReserves: [],
-    timelineItems: [], // ← 原来是 timelineItems，少了 : []
-    todayStats: { // ← 原来是 todayStats，少了完整定义
-      usageDuration: '',
-      idleDuration: '',
-      usageRate: ''
-    },
-
-    isLoading: false,
+    isLoading: true,
+    loadError: false,
+    notFound: false,
+    partialError: false,
+    deviceView: null,
+    timeline: null,
+    recentUsages: [],
+    upcomingReserves: [],
     sectionCollapsed: {
-      timeline: false // false = 展开，true = 收起
+      timeline: false,
+      usage: false,
+      reserve: false
     }
   },
 
+  // 3. 生命周期
   onLoad(options) {
-    const deviceId = options.deviceId
-    this.loadData(deviceId)
+    const deviceId = this.decodeDeviceId(options)
+    if (!deviceId) {
+      this.setData({ isLoading: false, notFound: true })
+      return
+    }
+    this.setData({ deviceId })
+    this.loadData()
   },
 
-  async loadData(deviceId) {
-    const deviceInstanceInfo = await this.getDeviceInstanceInfo(deviceId)
-    const deviceUsages = await this.getDeviceUsages(deviceId)
-    const deviceReserves = await this.getDeviceReserves(deviceId)
-    const timeline = this.buildTimeline(deviceUsages, deviceReserves)
-
-    this.setData({
-      deviceInstanceInfo,
-      deviceUsages,
-      deviceReserves,
-      timelineItems: timeline.items,
-      todayStats: timeline.stats
-    })
+  onPullDownRefresh() {
+    if (!this.data.deviceId) {
+      wx.stopPullDownRefresh()
+      return
+    }
+    this.loadData()
   },
 
-  async getDeviceInstanceInfo(deviceId) {
-    if (!deviceId) return
+  // ==================== 数据加载 ====================
+  /** 入口用 encodeURIComponent 拼参数，这里要还原 */
+  decodeDeviceId(options) {
+    const raw = options && options.deviceId ? String(options.deviceId) : ''
+    if (!raw) return ''
     try {
-      const res = await db.collection('devices')
-        .where({
-          device_id: deviceId
-        })
-        .limit(1)
-        .get()
-      const device = (res.data || [])[0]
-      if (!device) {
-        console.log('未找到该仪器')
-        return null
-      }
-      return {
-        device_name: device.device_name || '',
-        device_id: device.device_id || '',
-        lab_name: device.lab_name || '',
-        device_room: device.device_room || '',
-        displayStatus: device.status || 'available'
-      }
+      return decodeURIComponent(raw)
     } catch (err) {
-      console.log('获取仪器信息报错', err)
-      return null
+      console.error('[设备实例详情] deviceId 解码失败，按原值使用', err)
+      return raw
     }
   },
-  async getDeviceUsages(deviceId) {
-    if (!deviceId) return []
+
+  async loadData() {
+    const deviceId = this.data.deviceId
+    if (!deviceId) return
+    // 下拉刷新和重试可能并发，用序号丢弃过期结果
+    const token = (this.loadToken || 0) + 1
+    this.loadToken = token
+    // 只有首次进入才铺骨架；已经有内容时刷新保持原样，别闪一下白屏
+    if (!this.data.deviceView) {
+      this.setData({ isLoading: true, loadError: false })
+    }
+
+    try {
+      const results = await Promise.all([
+        this.fetchDevice(deviceId),
+        this.fetchUsages(deviceId),
+        this.fetchReserves(deviceId)
+      ])
+      if (token !== this.loadToken) return
+      this.render(results[0], results[1], results[2])
+    } catch (err) {
+      if (token !== this.loadToken) return
+      console.error('[设备实例详情] 加载失败', err)
+      // 已有内容时只提示，不把整页换成错误页
+      if (this.data.deviceView) {
+        wx.showToast({ title: '刷新失败，稍后再试', icon: 'none' })
+      } else {
+        this.setData({ isLoading: false, loadError: true })
+      }
+    } finally {
+      if (token === this.loadToken) wx.stopPullDownRefresh()
+    }
+  },
+
+  async fetchDevice(deviceId) {
+    const res = await db.collection('devices').where({ device_id: deviceId }).limit(1).get()
+    return (res.data && res.data[0]) || null
+  },
+
+  /** 使用记录取不到时只降级这一块，不整页报错 */
+  async fetchUsages(deviceId) {
     try {
       const res = await db.collection('device_usage')
-        .where({
-          device_id: deviceId
-        })
+        .where({ device_id: deviceId })
         .orderBy('start_time', 'desc')
-        .limit(20)
+        .limit(USAGE_LIMIT)
         .get()
-
-      return res.data || []
+      return { list: res.data || [], failed: false }
     } catch (err) {
-      console.log('获取使用记录报错', err)
-      return []
+      console.error('[设备实例详情] 使用记录查询失败', err)
+      return { list: [], failed: true }
     }
   },
-  async getDeviceReserves(deviceId) {
-    if (!deviceId) return []
+
+  /**
+   * 预约按开始时间倒序取：未来的时间点最大，能被限量的 20 条覆盖到；
+   * 若用正序，历史预约会先占满名额，后续预约反而是空的。
+   */
+  async fetchReserves(deviceId) {
     try {
       const res = await db.collection('reserves')
-        .where({
-          device_id: deviceId,
-          status: 'approved'
-        })
-        .orderBy('start_time', 'asc')
-        .limit(20)
+        .where({ device_id: deviceId, status: 'approved' })
+        .orderBy('start_time', 'desc')
+        .limit(RESERVE_LIMIT)
         .get()
-
-      return res.data || []
+      return { list: res.data || [], failed: false }
     } catch (err) {
-      console.log('获取预约记录报错', err)
-      return []
+      console.error('[设备实例详情] 预约记录查询失败', err)
+      return { list: [], failed: true }
     }
   },
-  buildTimeline(usages, reserves) {
-    // 1. 获取今天的日期字符串（用于筛选）
-    const today = new Date()
-    const pad = n => String(n).padStart(2, '0')
-    const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`
-    // 2. 从 usages 中筛选出今天的记录，标记为 type: 'usage'
-    const todayUsages = (usages || []).filter((u) => {
-      const date = this.parseDateTime(u.start_time)
-      if (!date) return false
-      const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-      return dateStr === todayStr
-    }).map(u => ({
-      type: 'usage',
-      time: this.getTimeValue(u.start_time),
-      endTime: this.getTimeValue(u.end_time) || Date.now(),
-      userName: u.student_name || u.user_id || '未知用户',
-      duration: '', // 后面再算
-      abnormal: u.status === 'abnormal',
-      raw: u
-    }))
-    // 3. 从 reserves 中筛选出今天的记录，标记为 type: 'reserve'
-    // 3. 从 reserves 中筛选出今天的记录，标记为 type: 'reserve'
-    const todayReserves = (reserves || []).filter((r) => {
-      // 只保留还未结束的预约
-      return r.reserve_date === todayStr && this.getTimeValue(r.end_time) > Date.now()
-    }).map(r => ({
-      type: 'reserve',
-      time: this.getTimeValue(r.start_time),
-      endTime: this.getTimeValue(r.end_time),
-      userName: r.student_name || r.user_id || '未知用户',
-      duration: '',
-      abnormal: false,
-      raw: r
-    }))
-    // 4. 将所有事件合并到一个数组，按开始时间排序
-    const events = [...todayUsages, ...todayReserves]
-    events.sort((a, b) => a.time - b.time)
-    // 5. 遍历事件数组，在事件之间插入空闲时段（type: 'idle'）
-    // 5. 遍历事件数组，在事件之间插入空闲时段（type: 'idle'）
-    const items = []
-    const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 8, 0, 0).getTime()
-    const dayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 22, 0, 0).getTime()
-    let cursor = dayStart
 
-    events.forEach((event) => {
-      // 如果当前事件开始时间晚于游标，插入空闲段
-      if (event.time > cursor) {
-        items.push({
-          type: 'idle',
-          timeRange: `${this.formatTime(cursor)} - ${this.formatTime(event.time)}`,
-          duration: this.calcDuration(cursor, event.time)
-        })
-      }
-
-      // 添加事件本身
-      items.push({
-        type: event.type,
-        timeRange: `${this.formatTime(event.time)} - ${this.formatTime(event.endTime)}`,
-        userName: event.userName,
-        duration: event.duration || this.calcDuration(event.time, event.endTime),
-        abnormal: event.abnormal
+  // ==================== 渲染 ====================
+  render(device, usageResult, reserveResult) {
+    if (!device) {
+      this.setData({
+        isLoading: false,
+        loadError: false,
+        notFound: true,
+        partialError: false,
+        deviceView: null,
+        timeline: null,
+        recentUsages: [],
+        upcomingReserves: []
       })
-
-      cursor = Math.max(cursor, event.endTime)
-    })
-
-    // 最后一段空闲（到晚上10点）
-    if (cursor < dayEnd) {
-      items.push({
-        type: 'idle',
-        timeRange: `${this.formatTime(cursor)} - ${this.formatTime(dayEnd)}`,
-        duration: this.calcDuration(cursor, dayEnd)
-      })
+      return
     }
-    // 6. 计算今日统计（使用时长、空闲时长、利用率）
-    // 6. 计算今日统计（使用时长、空闲时长、利用率）
-    let usageMs = 0
-    let idleMs = 0
-    items.forEach((item) => {
-      if (item.type === 'usage' || item.type === 'reserve') {
-        usageMs += this.parseDurationToMs(item.duration)
-      } else if (item.type === 'idle') {
-        idleMs += this.parseDurationToMs(item.duration)
-      }
-    })
-    const totalMs = usageMs + idleMs
-    const usageRate = totalMs > 0 ? Math.round(usageMs / totalMs * 100) + '%' : '0%'
-    // 7. 返回 { items: 时间轴数组, stats: 统计对象 }
-    // 7. 返回 { items: 时间轴数组, stats: 统计对象 }
-    return {
-      items,
-      stats: {
-        usageDuration: this.msToDurationStr(usageMs),
-        idleDuration: this.msToDurationStr(idleMs),
-        usageRate
-      }
-    }
-  },
-  // 点击切换
-  toggleSection(e) {
-    const section = e.currentTarget.dataset.section
-    const key = `sectionCollapsed.${section}`
+
+    const nowTs = Date.now()
+    const usages = usageResult.list || []
+    const reserves = reserveResult.list || []
+    const partialError = !!(usageResult.failed || reserveResult.failed)
+    const deviceView = model.buildDeviceView(device, model.findActiveUsage(usages, nowTs), nowTs)
+
     this.setData({
-      [key]: !this.data.sectionCollapsed[section]
+      isLoading: false,
+      loadError: false,
+      notFound: false,
+      partialError,
+      deviceView,
+      timeline: model.buildTodayTimeline({ usages, reserves, nowTs }),
+      recentUsages: model.buildRecentUsageViews(usages, nowTs, RECENT_USAGE_LIMIT),
+      upcomingReserves: model.buildUpcomingReserveViews(reserves, usages, nowTs, UPCOMING_RESERVE_LIMIT)
     })
+
+    if (deviceView.deviceName) {
+      wx.setNavigationBarTitle({ title: deviceView.deviceName })
+    }
+    if (partialError) {
+      wx.showToast({ title: '部分记录加载失败', icon: 'none' })
+    }
   },
-  parseDateTime(rawValue) {
-    if (!rawValue) return null
-    if (rawValue instanceof Date) return rawValue
-    const d = new Date(rawValue)
-    return Number.isNaN(d.getTime()) ? null : d
+
+  // ==================== 交互 ====================
+  retryLoad() {
+    if (!this.data.deviceId) return
+    this.loadData()
   },
-  getTimeValue(rawValue) {
-    const d = this.parseDateTime(rawValue)
-    return d ? d.getTime() : 0
-  },
-  formatTime(timestamp) {
-    const d = new Date(timestamp)
-    const pad = n => String(n).padStart(2, '0')
-    return `${pad(d.getHours())}:${pad(d.getMinutes())}`
-  },
-  calcDuration(start, end) {
-    const diff = Math.floor((end - start) / 60000)
-    if (diff <= 0) return '不足1分钟'
-    if (diff < 60) return `${diff}分钟`
-    const hours = Math.floor(diff / 60)
-    const mins = diff % 60
-    return mins > 0 ? `${hours}小时${mins}分钟` : `${hours}小时`
-  },
-  parseDurationToMs(durationStr) {
-    if (!durationStr) return 0
-    let totalMin = 0
-    const hourMatch = durationStr.match(/(\d+)小时/)
-    const minMatch = durationStr.match(/(\d+)分钟/)
-    if (hourMatch) totalMin += parseInt(hourMatch[1]) * 60
-    if (minMatch) totalMin += parseInt(minMatch[1])
-    return totalMin * 60 * 1000
-  },
-  msToDurationStr(ms) {
-    const totalMin = Math.floor(ms / 60000)
-    if (totalMin <= 0) return '不足1分钟'
-    if (totalMin < 60) return `${totalMin}分钟`
-    const hours = Math.floor(totalMin / 60)
-    const mins = totalMin % 60
-    return mins > 0 ? `${hours}小时${mins}分钟` : `${hours}小时`
+
+  toggleSection(event) {
+    const key = event && event.currentTarget ? event.currentTarget.dataset.key : ''
+    if (!key) return
+    const collapsed = this.data.sectionCollapsed
+    if (!(key in collapsed)) return
+    this.setData({ [`sectionCollapsed.${key}`]: !collapsed[key] })
   }
 })

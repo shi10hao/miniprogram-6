@@ -20,9 +20,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - 测试是独立 node 脚本（只用 `assert`，无框架、无 `npm test`），**必须在 `miniprogram/` 目录下运行**——脚本用相对当前目录的路径读 `app.json` 等文件：
   `cd miniprogram && node tests/devicelistPaging.test.js`
-- 两个测试长期失败且与业务改动无关，不要当成回归、也不要顺手去修：`tests/deleteMessageCore.test.js`（require 路径指向仓库根的 `cloudfunctions/`）、`tests/pageFiles.test.js`（缺 `pages/auth/login/login.wxss` 与 `.json`）。
+- 一个测试长期失败且与业务改动无关，不要当成回归、也不要顺手去修：`tests/deleteMessageCore.test.js`（require 路径指向仓库根的 `cloudfunctions/`）。
 - 新增页面要同时注册进 `miniprogram/app.json` 并补齐 `.js/.wxml/.wxss/.json` 四件套，`tests/pageFiles.test.js` 校验的正是这个。
-- 可测逻辑抽成不依赖 `wx.*` 的纯模块（参考 `pages/webview/3dscene/lib/`），测试直接 `require` 它。
+- 可测逻辑抽成不依赖 `wx.*` 的纯模块（参考 `pages/device/detail/lib/detailCore.js`、`pages/message/detail/detailModel.js`），测试直接 `require` 它。
 
 ## 样式
 
@@ -38,5 +38,5 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 配置
 
-- 项目配置以**根目录** `project.config.json` 为准（appid `wx3f96c57bc726c368`）。`miniprogram/project.config.json` 与 `miniprogram/project.private.config.json` 是别的项目留下的旧副本（appid `wxce5e14a214fab8b4`），不要照着它们改项目设置。
+- 项目配置以**根目录** `project.config.json` 为准（appid `wx3f96c57bc726c368`，`miniprogramRoot` 指向 `miniprogram/`）。`miniprogram/` 下不要再放 project 配置文件——历史上那两份是别的项目（appid `wxce5e14a214fab8b4`）留下的旧副本，已清理。
 - 数据库索引只能在云开发控制台手动创建，需要哪些索引见 `@docs/database-indexes.md`。

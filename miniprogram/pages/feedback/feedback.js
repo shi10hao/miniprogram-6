@@ -22,17 +22,27 @@ Page({
     this.loadMessages()
   },
 
+  // 下拉刷新：重拉消息与公告
+  onPullDownRefresh() {
+    this.loadMessages().finally(() => {
+      wx.stopPullDownRefresh()
+    })
+  },
+
+  /**
+   * 拉取消息与管理员公告，合并后按时间倒序
+   * @returns {Promise<void>} 加载结束即 resolve，供下拉刷新收尾
+   */
   loadMessages() {
     this.setData({ isLoading: true })
 
     const userInfo = wx.getStorageSync('userInfo') || {}
     if (!userInfo.userId) {
       this.setData({ isLoading: false, messageList: [] })
-      return
+      return Promise.resolve()
     }
 
-    const _ = db.command
-    Promise.all([
+    return Promise.all([
       db.collection('messages')
         .where({ user_id: userInfo.userId })
         .orderBy('create_time', 'desc')

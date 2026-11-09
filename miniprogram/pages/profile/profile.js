@@ -1,3 +1,5 @@
+const reserveFilter = require('../../utils/reserveFilter.js')
+
 const db = wx.cloud.database()
 
 Page({
@@ -10,7 +12,6 @@ Page({
     },
     adminContacts: [],
     avatarText: '👤',
-    latestFeedback: '',
     isAuthenticated: false,
     // 数据概览：与工作台同源，让"我的"页不只是一堆入口
     overview: {
@@ -30,6 +31,20 @@ Page({
     getApp().refreshMessageBadge()
   },
 
+  // 下拉刷新：重读登录态与概览数字。消息红点自带 60 秒节流，这里不强制
+  async onPullDownRefresh() {
+    try {
+      await this.loadUserInfo()
+      getApp().refreshMessageBadge()
+    } finally {
+      wx.stopPullDownRefresh()
+    }
+  },
+
+  /**
+   * 读取本地登录态并触发概览加载
+   * @returns {Promise<void>} 概览加载完成后 resolve，供下拉刷新收尾
+   */
   loadUserInfo() {
     try {
       const userInfo = wx.getStorageSync('userInfo')
@@ -48,28 +63,41 @@ Page({
           isAuthenticated: true
         })
         this.loadAdminContacts(userInfo.groupName)
-        this.loadOverview(userInfo.userId)
-      } else {
-        this.setData({
-          isAuthenticated: false,
-          adminContacts: [],
-          overview: { pending: 0, using: 0, history: 0 }
-        })
+        return this.loadOverview(userInfo.userId)
       }
+
+      this.setData({
+        isAuthenticated: false,
+        adminContacts: [],
+        overview: { pending: 0, using: 0, history: 0 }
+      })
     } catch (err) {
-      // console.error('读取用户信息失败:', err)
+      // 本地缓存读不到时保持默认值即可，不阻塞页面渲染
+      console.error('[profile] 读取用户信息失败', err)
     }
+
+    return Promise.resolve()
   },
 
   /**
    * 三个概览数字：待开始预约 / 使用中 / 历史记录
-   * 只取 count，不把记录全拉回来。字段名与工作台保持一致。
+   * 只取 count，不把记录全拉回来。
+   * 「待开始」的条件必须和「我的预约」页的「待开始」筛选同源（utils/reserveFilter.js）：
+   * 只按 status === 'approved' 数，会把已经用完的、时段早就过去的旧预约一起算进来，
+   * 于是出现「只剩 1 个待开始，这里显示 69」。
    */
   loadOverview(userId) {
     if (!userId) return Promise.resolve()
 
+    const nowText = reserveFilter.formatNowText()
+    const pendingWhere = reserveFilter.buildReservationWhere(db.command, {
+      userId: userId,
+      filter: 'upcoming',
+      nowText: nowText
+    })
+
     return Promise.all([
-      db.collection('reserves').where({ user_id: userId, status: 'approved' }).count(),
+      db.collection('reserves').where(pendingWhere).count(),
       db.collection('device_usage').where({ user_id: userId, status: 'using' }).count(),
       db.collection('device_usage').where({ user_id: userId, status: 'completed' }).count()
     ]).then((results) => {
@@ -81,16 +109,21 @@ Page({
         }
       })
     }).catch((err) => {
-      console.error('加载使用概览失败:', err)
+      console.error('[profile] 加载使用概览失败', err)
     })
   },
 
-  // 概览数字点击：使用中的记录跳仪器使用页，其余跳预约记录
+  // 概览数字点击：待开始 → 预约记录的「待开始」；使用中 → 仪器使用页；历史 → 「已完成」
   goOverview(e) {
     const key = e.currentTarget.dataset.key
-    const url = key === 'using' ? '/pages/usage/usage' : '/pages/appointment/appointment'
+    const urlMap = {
+      using: '/pages/usage/usage',
+      pending: '/pages/appointment/appointment?view=upcoming',
+      history: '/pages/appointment/appointment?view=history'
+    }
+    if (!urlMap[key]) return
     wx.navigateTo({
-      url,
+      url: urlMap[key],
       fail() {}
     })
   },
@@ -156,20 +189,6 @@ Page({
   //     fail: () => {}
   //   })
   // },
-
-  reAuth() {
-    wx.showModal({
-      title: '重新认证',
-      content: '是否需要重新进行身份认证？',
-      success: (res) => {
-        if (res.confirm) {
-          wx.redirectTo({
-            url: '/pages/auth/auth'
-          })
-        }
-      }
-    })
-  },
 
   navigateToDutyUpload() {
     if (!this.data.isAuthenticated) { this.showAuthPrompt(); return }

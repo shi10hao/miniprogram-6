@@ -38,5 +38,10 @@ Page({
         this.setData({ plainText: content })
       }
     }
+  },
+
+  // 内容来自上一个页面的 query 参数，没有远端数据要拉，下拉只收起刷新动画
+  onPullDownRefresh() {
+    wx.stopPullDownRefresh()
   }
 })

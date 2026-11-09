@@ -21,7 +21,6 @@ Page({
     currentDeviceId: '',
     // 展示用派生字段：WXML 只做渲染，判断和拼接都在 JS 里算好
     nameText: '',
-    modelText: '',
     heroSub: '',
     labText: '',
     roomText: '',
@@ -187,7 +186,6 @@ Page({
     this.setData({
       device,
       nameText,
-      modelText,
       labText,
       roomText,
       heroSub: [modelText, roomText].filter(Boolean).join(' · '),
@@ -397,13 +395,9 @@ Page({
     })
   },
 
+  // 三维实验室视图暂时下线，入口保留占位，恢复时再接回 scene3d
   view3DLocation() {
-    const device = this.data.device
-    if (!device) return
-    const deviceId = device.device_id || ''
-    wx.navigateTo({
-      url: '/pages/webview/3dscene/scene3d?device_id=' + encodeURIComponent(deviceId) + '&role=student'
-    })
+    wx.showToast({ title: '实验室三维视图正在升级，敬请期待', icon: 'none' })
   },
 
   goReserve() {

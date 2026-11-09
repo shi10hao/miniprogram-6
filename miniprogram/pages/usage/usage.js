@@ -175,8 +175,8 @@ Page({
       // cloud:// 不能直接给 <image src>，必须换成 https 临时链接（cloudFile 内有 5 分钟缓存）
       const urlMap = await cloudFile.resolveTempUrls(rawList)
       const images = rawList
-        .map((fileId) => ({ fileId, url: cloudFile.resolveSingle(fileId, urlMap), failed: false }))
-        .filter((item) => item.url)
+        .map(fileId => ({ fileId, url: cloudFile.resolveSingle(fileId, urlMap), failed: false }))
+        .filter(item => item.url)
       this.setData({ selfUsageImages: images })
     } catch (err) {
       console.error('[usage] 解析使用过程照片失败', err)
@@ -302,7 +302,7 @@ Page({
     db.collection(MESSAGE_COLLECTION)
       .doc(messageId)
       .update({ data: { is_read: true } })
-      .catch((err) => console.error('[usage] 标记提醒已读失败', err))
+      .catch(err => console.error('[usage] 标记提醒已读失败', err))
   },
 
   closeReminder() {
@@ -325,8 +325,8 @@ Page({
     const url = e.currentTarget.dataset.url
     if (!url) return
     const urls = this.data.selfUsageImages
-      .filter((item) => item.url && !item.failed)
-      .map((item) => item.url)
+      .filter(item => item.url && !item.failed)
+      .map(item => item.url)
     wx.previewImage({ current: url, urls: urls.length ? urls : [url] })
   },
 
@@ -496,7 +496,7 @@ Page({
           }
           resolve(parsed.deviceId)
         },
-        fail: (err) => reject(this.normalizeError(err, '扫码失败，请重试'))
+        fail: err => reject(this.normalizeError(err, '扫码失败，请重试'))
       })
     })
   },
@@ -535,7 +535,7 @@ Page({
         title: '确认开始使用',
         content: `即将开始使用「${deviceName}」（${deviceId}），请拍摄仪器正在运行的照片。`,
         confirmText: '去拍照',
-        success: (res) => resolve(!!res.confirm),
+        success: res => resolve(!!res.confirm),
         fail: () => resolve(false)
       })
     })
@@ -683,7 +683,7 @@ Page({
       const files = (mediaRes && mediaRes.tempFiles) || []
       if (!files.length) return
       this.setData({
-        feedbackPhotos: this.data.feedbackPhotos.concat(files.map((file) => file.tempFilePath))
+        feedbackPhotos: this.data.feedbackPhotos.concat(files.map(file => file.tempFilePath))
       })
     } catch (err) {
       if (!this.isUserCancel(err)) console.error('[usage] 选择反馈照片失败', err)
@@ -793,7 +793,7 @@ Page({
         feedbackTitle: String(title || '').trim(),
         feedbackContent: String(content || '').trim()
       }
-    }).catch((err) => console.error('[usage] 发送异常通知失败', err))
+    }).catch(err => console.error('[usage] 发送异常通知失败', err))
   },
 
   // ==================== 正常结束使用 ====================
@@ -1056,7 +1056,7 @@ Page({
               destHeight: height,
               fileType: 'jpg',
               quality: 0.92,
-              success: (out) => resolve(out.tempFilePath || tempFilePath),
+              success: out => resolve(out.tempFilePath || tempFilePath),
               fail: () => reject(new Error('导出水印照片失败'))
             })
           }
@@ -1086,7 +1086,7 @@ Page({
           wx.setStorageSync(`msg_subscribed_${TEMPLATE_ID}`, true)
         }
       },
-      fail: (err) => console.warn('[usage] 订阅消息授权失败', err)
+      fail: err => console.warn('[usage] 订阅消息授权失败', err)
     })
   },
 

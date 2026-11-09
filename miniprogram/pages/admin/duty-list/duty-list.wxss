@@ -80,8 +80,11 @@
   opacity: 0.7;
 }
 
+/* 不给高度的话 input 用基础库默认高度，比 76rpx 的胶囊矮一截，上下留白点不到 */
 .search-input {
   flex: 1;
+  min-width: 0;
+  height: 100%;
   font-size: 28rpx;
   color: var(--ds-text);
 }

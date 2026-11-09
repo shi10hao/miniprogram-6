@@ -39,6 +39,11 @@ Page({
     if (this.backTimer) clearTimeout(this.backTimer)
   },
 
+  // 打卡表单没有远端数据，下拉不清空已填内容，只收起刷新动画
+  onPullDownRefresh() {
+    wx.stopPullDownRefresh()
+  },
+
   // ==================== 输入监听 ====================
   /**
    * 所有输入框共用：靠 data-field 决定写哪个字段

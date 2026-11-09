@@ -12,7 +12,6 @@ Page({
       researchGroup: '', // 课题组
       phone: ''
     },
-    reservedDevices: [],
     // 当前选中的仪器编号。空字符串表示还没选编号
     // （选中态由 availableDevices[].deviceStatusList[].active 驱动，不再用下标）
     selectedDeviceId: '',
@@ -35,7 +34,6 @@ Page({
     reserveDate: '',
     startTime: '08:00',
     endTime: '09:00',
-    timeSlots: [], // 8:00-22:00的时间段
 
     // 状态
     isLoading: false,
@@ -80,6 +78,18 @@ Page({
       clearTimeout(this._searchTimer)
       this._searchTimer = null
     }
+  },
+
+  // 下拉刷新：重新拉当前筛选下的仪器列表，不动用户已选的时间和仪器
+  onPullDownRefresh() {
+    if (!wx.getStorageSync('userInfo')) {
+      wx.stopPullDownRefresh()
+      return
+    }
+
+    this.reloadNow().finally(() => {
+      wx.stopPullDownRefresh()
+    })
   },
 
   // 初始化数据
@@ -217,7 +227,7 @@ Page({
       clearTimeout(this._searchTimer)
       this._searchTimer = null
     }
-    this.getAvailableDevices()
+    return this.getAvailableDevices()
   },
 
   // 注意！这是将       Object类型        的型号转为        String类型
@@ -238,10 +248,7 @@ Page({
     const seq = ++this._loadSeq
 
     try {
-      const {
-        filters,
-        userInfo
-      } = this.data
+      const { filters } = this.data
       const res = await wx.cloud.callFunction({
         name: 'getAvailableDevices',
         data: {
@@ -257,7 +264,6 @@ Page({
       const result = res.result || {}
       const devices = Array.isArray(result) ? result : (result.list || [])
       const conflictMap = (Array.isArray(result) ? {} : (result.conflictMap || {}))
-      const reservedDevices = (Array.isArray(result) ? [] : (result.reservedDevices || []))
       const usingDeviceIds = (Array.isArray(result) ? null : (result.usingDeviceIds || null))
 
       // 如果有搜索关键词，先过滤原始设备，再分组
@@ -376,7 +382,6 @@ Page({
 
       this.setData({
         availableDevices: devicesWithStatus,
-        reservedDevices,
         selectedDevice: nextSelectedDevice,
         selectedDeviceId: nextSelectedDevice ? keepDeviceId : '',
         isLoading: false
@@ -589,59 +594,6 @@ Page({
     }
 
     return statusMap
-  },
-
-  // 检查仪器冲突
-  async checkDeviceConflicts(deviceId) {
-    try {
-      const {
-        reserveDate,
-        startTime,
-        endTime
-      } = this.data
-      if (!reserveDate || !startTime || !endTime) return 0
-
-      const _ = db.command
-      // 本方法当前无调用方（死代码）。startDate/endDate 未定义，疑为 reserveDate 的笔误，
-      // 改了会改变冲突检测行为，故只标注不改，等业务方确认。
-      // eslint-disable-next-line no-undef
-      const startDT = `${startDate} ${startTime}`
-      // eslint-disable-next-line no-undef
-      const endDT = `${endDate} ${endTime}`
-      const whereConditions = [{
-        device_id: deviceId
-      },
-      {
-        status: 'approved'
-      },
-      _.or([
-        _.and([{
-          start_time: _.lte(startDT)
-        }, {
-          end_time: _.gt(startDT)
-        }]),
-        _.and([{
-          start_time: _.lt(endDT)
-        }, {
-          end_time: _.gte(endDT)
-        }]),
-        _.and([{
-          start_time: _.gte(startDT)
-        }, {
-          end_time: _.lte(endDT)
-        }])
-      ])
-      ]
-
-      const res = await db.collection('reserves')
-        .where(_.and(whereConditions))
-        .count()
-
-      return res.total || 0
-    } catch (err) {
-      // console.error('检查冲突失败:', err)
-      return 0
-    }
   },
 
   // 仪器类型筛选
@@ -925,20 +877,6 @@ Page({
     }
     this.setData({
       isPastTime: false
-    })
-  },
-
-  // 生成时间槽（8:00-22:00）
-  generateTimeSlots() {
-    const slots = []
-    for (let hour = 8; hour <= 22; hour++) {
-      slots.push(`${hour.toString().padStart(2, '0')}:00`)
-      if (hour < 22) {
-        slots.push(`${hour.toString().padStart(2, '0')}:30`)
-      }
-    }
-    this.setData({
-      timeSlots: slots
     })
   },
 
@@ -1416,12 +1354,6 @@ Page({
     return `${year}-${month}-${day}`
   },
 
-  parseDateTime(dateStr, timeStr) {
-    const [year, month, day] = dateStr.split('-').map(Number)
-    const [hours, minutes] = timeStr.split(':').map(Number)
-    return new Date(year, month - 1, day, hours, minutes, 0, 0)
-  },
-
   getReservationTimeMs(dateStr, timeStr) {
     const [year, month, day] = dateStr.split('-').map(Number)
     const [hours, minutes] = timeStr.split(':').map(Number)
@@ -1430,23 +1362,6 @@ Page({
 
   isFutureReservationStart(dateStr, timeStr) {
     return this.getReservationTimeMs(dateStr, timeStr) > Date.now()
-  },
-
-  requestSubscribeMessage() {
-    // 本方法当前无调用方（死代码）。RESERVATION_TEMPLATE_ID 未在本文件声明，
-    // 同名常量见 pages/reservation/test.js，暂只标注不改，等业务方确认。
-    // eslint-disable-next-line no-undef
-    if (!RESERVATION_TEMPLATE_ID || RESERVATION_TEMPLATE_ID === 'your_template_id_here') return
-    wx.requestSubscribeMessage({
-      // eslint-disable-next-line no-undef
-      tmplIds: [RESERVATION_TEMPLATE_ID],
-      success(res) {
-        // console.log('订阅消息授权结果:', res)
-      },
-      fail(err) {
-        // console.log('订阅消息授权失败:', err)
-      }
-    })
   },
 
   pickReservePage() {

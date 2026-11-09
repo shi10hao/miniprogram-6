@@ -11,8 +11,7 @@
   "eslint.validate": ["javascript"],
   "search.exclude": {
     "**/node_modules": true,
-    "**/miniprogram_npm": true,
-    "miniprogram/pages/webview/3dscene/lib": true
+    "**/miniprogram_npm": true
   },
   "files.associations": {
     "*.wxml": "html",

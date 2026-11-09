@@ -47,7 +47,8 @@ Page({
    * 页面相关事件处理函数--监听用户下拉动作
    */
   onPullDownRefresh() {
-
+    // 静态协议页没有远端数据，直接收起刷新动画，否则下拉后要等超时才收回
+    wx.stopPullDownRefresh()
   },
 
   /**

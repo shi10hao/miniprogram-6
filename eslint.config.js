@@ -27,15 +27,11 @@ const globals = {
 
 module.exports = [
   {
-    // 第三方副本、依赖、废弃备份目录不进 lint
+    // 第三方副本与依赖不进 lint
     ignores: [
       'node_modules/**',
       'miniprogram/node_modules/**',
       'miniprogram/miniprogram_npm/**',
-      // three.js 副本与 loader，改不得
-      'miniprogram/pages/webview/3dscene/lib/**',
-      // 历史备份，不建议再维护
-      'miniprogram/pages/reservation/备份/**',
       'cloudfunctions/*/node_modules/**',
       // 云函数里打包进来的 npm 依赖副本
       '**/miniprogram_npm/**',

@@ -10,6 +10,12 @@ Page({
     this.setData({ newPwd: e.detail.value, errMsg: '' })
   },
 
+  // 表单页没有远端数据，下拉只清掉上一次的报错提示
+  onPullDownRefresh() {
+    this.setData({ errMsg: '' })
+    wx.stopPullDownRefresh()
+  },
+
   onConfirmPwdInput(e) {
     this.setData({ confirmPwd: e.detail.value, errMsg: '' })
   },

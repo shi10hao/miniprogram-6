@@ -132,7 +132,7 @@ function testBuildPendingReserveList() {
   ]
 
   const list = usageModel.buildPendingReserveList(records, NOW)
-  assert.deepStrictEqual(list.map((item) => item._id), ['b', 'a', 'e'])
+  assert.deepStrictEqual(list.map(item => item._id), ['b', 'a', 'e'])
   assert.strictEqual(list[0].state, 'ready')
   assert.strictEqual(list[1].state, 'pending')
 

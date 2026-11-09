@@ -13,7 +13,6 @@ Page({
     // 隐私协议
     showPrivacyModal: false,
     privacyChecked: false,
-    privacyAgreed: false,
 
     // 注册弹窗
     showRegisterModal: false,
@@ -27,8 +26,7 @@ Page({
     },
 
     // 初始密码提示
-    showPwdTipModal: false,
-    tempLoginInfo: null
+    showPwdTipModal: false
   },
 
   onLoad() {
@@ -46,9 +44,14 @@ Page({
     }
 
     this.setData({
-      privacyChecked: false,
-      privacyAgreed: false
+      privacyChecked: false
     })
+  },
+
+  // 登录页没有远端列表数据，下拉只清掉上一次的报错提示
+  onPullDownRefresh() {
+    this.setData({ loginErrMsg: '' })
+    wx.stopPullDownRefresh()
   },
 
   // ==================== 输入监听 ====================
@@ -135,7 +138,6 @@ Page({
       // 检测是否初始未改密码，弹出提示
       if (userPayload.pwd_modified === false) {
         this.setData({
-          tempLoginInfo: userPayload,
           showPwdTipModal: true
         })
       } else {
@@ -233,7 +235,6 @@ Page({
   confirmPrivacy() {
     this.setData({
       showPrivacyModal: false,
-      privacyAgreed: true,
       privacyChecked: true
     })
   },

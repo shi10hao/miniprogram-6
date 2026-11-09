@@ -295,7 +295,7 @@ function buildCard(entry, now) {
 }
 
 function buildCards(list, now) {
-  return (list || []).map((entry) => buildCard(entry, now))
+  return (list || []).map(entry => buildCard(entry, now))
 }
 
 module.exports = {

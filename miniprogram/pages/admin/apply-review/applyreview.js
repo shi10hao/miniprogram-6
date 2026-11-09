@@ -10,13 +10,19 @@ Page({
     showRejectModal: false,
     rejectReason: '',
     rejectApplyId: '',
-    rejectApplyName: '',
     isSubmitting: false
   },
 
   onShow() {
     // 每次进入/返回都重新加载当前 Tab
     this.loadList()
+  },
+
+  // 下拉刷新：重拉当前 Tab 的申请列表
+  onPullDownRefresh() {
+    this.loadList().finally(() => {
+      wx.stopPullDownRefresh()
+    })
   },
 
   // ==================== Tab 切换 ====================
@@ -128,12 +134,11 @@ Page({
 
   // ==================== 拒绝 ====================
   onReject(e) {
-    const { id, name } = e.currentTarget.dataset
+    const { id } = e.currentTarget.dataset
     this.setData({
       showRejectModal: true,
       rejectReason: '',
-      rejectApplyId: id,
-      rejectApplyName: name
+      rejectApplyId: id
     })
   },
 
@@ -145,8 +150,7 @@ Page({
     this.setData({
       showRejectModal: false,
       rejectReason: '',
-      rejectApplyId: '',
-      rejectApplyName: ''
+      rejectApplyId: ''
     })
   },
 

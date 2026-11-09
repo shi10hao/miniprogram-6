@@ -1,3 +1,7 @@
+const cloudFile = require('../../../utils/cloudFile')
+const datetime = require('../../../utils/datetime')
+const view = require('./lib/deviceDetailView')
+
 const db = wx.cloud.database()
 const _ = db.command
 
@@ -7,6 +11,7 @@ const DEVICE_ID_CHUNK_SIZE = 50
 const PHOTO_CANDIDATE_LIMIT_PER_CHUNK = 60
 const PHOTO_DISPLAY_LIMIT = 20
 const FUTURE_RESERVE_LIMIT_PER_CHUNK = 60
+const DEVICE_DISPLAY_LIMIT = 5
 
 Page({
   data: {
@@ -15,14 +20,34 @@ Page({
     deviceType: '',
     deviceModel: '',
     groupKey: '',
+    filterKeyword: '',
+    showAllFiltered: false,
+
+    isLoading: true,
+    loadError: false,
+    notFound: false,
+    noMatch: false,
+
+    summary: {
+      total: 0,
+      available: 0,
+      using: 0,
+      maintenance: 0,
+      statusKey: 'none',
+      statusText: ''
+    },
+
     devices: [],
+    renderDevices: [],
+    deviceDisplayLimit: DEVICE_DISPLAY_LIMIT,
+    showAllDevices: false,
+
     usages: [],
     usagePhotos: [],
     reserves: [],
-    isLoading: true,
+
     deviceInfo: null,
-    filterKeyword: '',
-    showAllFiltered: false,
+
     isEditing: false,
     editForm: {
       device_name: '',
@@ -33,66 +58,77 @@ Page({
       precautions: '',
       specifications: ''
     },
+    // 编辑态下当前图片的临时链接（editForm.picture 存的是 fileID，不能直接给 image 用）
+    editPictureUrl: '',
     newPictureUrl: '',
     newVideoName: '',
+    newVideoTempPath: '',
     hasNewPicture: false,
     hasNewVideo: false,
     isSaving: false,
-    // 折叠控制
+
     sectionCollapsed: {
-      devices: false, // 仪器实例：默认展开
-      usages: false, // 当前使用：默认展开
-      photos: true, // 使用照片记录：默认收起
-      reserves: true // 即将到来的预约：默认收起
+      devices: false,
+      usages: false,
+      photos: true,
+      reserves: true
     },
-    deviceDisplayLimit: 5, // 仪器实例初始只显示5条
-    showAllDevices: false, // 是否显示全部仪器实例
-    renderDevices: [],
-    newDeviceId: '', // 删去收尾空格
+
+    newDeviceId: '',
     isAddingDevice: false
   },
 
   onLoad(options) {
-    // console.log("options:", options)
-    const deviceName = this.safeDecode(options.deviceName || '')
+    const params = options || {}
+    const deviceName = this.safeDecode(params.deviceName)
     if (!deviceName) {
       wx.showToast({
         title: '缺少设备参数',
         icon: 'none'
       })
       this.setData({
-        isLoading: false
+        isLoading: false,
+        notFound: true
       })
       return
     }
 
     this.setData({
       deviceName,
-      labName: this.safeDecode(options.labName || ''),
-      deviceType: this.safeDecode(options.deviceType || ''),
-      deviceModel: this.safeDecode(options.model || ''),
-      groupKey: this.safeDecode(options.groupKey || ''),
-      filterKeyword: this.safeDecode(options.keyword || '')
+      labName: this.safeDecode(params.labName),
+      deviceType: this.safeDecode(params.deviceType),
+      deviceModel: this.safeDecode(params.model),
+      groupKey: this.safeDecode(params.groupKey),
+      filterKeyword: this.safeDecode(params.keyword)
     })
 
     this.bootstrapPage()
-    // console.log("deviceInfo:",this.data.deviceInfo)
   },
 
-  onUnload() {
-    wx.disableAlertBeforeUnload()
-  },
-
+  // 从预约详情/实例详情返回时刷新，但正在编辑或保存时不能把表单冲掉
   onShow() {
-    if (this._ready && this.data.deviceName) {
-      this.loadDeviceDetail()
+    if (!this._ready || !this.data.deviceName) return
+    if (this.data.isEditing || this.data.isSaving) return
+    this.loadDeviceDetail({ silent: true })
+  },
+
+  async onPullDownRefresh() {
+    if (this.data.isEditing || this.data.isSaving || this.data.isAddingDevice) {
+      wx.stopPullDownRefresh()
+      return
+    }
+    try {
+      await this.loadDeviceDetail({ silent: true })
+    } finally {
+      wx.stopPullDownRefresh()
     }
   },
 
   safeDecode(value) {
-    const text = String(value || '')
+    const text = String(value || '').trim()
+    if (!text) return ''
     try {
-      return decodeURIComponent(text)
+      return decodeURIComponent(text).trim()
     } catch (err) {
       return text
     }
@@ -109,10 +145,12 @@ Page({
 
   redirectToLogin(message) {
     wx.removeStorageSync('adminInfo')
-    if (message) wx.showToast({
-      title: message,
-      icon: 'none'
-    })
+    if (message) {
+      wx.showToast({
+        title: message,
+        icon: 'none'
+      })
+    }
     setTimeout(() => {
       wx.redirectTo({
         url: '/pages/admin/login/adminlogin'
@@ -159,47 +197,29 @@ Page({
     }
   },
 
+  // 可见范围：admin 全量，teacher 只看公共实验室 + 本课题组
   buildVisibleDeviceCondition(session) {
-    if (!session) return {
-      _id: '__DENY__'
-    }
+    if (!session) return { _id: '__DENY__' }
     if (session.role === 'admin') return null
 
     if (session.role === 'teacher') {
       const groupName = String(session.groupName || '').trim()
-      if (!groupName) return {
-        lab_type: 'public'
-      }
-      return _.or([{
-        lab_type: 'public'
-      },
-      {
-        lab_name: groupName
-      }
+      if (!groupName) return { lab_type: 'public' }
+      return _.or([
+        { lab_type: 'public' },
+        { lab_name: groupName }
       ])
     }
 
-    return {
-      _id: '__DENY__'
-    }
+    return { _id: '__DENY__' }
   },
 
   buildGroupCondition() {
-    const {
-      deviceName,
-      labName,
-      deviceType
-    } = this.data
+    const { deviceName, labName, deviceType } = this.data
     const conditions = []
-    if (deviceName) conditions.push({
-      device_name: deviceName
-    })
-    if (labName) conditions.push({
-      lab_name: labName
-    })
-    if (deviceType) conditions.push({
-      device_type: deviceType
-    })
+    if (deviceName) conditions.push({ device_name: deviceName })
+    if (labName) conditions.push({ lab_name: labName })
+    if (deviceType) conditions.push({ device_type: deviceType })
 
     if (!conditions.length) return null
     if (conditions.length === 1) return conditions[0]
@@ -211,32 +231,6 @@ Page({
     const groupCondition = this.buildGroupCondition()
     if (groupCondition && visibleCondition) return _.and([groupCondition, visibleCondition])
     return groupCondition || visibleCondition
-  },
-
-  getDeviceModel(device) {
-    const specs = (device && device.specifications) || {}
-    if (specs && typeof specs === 'object') {
-      return String(specs['型号'] || specs['鍨嬪彿'] || specs.model || device.model || '').trim()
-    }
-    return String((device && device.model) || '').trim()
-  },
-
-  buildGroupKey(device) {
-    return [
-      String(device.device_name || ''),
-      String(device.lab_name || ''),
-      String(device.device_room || ''),
-      String(device.device_type || ''),
-      this.getDeviceModel(device)
-    ].join('||')
-  },
-
-  chunkArray(list, size) {
-    const chunks = []
-    for (let i = 0; i < list.length; i += size) {
-      chunks.push(list.slice(i, i + size))
-    }
-    return chunks
   },
 
   async fetchAllByWhere(collectionName, whereCondition, pageSize = PAGE_SIZE) {
@@ -256,14 +250,11 @@ Page({
 
   async fetchByDeviceIds(collectionName, deviceIds, extraCondition) {
     if (!deviceIds.length) return []
-    const chunks = this.chunkArray(deviceIds, DEVICE_ID_CHUNK_SIZE)
+    const chunks = view.chunkArray(deviceIds, DEVICE_ID_CHUNK_SIZE)
     const all = []
 
     for (let i = 0; i < chunks.length; i += 1) {
-      const chunk = chunks[i]
-      const idCondition = {
-        device_id: _.in(chunk)
-      }
+      const idCondition = { device_id: _.in(chunks[i]) }
       const condition = extraCondition ? _.and([extraCondition, idCondition]) : idCondition
       const rows = await this.fetchAllByWhere(collectionName, condition)
       all.push(...rows)
@@ -272,48 +263,34 @@ Page({
     return all
   },
 
-  buildNowStringForReserve() {
-    const d = new Date()
-    const pad = n => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  buildNowText() {
+    const now = new Date()
+    const pad = datetime.pad2
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`
   },
 
-  buildNowIsoString() {
-    return new Date().toISOString()
-  },
-
+  // 预约未结束 = 结束时间还没到（库里有 'YYYY-MM-DD HH:mm' 与 ISO 两种写法）
   async fetchFutureReservesByDeviceIds(deviceIds, perChunkLimit = FUTURE_RESERVE_LIMIT_PER_CHUNK) {
     if (!deviceIds.length) return []
 
-    const nowText = this.buildNowStringForReserve()
-    const nowIso = this.buildNowIsoString()
-    // 预约未结束：只要还没到结束时间且未开始使用，都纳入列表
-    const notEndedCondition = _.or([{
-      end_time: _.gt(nowText)
-    },
-    {
-      end_time: _.gt(nowIso)
-    }
+    const nowText = this.buildNowText()
+    const nowIso = new Date().toISOString()
+    const notEndedCondition = _.or([
+      { end_time: _.gt(nowText) },
+      { end_time: _.gt(nowIso) }
     ])
 
-    const chunks = this.chunkArray(deviceIds, DEVICE_ID_CHUNK_SIZE)
+    const chunks = view.chunkArray(deviceIds, DEVICE_ID_CHUNK_SIZE)
     const all = []
     for (let i = 0; i < chunks.length; i += 1) {
-      const chunk = chunks[i]
-      const baseCondition = _.and([{
-        status: 'approved'
-      },
-      {
-        device_id: _.in(chunk)
-      },
-      notEndedCondition,
-      _.or([{
-        usage_status: _.exists(false)
-      },
-      {
-        usage_status: 'not_started'
-      }
-      ])
+      const baseCondition = _.and([
+        { status: 'approved' },
+        { device_id: _.in(chunks[i]) },
+        notEndedCondition,
+        _.or([
+          { usage_status: _.exists(false) },
+          { usage_status: 'not_started' }
+        ])
       ])
 
       try {
@@ -338,14 +315,11 @@ Page({
 
   async fetchRecentUsageCandidatesByDeviceIds(deviceIds, perChunkLimit = PHOTO_CANDIDATE_LIMIT_PER_CHUNK) {
     if (!deviceIds.length) return []
-    const chunks = this.chunkArray(deviceIds, DEVICE_ID_CHUNK_SIZE)
+    const chunks = view.chunkArray(deviceIds, DEVICE_ID_CHUNK_SIZE)
     const all = []
 
     for (let i = 0; i < chunks.length; i += 1) {
-      const chunk = chunks[i]
-      const condition = {
-        device_id: _.in(chunk)
-      }
+      const condition = { device_id: _.in(chunks[i]) }
       try {
         const orderedRes = await db.collection('device_usage')
           .where(condition)
@@ -365,288 +339,690 @@ Page({
     return all
   },
 
-  uniqueById(rows) {
-    const map = {};
-    (rows || []).forEach((item) => {
-      const key = String((item && item._id) || '')
-      if (!key) return
-      if (!map[key]) map[key] = item
-    })
-    return Object.values(map)
-  },
+  /**
+   * 参数里的 model / groupKey 只是跳转时带过来的线索：
+   * 设备改过名或型号之后旧键就对不上了，匹配不到时按查到的数据重新收拢成一组，
+   * 否则页面会莫名其妙显示「设备不存在」。
+   */
+  pickGroupDevices(devices) {
+    const list = devices || []
+    const modelFilter = String(this.data.deviceModel || '').trim()
+    const expectedKey = String(this.data.groupKey || '').trim()
 
-  hasRawPhoto(usage) {
-    const startPhoto = String((usage && usage.start_photo) || '').trim()
-    if (startPhoto) return true
-
-    const usageImages = this.normalizeImageList(usage && usage.usage_images)
-    if (usageImages.length > 0) return true
-
-    const endPhotos = usage && usage.end_photos
-    if (endPhotos && typeof endPhotos === 'object' && !Array.isArray(endPhotos)) {
-      const duty = String(endPhotos.duty || '').trim()
-      const deviceOff = String(endPhotos.device_off || '').trim()
-      const doorClosed = String(endPhotos.door_closed || '').trim()
-      return !!(duty || deviceOff || doorClosed)
+    // 型号匹配不上（改名/换型号）时不能直接判成「没有设备」，退回按 groupKey 收拢
+    if (modelFilter) {
+      const byModel = list.filter(item => view.getDeviceModel(item) === modelFilter)
+      if (byModel.length) return this.matchGroupKey(byModel, expectedKey)
+      console.warn('[仪器详情] 型号与库里的记录不一致，改按分组键匹配')
     }
-    return false
+
+    return this.matchGroupKey(list, expectedKey)
   },
 
-  async loadDeviceDetail() {
+  matchGroupKey(list, expectedKey) {
+    if (expectedKey) {
+      const matched = list.filter(item => view.buildGroupKey(item) === expectedKey)
+      if (matched.length) return matched
+      console.warn('[仪器详情] groupKey 与库里的分组不一致，按查到的数据重新分组')
+    }
+
+    if (!list.length) return list
+    const fallbackKey = view.buildGroupKey(list[0])
+    return list.filter(item => view.buildGroupKey(item) === fallbackKey)
+  },
+
+  // 头部信息以库里的记录为准，避免跳转参数过期导致标题/型号不对
+  applyGroupInfo(device) {
+    if (!device) return
+    const next = {
+      deviceName: String(device.device_name || '').trim() || this.data.deviceName,
+      labName: String(device.lab_name || '').trim(),
+      deviceType: String(device.device_type || '').trim(),
+      deviceModel: view.getDeviceModel(device),
+      groupKey: view.buildGroupKey(device)
+    }
+    const changed = Object.keys(next).some(key => next[key] !== this.data[key])
+    if (changed) this.setData(next)
+  },
+
+  /**
+   * @param {Object} [options] { silent: true } 时不闪骨架屏，用于返回页面/保存后的静默刷新
+   */
+  async loadDeviceDetail(options) {
+    const silent = !!(options && options.silent)
+
     if (!this.currentSession) {
       const session = await this.validateAdminSession()
       if (!session) return
       this.currentSession = session
     }
 
-    this.setData({
-      isLoading: true
-    })
+    if (silent) {
+      this.setData({ loadError: false })
+    } else {
+      this.setData({
+        isLoading: true,
+        loadError: false
+      })
+    }
+
     try {
       const condition = this.buildVisibleGroupCondition(this.currentSession)
-      let devices = await this.fetchAllByWhere('devices', condition)
-      // console.log("condition:",condition)
-      // console.log("devices:",devices)
-
-      const modelFilter = String(this.data.deviceModel || '').trim()
-      if (modelFilter) {
-        devices = devices.filter(item => this.getDeviceModel(item) === modelFilter)
-      }
-
-      const expectedGroupKey = String(this.data.groupKey || '').trim()
-      if (expectedGroupKey) {
-        devices = devices.filter(item => this.buildGroupKey(item) === expectedGroupKey)
-      }
+      const queried = await this.fetchAllByWhere('devices', condition)
+      const devices = this.pickGroupDevices(queried)
 
       if (!devices.length) {
-        wx.showToast({
-          title: '设备不存在或无权限查看',
-          icon: 'none'
-        })
+        this.groupDevices = []
         this.setData({
+          isLoading: false,
+          notFound: true,
+          noMatch: false,
           devices: [],
+          renderDevices: [],
           usages: [],
           usagePhotos: [],
           reserves: [],
-          isLoading: false
+          summary: view.summarizeDevices([])
         })
         return
       }
 
-      const visibleDeviceIds = Array.from(new Set(devices.map(item => item.device_id).filter(Boolean)))
+      // 编辑、新增都以「整组设备」为准：页面上的 devices 可能被关键词过滤过
+      this.groupDevices = devices
+      const deviceIds = devices.map(item => String(item.device_id || '').trim()).filter(Boolean)
 
-      const [usingUsagesRaw, photoCandidatesRaw, futureReservesRaw] = await Promise.all([
-        this.fetchByDeviceIds('device_usage', visibleDeviceIds, {
-          status: 'using'
-        }),
-        this.fetchRecentUsageCandidatesByDeviceIds(visibleDeviceIds),
-        this.fetchFutureReservesByDeviceIds(visibleDeviceIds)
+      const [usingRaw, photoRaw, reserveRaw] = await Promise.all([
+        this.fetchByDeviceIds('device_usage', deviceIds, { status: 'using' }),
+        this.fetchRecentUsageCandidatesByDeviceIds(deviceIds),
+        this.fetchFutureReservesByDeviceIds(deviceIds)
       ])
 
-      const usingUsagesSorted = [...usingUsagesRaw].sort(
-        (a, b) => this.getTimeValue(b.start_time) - this.getTimeValue(a.start_time)
-      )
-      const usingMap = {}
-      usingUsagesSorted.forEach((item) => {
-        if (item && item.device_id && !usingMap[item.device_id]) usingMap[item.device_id] = item
+      const usingRecords = view.uniqueById(usingRaw)
+      const deviceViews = view.buildDeviceViews(devices, usingRecords)
+      const summary = view.summarizeDevices(deviceViews)
+      const usageViews = view.buildUsageViews(usingRecords, Date.now())
+      const reserveViews = view.buildReserveViews(view.uniqueById(reserveRaw), Date.now())
+
+      // 照片：先剔掉「一张都拿不出来」的记录，再占名额、再换链接
+      const photoCandidates = view.uniqueById(photoRaw)
+        .filter(item => view.collectUsagePhotoIds(item).length > 0)
+        .sort((a, b) => this.timeValue(b.start_time) - this.timeValue(a.start_time))
+        .slice(0, PHOTO_DISPLAY_LIMIT)
+
+      const photoIds = []
+      photoCandidates.forEach((item) => {
+        view.collectUsagePhotoIds(item).forEach((id) => {
+          if (photoIds.indexOf(id) === -1) photoIds.push(id)
+        })
       })
 
-      const devicesForView = devices
-        .map((item) => {
-          const usingRecord = usingMap[item.device_id]
-          const displayStatus = usingRecord ? 'using' : item.status
-          return {
-            ...item,
-            model: this.getDeviceModel(item),
-            displayStatus,
-            isUsing: !!usingRecord,
-            usingUser: usingRecord ? (usingRecord.student_name || usingRecord.user_id || '') : ''
-          }
-        })
-        .sort((a, b) => String(a.device_id || '').localeCompare(String(b.device_id || '')))
-      console.log('devicesForView:', devicesForView)
+      const first = devices[0]
+      const mediaIds = photoIds.concat([first.picture, first.video_url].filter(Boolean))
+      const mediaMap = await cloudFile.resolveTempUrls(mediaIds)
 
-      const nowTimestamp = Date.now()
-      const reserves = this.uniqueById(futureReservesRaw)
-        .map((item) => {
-          const startTimeVal = this.getTimeValue(item.start_time)
-          let displayStatus = 'upcoming'
-          let statusText = '即将到来'
-          // 已到开始时间但未开始使用，标记为待开始
-          if (nowTimestamp >= startTimeVal) {
-            displayStatus = 'overdue_start'
-            statusText = '已到时间·待开始'
-          }
-          return {
-            ...item,
-            dateDisplay: this.formatDate(item.reserve_date),
-            timeDisplay: this.formatTimeRange(item.start_time, item.end_time),
-            displayStatus,
-            statusText
-          }
-        })
-        .sort((a, b) => {
-          // 已到时间的预约优先排在最前面
-          if (a.displayStatus === 'overdue_start' && b.displayStatus !== 'overdue_start') return -1
-          if (a.displayStatus !== 'overdue_start' && b.displayStatus === 'overdue_start') return 1
-          // 其余按开始时间升序排列
-          return this.getTimeValue(a.start_time) - this.getTimeValue(b.start_time)
-        })
-
-      const usagesRawSorted = this.uniqueById(usingUsagesRaw).sort(
-        (a, b) => this.getTimeValue(b.start_time) - this.getTimeValue(a.start_time)
+      const photoViews = view.buildPhotoRecordViews(
+        photoCandidates,
+        fileId => cloudFile.resolveSingle(fileId, mediaMap)
       )
-      const usagePhotoRaw = this.uniqueById(photoCandidatesRaw)
-        .sort((a, b) => this.getTimeValue(b.start_time) - this.getTimeValue(a.start_time))
-        .filter(item => this.hasRawPhoto(item))
-        .slice(0, PHOTO_DISPLAY_LIMIT)
 
-      const usageForTemp = this.uniqueById([].concat(usagesRawSorted, usagePhotoRaw))
-      const allPhotoFileIds = this.collectCloudFileIds(usageForTemp)
-      const tempUrlMap = await this.getTempUrlMap(allPhotoFileIds)
+      const deviceInfo = this.buildDeviceInfo(first, mediaMap)
+      this.applyGroupInfo(first)
 
-      // C
-      const usages = usagesRawSorted
-        .map(item => this.decorateUsageRecord(item, tempUrlMap))
-        .map(item => ({
-          ...item,
-          durationDisplay: this.calculateDuration(item.start_time)
-        }))
-      // D
-      const usagePhotos = usagePhotoRaw
-        .map((item) => {
-          const decorated = this.decorateUsageRecord(item, tempUrlMap)
-          // 添加 abnormal_time_display：将 ISO 格式转换为可读格式
-          let abnormalTimeDisplay = ''
-          if (item.abnormal_time) {
-            const d = this.parseDateTime(item.abnormal_time)
-            if (d) {
-              const pad = n => String(n).padStart(2, '0')
-              abnormalTimeDisplay = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-            }
-          }
+      // 关键词过滤：设备列表变了，其它三块跟着一起收窄
+      let finalDevices = deviceViews
+      let finalUsages = usageViews
+      let finalPhotos = photoViews
+      let finalReserves = reserveViews
+      let noMatch = false
 
-          // 添加 reserve_time：组合日期和时间
-          let reserveTime = ''
-          if (item.reserve_date && item.reserve_start_time && item.reserve_end_time) {
-            reserveTime = `${item.reserve_date} ${this.extractTime(item.reserve_start_time)}-${this.extractTime(item.reserve_end_time)}`
-          }
-
-          return {
-            ...decorated,
-            abnormal_time_display: abnormalTimeDisplay,
-            reserve_time: reserveTime,
-            usageTimeDisplay: this.formatUsageTime(item.start_time, item.end_time)
-          }
-        })
-        .filter(item => item.hasAnyPhoto)
-        .slice(0, PHOTO_DISPLAY_LIMIT)
-
-      // B
-      // 根据搜索关键词过滤仪器实例及关联数据
-      let finalDevices = devicesForView
-      let finalUsages = usages
-      let finalUsagePhotos = usagePhotos
-      let finalReserves = reserves
-      // console.log('OUT IF finalDevices:',finalDevices)
-      const kw = this.data.filterKeyword?.toLowerCase().trim()
-      if (kw && !this.data.showAllFiltered) {
-        finalDevices = devicesForView.filter((item) => {
-          const room = (item.device_room || '').toLowerCase()
-          const name = (item.device_name || '').toLowerCase()
-          const model = (item.model || '').toLowerCase()
-          const lab = (item.lab_name || '').toLowerCase()
-          const desc = (item.description || '').toLowerCase()
-          const id = (item.device_id || '').toLowerCase()
-          return room.includes(kw) || name.includes(kw) || model.includes(kw)
-            || lab.includes(kw) || desc.includes(kw) || id.includes(kw)
-        })
-
-        // 用过滤后的设备 ID 同步过滤其他区域
-        const filteredIds = new Set(finalDevices.map(d => d.device_id).filter(Boolean))
-        // console.log('In IF finalDevices:', finalDevices)
-        if (filteredIds.size > 0) {
-          finalUsages = usages.filter(u => u.device_id && filteredIds.has(u.device_id))
-          finalUsagePhotos = usagePhotos.filter(p => p.device_id && filteredIds.has(p.device_id))
-          finalReserves = reserves.filter(r => r.device_id && filteredIds.has(r.device_id))
+      const keyword = String(this.data.filterKeyword || '').trim()
+      if (keyword && !this.data.showAllFiltered) {
+        finalDevices = view.filterDeviceViews(deviceViews, keyword)
+        const keptIds = finalDevices.map(item => item.deviceId)
+        if (keptIds.length) {
+          const keep = item => keptIds.indexOf(String(item.deviceId || '')) > -1
+          finalUsages = usageViews.filter(keep)
+          finalPhotos = photoViews.filter(keep)
+          finalReserves = reserveViews.filter(keep)
         } else {
           finalUsages = []
-          finalUsagePhotos = []
+          finalPhotos = []
           finalReserves = []
+          noMatch = true
         }
       }
-
-      // E
-      let deviceInfo = null
-      if (finalDevices.length > 0) {
-        const picUrl = await this.getTempFileURL(finalDevices[0].picture)
-
-        deviceInfo = {
-          picture: picUrl || '',
-          description: finalDevices[0].description || '',
-          video_url: finalDevices[0].video_url || '',
-          operation_procedure: finalDevices[0].operation_procedure || '',
-          precautions: finalDevices[0].precautions || '',
-          specifications: finalDevices[0].specifications || {}
-        }
-      }
-
-      const renderDevices = this.data.showAllDevices
-        ? finalDevices
-        : finalDevices.slice(0, this.data.deviceDisplayLimit)
 
       this.setData({
-        devices: finalDevices,
-        usages: finalUsages,
-        usagePhotos: finalUsagePhotos,
-        reserves: finalReserves, // 即将到来的预约列表
-        deviceInfo,
         isLoading: false,
-        renderDevices // 渲染的设备
+        loadError: false,
+        notFound: false,
+        noMatch,
+        summary,
+        devices: finalDevices,
+        renderDevices: this.visibleDevices(finalDevices),
+        usages: finalUsages,
+        usagePhotos: finalPhotos,
+        reserves: finalReserves,
+        deviceInfo
       })
-
-      console.log('devices', devices)
-      console.log('deviceInfo:', this.data.deviceInfo)
     } catch (err) {
       console.error('加载设备详情失败:', err)
       this.setData({
-        isLoading: false
+        isLoading: false,
+        loadError: true
       })
+    }
+  },
+
+  buildDeviceInfo(device, mediaMap) {
+    if (!device) return null
+    const procedureText = view.buildRichText(device.operation_procedure)
+    const precautionsText = view.buildRichText(device.precautions)
+
+    return {
+      pictureId: String(device.picture || '').trim(),
+      pictureUrl: cloudFile.resolveSingle(device.picture, mediaMap),
+      videoId: String(device.video_url || '').trim(),
+      videoUrl: cloudFile.resolveSingle(device.video_url, mediaMap),
+      description: String(device.description || '').trim(),
+      procedureText,
+      precautionsText,
+      specs: view.buildSpecList(device.specifications),
+      hasDescription: !!String(device.description || '').trim(),
+      hasVideo: !!String(device.video_url || '').trim(),
+      hasProcedure: !!procedureText,
+      hasPrecautions: !!precautionsText,
+      rawProcedure: device.operation_procedure,
+      rawPrecautions: device.precautions,
+      rawSpecs: device.specifications
+    }
+  },
+
+  timeValue(rawValue) {
+    const date = datetime.parseDateTime(rawValue)
+    return date ? date.getTime() : 0
+  },
+
+  visibleDevices(list) {
+    const devices = list || []
+    return this.data.showAllDevices ? devices : devices.slice(0, this.data.deviceDisplayLimit)
+  },
+
+  retryLoad() {
+    this.loadDeviceDetail()
+  },
+
+  // ==================== 仪器信息编辑 ====================
+
+  toggleEdit() {
+    if (!this.data.deviceInfo) return
+
+    if (this.data.isEditing) {
+      this.setData({
+        isEditing: false,
+        hasNewPicture: false,
+        hasNewVideo: false,
+        newPictureUrl: '',
+        newVideoName: '',
+        newVideoTempPath: ''
+      })
+      return
+    }
+
+    const info = this.data.deviceInfo
+    const structured = this.isStructuredText(info.rawProcedure) || this.isStructuredText(info.rawPrecautions)
+    this.setData({
+      isEditing: true,
+      editPictureUrl: info.pictureUrl,
+      editForm: {
+        device_name: this.data.deviceName || '',
+        picture: info.pictureId,
+        description: info.description,
+        video_url: info.videoId,
+        operation_procedure: view.buildRichText(info.rawProcedure),
+        precautions: view.buildRichText(info.rawPrecautions),
+        specifications: view.buildSpecText(info.rawSpecs)
+      },
+      newPictureUrl: '',
+      newVideoName: '',
+      newVideoTempPath: '',
+      hasNewPicture: false,
+      hasNewVideo: false
+    })
+
+    // 分步规程是结构化对象，改成纯文本会丢格式，进编辑态先说清楚
+    if (structured) {
       wx.showToast({
-        title: '加载失败',
+        title: '规程为分步格式，改写后保存会变成纯文本',
+        icon: 'none',
+        duration: 2600
+      })
+    }
+  },
+
+  // 老的 operation_procedure / precautions 可能是 { sections: [...] } 结构
+  isStructuredText(value) {
+    return !!value && typeof value === 'object' && !Array.isArray(value)
+  },
+
+  onEditInput(e) {
+    const field = e.currentTarget.dataset.field
+    if (!field) return
+    this.setData({
+      [`editForm.${field}`]: e.detail.value
+    })
+  },
+
+  chooseImage() {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      sizeType: ['compressed'],
+      success: (res) => {
+        const tempFile = (res.tempFiles || [])[0]
+        if (!tempFile) return
+        this.setData({
+          newPictureUrl: tempFile.tempFilePath,
+          hasNewPicture: true
+        })
+      }
+    })
+  },
+
+  chooseVideo() {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['video'],
+      sourceType: ['album'],
+      maxDuration: 300,
+      success: (res) => {
+        const tempFile = (res.tempFiles || [])[0]
+        if (!tempFile) return
+        // 临时路径单独存，editForm.video_url 仍保存原 fileID，否则旧视频删不掉也恢复不了
+        const fileName = String(tempFile.tempFilePath || '').split('/').pop() || 'video.mp4'
+        this.setData({
+          newVideoName: fileName,
+          newVideoTempPath: tempFile.tempFilePath,
+          hasNewVideo: true
+        })
+      }
+    })
+  },
+
+  async saveDeviceInfo() {
+    if (this.data.isSaving) return
+
+    const info = this.data.deviceInfo || {}
+    const form = this.data.editForm
+    const deviceName = String(form.device_name || '').trim()
+    if (!deviceName) {
+      wx.showToast({
+        title: '仪器名称不能为空',
+        icon: 'none'
+      })
+      return
+    }
+
+    const updateData = {}
+    if (deviceName !== this.data.deviceName) updateData.device_name = deviceName
+    if (String(form.description || '').trim() !== info.description) {
+      updateData.description = String(form.description || '').trim()
+    }
+    if (String(form.operation_procedure || '').trim() !== String(info.procedureText || '')) {
+      updateData.operation_procedure = String(form.operation_procedure || '').trim()
+    }
+    if (String(form.precautions || '').trim() !== String(info.precautionsText || '')) {
+      updateData.precautions = String(form.precautions || '').trim()
+    }
+
+    const specsObj = view.parseSpecText(form.specifications)
+    if (JSON.stringify(specsObj) !== JSON.stringify(info.rawSpecs || {})) {
+      updateData.specifications = specsObj
+    }
+
+    const groupDevices = this.groupDevices || []
+    const deviceDocIds = groupDevices.map(item => item._id).filter(Boolean)
+    if (!deviceDocIds.length) {
+      wx.showToast({
+        title: '没有可更新的设备',
+        icon: 'none'
+      })
+      return
+    }
+
+    const hasNewPicture = this.data.hasNewPicture
+    const hasNewVideo = this.data.hasNewVideo
+    if (!Object.keys(updateData).length && !hasNewPicture && !hasNewVideo) {
+      wx.showToast({
+        title: '没有需要保存的修改',
+        icon: 'none'
+      })
+      return
+    }
+
+    this.setData({ isSaving: true })
+    wx.showLoading({
+      title: '保存中...',
+      mask: true
+    })
+
+    // 上传成功但保存失败的云端文件要回收，否则云存储里全是没人引用的垃圾
+    const uploaded = []
+    try {
+      if (hasNewPicture) {
+        const picPath = String(this.data.newPictureUrl || '')
+        const picExt = (picPath.split('.').pop() || 'jpg').toLowerCase()
+        const picRes = await wx.cloud.uploadFile({
+          cloudPath: `device_pics/${Date.now()}.${picExt}`,
+          filePath: picPath
+        })
+        uploaded.push(picRes.fileID)
+        updateData.picture = picRes.fileID
+      }
+
+      if (hasNewVideo) {
+        const vidPath = String(this.data.newVideoTempPath || '')
+        if (!vidPath) throw new Error('视频文件丢失，请重新选择')
+        const vidExt = (vidPath.split('.').pop() || 'mp4').toLowerCase()
+        const vidRes = await wx.cloud.uploadFile({
+          cloudPath: `device_videos/${Date.now()}.${vidExt}`,
+          filePath: vidPath
+        })
+        uploaded.push(vidRes.fileID)
+        updateData.video_url = vidRes.fileID
+      }
+
+      const res = await wx.cloud.callFunction({
+        name: 'updateDeviceInfo',
+        data: {
+          deviceIds: deviceDocIds,
+          updateData
+        }
+      })
+
+      const result = (res && res.result) || {}
+      if (result.code !== 0) {
+        throw new Error(result.msg || result.message || '云函数更新失败')
+      }
+
+      // 换过图/视频才删旧文件，删失败不影响主流程
+      const oldFiles = []
+      if (updateData.picture && cloudFile.isCloudFileId(info.pictureId)) oldFiles.push(info.pictureId)
+      if (updateData.video_url && cloudFile.isCloudFileId(info.videoId)) oldFiles.push(info.videoId)
+      if (oldFiles.length) {
+        wx.cloud.deleteFile({
+          fileList: oldFiles,
+          fail: err => console.warn('删除旧文件失败（不影响使用）:', err)
+        })
+      }
+
+      // 改了名称/型号之后分组键必须跟着变，否则按旧键重新查询会一台都查不到
+      const merged = Object.assign({}, groupDevices[0], updateData)
+      this.setData({
+        isEditing: false,
+        isSaving: false,
+        hasNewPicture: false,
+        hasNewVideo: false,
+        newPictureUrl: '',
+        newVideoName: '',
+        newVideoTempPath: '',
+        deviceName: String(merged.device_name || this.data.deviceName),
+        deviceModel: view.getDeviceModel(merged),
+        groupKey: view.buildGroupKey(merged)
+      })
+
+      wx.hideLoading()
+      wx.showToast({
+        title: '保存成功',
+        icon: 'success'
+      })
+      await this.loadDeviceDetail({ silent: true })
+    } catch (err) {
+      console.error('保存仪器信息失败:', err)
+      if (uploaded.length) {
+        wx.cloud.deleteFile({
+          fileList: uploaded,
+          fail: cleanErr => console.warn('回收上传文件失败:', cleanErr)
+        })
+      }
+      wx.hideLoading()
+      wx.showToast({
+        title: err && err.message ? err.message : '保存失败，请重试',
+        icon: 'none'
+      })
+    } finally {
+      // 成功与失败分支都已各自关掉 loading，这里只兜状态，避免二次 hideLoading 把 toast 一起关掉
+      this.setData({ isSaving: false })
+    }
+  },
+
+  // ==================== 折叠 / 过滤 ====================
+
+  toggleSection(e) {
+    const section = e.currentTarget.dataset.section
+    if (!section) return
+    this.setData({
+      [`sectionCollapsed.${section}`]: !this.data.sectionCollapsed[section]
+    })
+  },
+
+  toggleDevicesExpand() {
+    const showAllDevices = !this.data.showAllDevices
+    this.setData({
+      showAllDevices,
+      renderDevices: showAllDevices
+        ? this.data.devices
+        : this.data.devices.slice(0, this.data.deviceDisplayLimit)
+    })
+  },
+
+  clearFilter() {
+    this.setData({ showAllFiltered: true }, () => {
+      this.loadDeviceDetail({ silent: true })
+    })
+  },
+
+  // ==================== 跳转 ====================
+
+  gotoReserveDetail(e) {
+    const id = e.currentTarget.dataset.id
+    if (!id) return
+    wx.navigateTo({
+      url: `/pages/reserve-detail/reserve-detail?id=${encodeURIComponent(id)}`
+    })
+  },
+
+  gotoDeviceInstanceDetail(e) {
+    const deviceId = e.currentTarget.dataset.deviceId
+    if (!deviceId) return
+    wx.navigateTo({
+      url: `/pages/device-instance-detail/device-instance-detail?deviceId=${encodeURIComponent(deviceId)}`
+    })
+  },
+
+  previewPhoto(e) {
+    const dataset = e.currentTarget.dataset
+    const current = dataset.url
+    const rawUrls = dataset.urls
+    const urls = Array.isArray(rawUrls) ? rawUrls.filter(Boolean) : []
+    if (current && urls.indexOf(current) === -1) urls.unshift(current)
+    if (!urls.length) {
+      wx.showToast({
+        title: '暂无可预览图片',
+        icon: 'none'
+      })
+      return
+    }
+    wx.previewImage({ current: current || urls[0], urls })
+  },
+
+  previewVideo() {
+    const info = this.data.deviceInfo
+    if (!info || !info.videoUrl) {
+      wx.showToast({
+        title: '暂无操作视频',
+        icon: 'none'
+      })
+      return
+    }
+    wx.previewMedia({
+      sources: [{ url: info.videoUrl, type: 'video', poster: info.pictureUrl || '' }],
+      current: 0
+    })
+  },
+
+  // ==================== 实例增删与维护状态 ====================
+
+  onNewDeviceIdInput(e) {
+    this.setData({ newDeviceId: e.detail.value })
+  },
+
+  async addDeviceInstance() {
+    if (this.data.isAddingDevice) return
+
+    const newId = String(this.data.newDeviceId || '').trim()
+    if (!newId) {
+      wx.showToast({
+        title: '请输入设备编号',
+        icon: 'none'
+      })
+      return
+    }
+
+    const groupDevices = this.groupDevices || []
+    const template = groupDevices[0]
+    if (!template) {
+      wx.showToast({
+        title: '缺少模板设备，请刷新后重试',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 组内编号唯一：必须拿整组比，页面上的列表可能被关键词过滤过
+    const exists = groupDevices.some(item => String(item.device_id || '').trim() === newId)
+    if (exists) {
+      wx.showToast({
+        title: '该设备编号已存在',
+        icon: 'none'
+      })
+      return
+    }
+
+    const confirmed = await this.confirmAction(`确认添加设备「${newId}」吗？`)
+    if (!confirmed) return
+
+    this.setData({ isAddingDevice: true })
+    try {
+      const nowText = this.buildNowText()
+      await db.collection('devices').add({
+        data: {
+          device_id: newId,
+          device_name: template.device_name || '',
+          lab_name: template.lab_name || '',
+          lab_type: template.lab_type || '',
+          device_room: template.device_room || '',
+          device_type: template.device_type || '',
+          status: 'available',
+          picture: template.picture || '',
+          description: template.description || '',
+          video_url: template.video_url || '',
+          operation_procedure: template.operation_procedure || '',
+          precautions: template.precautions || '',
+          specifications: template.specifications || {},
+          create_time: nowText,
+          update_time: nowText
+        }
+      })
+
+      wx.showToast({
+        title: '添加成功',
+        icon: 'success'
+      })
+      this.setData({ newDeviceId: '' })
+      await this.loadDeviceDetail({ silent: true })
+    } catch (err) {
+      console.error('添加设备失败:', err)
+      wx.showToast({
+        title: '添加失败，请重试',
+        icon: 'none'
+      })
+    } finally {
+      this.setData({ isAddingDevice: false })
+    }
+  },
+
+  async deleteDeviceInstance(e) {
+    const dataset = e.currentTarget.dataset
+    const docId = dataset.id
+    const deviceId = dataset.deviceId
+    if (!docId || !deviceId) return
+
+    const confirmed = await this.confirmAction(`确认删除设备「${deviceId}」吗？删除后不可恢复。`)
+    if (!confirmed) return
+
+    wx.showLoading({
+      title: '删除中...',
+      mask: true
+    })
+    try {
+      const active = await this.checkUsageOrWarn(deviceId)
+      if (active === null) {
+        wx.hideLoading()
+        return
+      }
+      if (active) {
+        wx.hideLoading()
+        wx.showToast({
+          title: '设备正在使用，无法删除',
+          icon: 'none'
+        })
+        return
+      }
+      await db.collection('devices').doc(docId).remove()
+      wx.hideLoading()
+      wx.showToast({
+        title: '删除成功',
+        icon: 'success'
+      })
+      await this.loadDeviceDetail({ silent: true })
+    } catch (err) {
+      console.error('删除设备失败:', err)
+      wx.hideLoading()
+      wx.showToast({
+        title: '删除失败，请重试',
         icon: 'none'
       })
     }
   },
 
-  getTempFileURL(fileID) {
-    return new Promise((resolve) => {
-      if (!fileID) return resolve('')
-
-      wx.cloud.getTempFileURL({
-        fileList: [fileID],
-        success: (res) => {
-          resolve(res.fileList[0]?.tempFileURL || '')
-        },
-        fail: () => resolve('')
-      })
-    })
-  },
-
+  /**
+   * 查询失败时向上抛：宁可拦住删除/报修，也不能因为一次读失败就认为设备是空闲的
+   */
   async hasActiveUsage(deviceId) {
     if (!deviceId) return false
+    const res = await db.collection('device_usage')
+      .where({
+        device_id: deviceId,
+        status: 'using'
+      })
+      .limit(1)
+      .get()
+    return (res.data || []).length > 0
+  },
+
+  // 读不到占用状态时返回 null（已经提示过用户），调用方直接中止操作
+  async checkUsageOrWarn(deviceId) {
     try {
-      const res = await db.collection('device_usage')
-        .where({
-          device_id: deviceId,
-          status: 'using'
-        })
-        .limit(1)
-        .get()
-      return (res.data || []).length > 0
+      return await this.hasActiveUsage(deviceId)
     } catch (err) {
       console.error('查询设备占用状态失败:', err)
-      return false
+      wx.showToast({
+        title: '读取使用状态失败，请稍后重试',
+        icon: 'none'
+      })
+      return null
     }
   },
 
@@ -662,10 +1038,9 @@ Page({
   },
 
   async toggleMaintenance(e) {
-    const docId = e.currentTarget.dataset.id
-    const deviceId = e.currentTarget.dataset.deviceId
-    const displayStatus = String(e.currentTarget.dataset.displayStatus || '')
-
+    const dataset = e.currentTarget.dataset
+    const docId = dataset.id
+    const deviceId = dataset.deviceId
     if (!docId || !deviceId) {
       wx.showToast({
         title: '缺少设备参数，无法更新',
@@ -674,782 +1049,94 @@ Page({
       return
     }
 
-    if (displayStatus === 'using') {
-      wx.showToast({
-        title: '设备正在使用，无法切换维护状态',
-        icon: 'none'
-      })
-      return
-    }
-
     try {
-      const beforeCheckUsing = await this.hasActiveUsage(deviceId)
-      if (beforeCheckUsing) {
+      const active = await this.checkUsageOrWarn(deviceId)
+      if (active === null) return
+      if (active) {
         wx.showToast({
           title: '设备正在使用，无法切换维护状态',
           icon: 'none'
         })
-        this.loadDeviceDetail()
+        this.loadDeviceDetail({ silent: true })
         return
       }
 
       const latestRes = await db.collection('devices').doc(docId).get()
-      const latestDevice = latestRes.data || {}
-      if (!latestDevice._id) {
+      const latest = latestRes && latestRes.data
+      if (!latest || !latest._id) {
         wx.showToast({
           title: '设备不存在或已删除',
           icon: 'none'
         })
-        this.loadDeviceDetail()
+        this.loadDeviceDetail({ silent: true })
         return
       }
 
-      const newStatus = latestDevice.status === 'maintenance' ? 'available' : 'maintenance'
-      const statusText = newStatus === 'maintenance' ? '维护中' : '可用'
-      const confirmed = await this.confirmAction(`确认将设备设为${statusText}吗？`)
+      const newStatus = String(latest.status || '') === 'maintenance' ? 'available' : 'maintenance'
+      const statusText = newStatus === 'maintenance' ? '维修中' : '可用'
+      const confirmed = await this.confirmAction(`确认把设备「${deviceId}」设为${statusText}吗？`)
       if (!confirmed) return
 
-      const beforeUpdateUsing = await this.hasActiveUsage(deviceId)
-      if (beforeUpdateUsing) {
+      const stillActive = await this.checkUsageOrWarn(deviceId)
+      if (stillActive === null) return
+      if (stillActive) {
         wx.showToast({
           title: '设备刚进入使用中，已取消切换',
           icon: 'none'
         })
-        this.loadDeviceDetail()
-        return
-      }
-
-      try {
-        const adminInfo = wx.getStorageSync('adminInfo') || {}
-        const cloudRes = await wx.cloud.callFunction({
-          name: 'updateDeviceStatus',
-          data: {
-            docId: docId,
-            status: newStatus,
-            adminUserId: adminInfo.userId || ''
-          }
-        })
-        const result = cloudRes && cloudRes.result ? cloudRes.result : {}
-        if (!result.success) {
-          throw new Error(result.error || '云函数更新失败')
-        }
-      } catch (cloudErr) {
-        console.warn('云函数更新失败，尝试前端直接更新:', cloudErr)
-        await db.collection('devices').doc(docId).update({
-          data: {
-            status: newStatus
-          }
-        })
-      }
-
-      wx.showToast({
-        title: '状态已更新',
-        icon: 'success'
-      })
-      this.loadDeviceDetail()
-    } catch (err) {
-      console.error('更新设备状态失败:', err)
-      wx.showToast({
-        title: '更新失败',
-        icon: 'none'
-      })
-    }
-  },
-
-  previewPhoto(e) {
-    const current = e.currentTarget.dataset.url
-    const rawUrls = e.currentTarget.dataset.urls
-    let urls = []
-
-    if (Array.isArray(rawUrls)) {
-      urls = rawUrls.filter(Boolean)
-    } else if (typeof rawUrls === 'string' && rawUrls.trim()) {
-      if (rawUrls.indexOf(',') > -1) {
-        urls = rawUrls.split(',').map(item => item.trim()).filter(Boolean)
-      } else {
-        urls = [rawUrls.trim()]
-      }
-    }
-
-    if (current && urls.indexOf(current) === -1) urls.unshift(current)
-    if (!urls.length && current) urls = [current]
-    if (!urls.length) {
-      wx.showToast({
-        title: '暂无可预览图片',
-        icon: 'none'
-      })
-      return
-    }
-
-    wx.previewImage({
-      current: current || urls[0],
-      urls
-    })
-  },
-
-  normalizeImageList(raw) {
-    if (Array.isArray(raw)) return raw.filter(item => typeof item === 'string' && item.trim())
-    if (typeof raw === 'string' && raw.trim()) return [raw.trim()]
-    return []
-  },
-
-  isCloudFileId(value) {
-    return typeof value === 'string' && value.trim().indexOf('cloud://') === 0
-  },
-
-  collectCloudFileIds(usages) {
-    const ids = []
-    const pushIfCloud = (value) => {
-      if (this.isCloudFileId(value)) ids.push(value.trim())
-    }
-
-    ;
-    (usages || []).forEach((item) => {
-      pushIfCloud(item.start_photo)
-      this.normalizeImageList(item.usage_images).forEach(pushIfCloud)
-      // 新增：结束信息中的图片（总的预约单、补充预约单）
-      const endChecklist = item.end_checklist
-      if (endChecklist) {
-        pushIfCloud(endChecklist.total_page)
-        pushIfCloud(endChecklist.supplement_page)
-      }
-    })
-
-    return Array.from(new Set(ids))
-  },
-
-  getTempUrlMap(fileIds) {
-    const uniqueIds = Array.from(new Set((fileIds || []).filter(id => this.isCloudFileId(id))))
-    if (!uniqueIds.length) return Promise.resolve({})
-
-    const chunks = this.chunkArray(uniqueIds, DEVICE_ID_CHUNK_SIZE)
-    const tasks = chunks.map(chunk => new Promise((resolve) => {
-      wx.cloud.getTempFileURL({
-        fileList: chunk,
-        success: res => resolve(res.fileList || []),
-        fail: (err) => {
-          console.error('获取临时图片链接失败:', err)
-          resolve([])
-        }
-      })
-    }))
-
-    return Promise.all(tasks).then((results) => {
-      const map = {}
-      results.forEach((list) => {
-        ;
-        (list || []).forEach((item) => {
-          if (item && item.fileID && item.tempFileURL) map[item.fileID] = item.tempFileURL
-        })
-      })
-      return map
-    })
-  },
-
-  resolvePhotoUrl(rawUrl, tempUrlMap) {
-    if (!rawUrl || typeof rawUrl !== 'string') return ''
-    const value = rawUrl.trim()
-    if (!value) return ''
-    if (this.isCloudFileId(value)) return tempUrlMap[value] || ''
-    return value
-  },
-
-  decorateUsageRecord(item, tempUrlMap) {
-    const startPhotoUrl = this.resolvePhotoUrl(item.start_photo, tempUrlMap)
-    const usageImageUrls = this.normalizeImageList(item.usage_images)
-      .map(url => this.resolvePhotoUrl(url, tempUrlMap))
-      .filter(Boolean)
-
-    let endChecklistDisplay = null
-    const ec = item.end_checklist
-    if (ec) {
-      endChecklistDisplay = {
-        instrumentOff: ec.instrument_off,
-        computerOff: ec.computer_off,
-        sampleCount: ec.sample_count,
-        moreSample: ec.more_sample,
-        moreSampleCount: ec.more_sample_count || 0,
-        totalPageUrl: this.resolvePhotoUrl(ec.total_page, tempUrlMap),
-        needSupplement: ec.need_supplement,
-        supplementPageUrl: this.resolvePhotoUrl(ec.supplement_page, tempUrlMap)
-      }
-    }
-
-    const allPhotoUrls = []
-    if (startPhotoUrl) allPhotoUrls.push(startPhotoUrl)
-    usageImageUrls.forEach(url => allPhotoUrls.push(url))
-    if (endChecklistDisplay) {
-      if (endChecklistDisplay.totalPageUrl) allPhotoUrls.push(endChecklistDisplay.totalPageUrl)
-      if (endChecklistDisplay.supplementPageUrl) allPhotoUrls.push(endChecklistDisplay.supplementPageUrl)
-    }
-
-    return {
-      ...item,
-      startPhotoUrl,
-      usageImageUrls,
-      allPhotoUrls,
-      hasAnyPhoto: allPhotoUrls.length > 0,
-      endChecklistDisplay // 新增
-    }
-  },
-
-  parseDateTime(rawValue) {
-    if (!rawValue) return null
-    if (rawValue instanceof Date) return Number.isNaN(rawValue.getTime()) ? null : rawValue
-
-    const text = String(rawValue).trim()
-    if (!text) return null
-
-    let normalized = text
-    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-      normalized = `${text}T00:00:00`
-    } else if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(text)) {
-      normalized = text.replace(' ', 'T')
-    }
-
-    const d = new Date(normalized)
-    return Number.isNaN(d.getTime()) ? null : d
-  },
-
-  getTimeValue(rawValue) {
-    const d = this.parseDateTime(rawValue)
-    return d ? d.getTime() : 0
-  },
-
-  isFutureReserve(reserve) {
-    const startTime = this.parseDateTime(reserve && reserve.start_time)
-    if (!startTime) return false
-    return startTime.getTime() > Date.now()
-  },
-
-  calculateDuration(startTime) {
-    const start = this.parseDateTime(startTime)
-    if (!start) return ''
-
-    const now = new Date()
-    const diff = Math.floor((now.getTime() - start.getTime()) / 60000)
-    if (diff <= 0) return '不足1分钟'
-    if (diff < 60) return `${diff}分钟`
-
-    const hours = Math.floor(diff / 60)
-    const mins = diff % 60
-    return mins > 0 ? `${hours}小时${mins}分钟` : `${hours}小时`
-  },
-
-  formatDate(isoStr) {
-    const d = this.parseDateTime(isoStr)
-    if (!d) return isoStr ? String(isoStr) : ''
-    const pad = n => String(n).padStart(2, '0')
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-  },
-
-  extractTime(rawValue) {
-    if (!rawValue) return ''
-    const text = String(rawValue)
-    const match = text.match(/(\d{2}:\d{2})/)
-    if (match) return match[1]
-
-    const d = this.parseDateTime(text)
-    if (!d) return text
-
-    const pad = n => String(n).padStart(2, '0')
-    return `${pad(d.getHours())}:${pad(d.getMinutes())}`
-  },
-
-  formatTimeRange(start, end) {
-    return `${this.extractTime(start)} - ${this.extractTime(end)}`
-  },
-
-  // 切换编辑模式
-  toggleEdit() {
-    // console.log('点击切换编辑，当前isEditing：', this.data.isEditing)
-    if (!this.data.deviceInfo) return
-
-    if (!this.data.isEditing) {
-      // 进入编辑模式：把 deviceInfo 填入表单
-      const info = this.data.deviceInfo
-      // 规格参数对象转文本（每行 key：value）
-      let specsText = ''
-      if (info.specifications && typeof info.specifications === 'object') {
-        specsText = Object.entries(info.specifications)
-          .map(([k, v]) => `${k}：${v}`)
-          .join('\n')
-      }
-
-      this.setData({
-        isEditing: true,
-        editForm: {
-          device_name: this.data.deviceName || '',
-          picture: info.picture || '',
-          description: info.description || '',
-          video_url: info.video_url || '',
-          operation_procedure: typeof info.operation_procedure === 'object'
-            ? JSON.stringify(info.operation_procedure)
-            : (info.operation_procedure || ''),
-          precautions: typeof info.precautions === 'object'
-            ? JSON.stringify(info.precautions)
-            : (info.precautions || ''),
-          specifications: specsText
-        },
-        newPictureUrl: '',
-        newVideoName: '',
-        hasNewPicture: false,
-        hasNewVideo: false
-      })
-    } else {
-      // 退出编辑模式（不保存）
-      this.setData({
-        isEditing: false
-      })
-    }
-  },
-
-  // 切换区域折叠状态
-  toggleSection(e) {
-    const section = e.currentTarget.dataset.section
-    const key = `sectionCollapsed.${section}`
-    this.setData({
-      [key]: !this.data.sectionCollapsed[section]
-    })
-  },
-
-  // 展开全部仪器实例
-  expandDevices() {
-    this.setData({
-      showAllDevices: true
-    }, () => {
-      // 此时showAllDevices已经更新完成
-      const renderDevices = this.data.showAllDevices
-        ? this.data.devices
-        : this.data.devices.slice(0, this.data.deviceDisplayLimit)
-      this.setData({
-        renderDevices
-      })
-    })
-  },
-
-  foldDevices() {
-    this.setData({
-      showAllDevices: false
-    }, () => {
-      // 此时showAllDevices已经更新完成
-      const renderDevices = this.data.showAllDevices
-        ? this.data.devices
-        : this.data.devices.slice(0, this.data.deviceDisplayLimit)
-      this.setData({
-        renderDevices
-      })
-    })
-  },
-
-  // 表单输入
-  onEditInput(e) {
-    const field = e.currentTarget.dataset.field
-    const value = e.detail.value
-    // console.log("e.currentTarget.dataset.field：",e.currentTarget.dataset.field)
-    // console.log("e.detail.value",e.detail.value)
-    this.setData({
-      [`editForm.${field}`]: value
-    })
-    // console.log(this.data.editForm)
-  },
-
-  // 选择新图片
-  chooseImage() {
-    const that = this
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
-      sizeType: ['compressed'],
-      success(res) {
-        const tempFile = res.tempFiles[0]
-        that.setData({
-          newPictureUrl: tempFile.tempFilePath,
-          hasNewPicture: true
-        })
-      }
-    })
-  },
-
-  // 选择新视频
-  chooseVideo() {
-    const that = this
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['video'],
-      sourceType: ['album'],
-      maxDuration: 300,
-      success(res) {
-        const tempFile = res.tempFiles[0]
-        const fileName = tempFile.tempFilePath.split('/').pop() || 'video.mp4'
-        that.setData({
-          newVideoName: fileName,
-          editForm: {
-            ...that.data.editForm,
-            video_url: tempFile.tempFilePath
-          },
-          hasNewVideo: true
-        })
-      }
-    })
-  },
-
-  // 保存仪器信息
-  async saveDeviceInfo() {
-    if (this.data.isSaving) return
-    this.setData({
-      isSaving: true
-    })
-
-    try {
-      const {
-        editForm,
-        hasNewPicture,
-        hasNewVideo,
-        devices
-      } = this.data
-      const updateData = {}
-
-      // 0) 记录旧文件的 fileID（上传前记下，等保存成功后删除）
-      const oldPictureId = hasNewPicture && editForm.picture && this.isCloudFileId(editForm.picture)
-        ? editForm.picture
-        : null
-      const oldVideoId = hasNewVideo && editForm.video_url && this.isCloudFileId(editForm.video_url)
-        ? editForm.video_url
-        : null
-      // 1) 上传新图片（如果有）
-      if (hasNewPicture) {
-        wx.showLoading({
-          title: '上传图片中...'
-        })
-        const picPath = this.data.newPictureUrl
-        const picExt = (picPath.split('.').pop() || 'jpg').toLowerCase()
-        const picRes = await wx.cloud.uploadFile({
-          cloudPath: `device_pics/${Date.now()}.${picExt}`,
-          filePath: picPath
-        })
-        wx.hideLoading()
-        updateData.picture = picRes.fileID
-      }
-
-      // 2) 上传新视频（如果有）
-      if (hasNewVideo) {
-        wx.showLoading({
-          title: '上传视频中...'
-        })
-        const vidPath = editForm.video_url
-        const vidExt = (vidPath.split('.').pop() || 'mp4').toLowerCase()
-        const vidRes = await wx.cloud.uploadFile({
-          cloudPath: `device_videos/${Date.now()}.${vidExt}`,
-          filePath: vidPath
-        })
-        wx.hideLoading()
-        updateData.video_url = vidRes.fileID
-      }
-
-      // 3) 文本字段：简介、操作规程、注意事项
-      if (editForm.description !== undefined) {
-        updateData.description = editForm.description
-      }
-      if (editForm.operation_procedure !== undefined) {
-        updateData.operation_procedure = editForm.operation_procedure
-      }
-      if (editForm.precautions !== undefined) {
-        updateData.precautions = editForm.precautions
-      }
-      if (editForm.device_name && editForm.device_name !== this.data.deviceName) {
-        updateData.device_name = editForm.device_name
-      }
-
-      // 4) 规格参数：文本 → 对象
-      if (editForm.specifications !== undefined) {
-        const specsText = editForm.specifications.trim()
-        if (specsText) {
-          const specsObj = {}
-          specsText.split('\n').forEach((line) => {
-            const sep = line.indexOf('：') > -1 ? '：' : (line.indexOf(':') > -1 ? ':' : null)
-            if (sep) {
-              const key = line.substring(0, line.indexOf(sep)).trim()
-              const val = line.substring(line.indexOf(sep) + 1).trim()
-              if (key) specsObj[key] = val
-            }
-          })
-          updateData.specifications = specsObj
-        } else {
-          updateData.specifications = {}
-        }
-      }
-
-      // 如果没有要更新的字段，直接退出
-      if (Object.keys(updateData).length === 0) {
-        wx.showToast({
-          title: '没有需要保存的修改',
-          icon: 'none'
-        })
-        this.setData({
-          isSaving: false
-        })
-        return
-      }
-
-      // 5) 获取当前组所有设备的 _id，逐个更新
-      const deviceIds = (devices || []).map(d => d._id).filter(Boolean)
-      if (deviceIds.length === 0) {
-        wx.showToast({
-          title: '没有可更新的设备',
-          icon: 'none'
-        })
-        this.setData({
-          isSaving: false
-        })
+        this.loadDeviceDetail({ silent: true })
         return
       }
 
       wx.showLoading({
-        title: '保存中...'
+        title: '更新中...',
+        mask: true
       })
-
-      const res = await wx.cloud.callFunction({
-        name: 'updateDeviceInfo',
-        data: {
-          deviceIds,
-          updateData
+      try {
+        let result = null
+        let callFailed = false
+        try {
+          const res = await wx.cloud.callFunction({
+            name: 'updateDeviceStatus',
+            data: {
+              docId,
+              status: newStatus,
+              adminUserId: (this.currentSession && this.currentSession.userId) || ''
+            }
+          })
+          result = (res && res.result) || {}
+        } catch (err) {
+          callFailed = true
+          console.warn('云函数更新失败，尝试前端直接更新:', err)
         }
-      })
 
-      console.log('cloud function result:', res.result)
-      if (res.result.code !== 0) {
+        if (callFailed) {
+          // 只有「云函数调不通」才退回前端直写；云函数返回拒绝时直接写等于绕过权限校验
+          await db.collection('devices').doc(docId).update({
+            data: { status: newStatus }
+          })
+        } else if (!result.success) {
+          throw new Error(result.error || '更新失败')
+        }
+
         wx.hideLoading()
-        wx.showModal({
-          title: '保存失败',
-          content: `错误码：${res.result.code}\n${res.result.message || '未知错误'}`,
-          showCancel: false
+        wx.showToast({
+          title: '状态已更新',
+          icon: 'success'
         })
-        this.setData({
-          isSaving: false
-        })
-        return
+        await this.loadDeviceDetail({ silent: true })
+      } catch (err) {
+        // 关掉 loading 再抛出，交给外层统一提示，避免同一个 toast 被 hideLoading 关掉
+        wx.hideLoading()
+        throw err
       }
-
-      // if (res.result.code !== 0) {
-      //   throw new Error(res.result.message || '云函数更新失败')
-      // }
-
-      wx.hideLoading()
-      wx.showToast({
-        title: '保存成功',
-        icon: 'success'
-      })
-
-      const toDelete = []
-      if (oldPictureId) toDelete.push(oldPictureId)
-      if (oldVideoId) toDelete.push(oldVideoId)
-      if (toDelete.length > 0) {
-        wx.cloud.deleteFile({
-          fileList: toDelete,
-          success: res => console.log('已删除旧文件:', res.fileList),
-          fail: err => console.warn('删除旧文件失败（不影响使用）:', err)
-        })
-      }
-      // 测试
-      // 6) 退出编辑模式，重新加载数据
-      const newName = updateData.device_name || this.data.deviceName
-      this.setData({
-        isEditing: false,
-        isSaving: false,
-        hasNewPicture: false,
-        hasNewVideo: false,
-        newPictureUrl: '',
-        newVideoName: '',
-        deviceName: newName
-      })
-      this.loadDeviceDetail()
-
-      console.log('updateData:', updateData)
     } catch (err) {
-      wx.hideLoading()
-      console.error('保存仪器信息失败:', err)
-      wx.showToast({
-        title: '保存失败，请重试',
-        icon: 'none'
-      })
-      this.setData({
-        isSaving: false
-      })
-    }
-  },
-  // 清除筛选，显示全部
-  clearFilter() {
-    this.setData({
-      showAllFiltered: true
-    }, () => {
-      this.loadDeviceDetail()
-    })
-  },
-
-  // 跳转到预约详情（已存在，无需重复添加）
-  gotoReserveDetail(e) {
-    const id = e.currentTarget.dataset.id
-    if (!id) return
-
-    wx.navigateTo({
-      url: `/pages/reserve-detail/reserve-detail?id=${encodeURIComponent(id)}`
-    })
-  },
-
-  // 新增设备编号输入
-  onNewDeviceIdInput(e) {
-    const raw = e.detail.value
-    this.setData({
-      newDeviceId: raw
-    })
-  },
-
-  // 添加单台仪器实例
-  async addDeviceInstance() {
-    const newId = this.data.newDeviceId.trim()
-    if (!newId) {
-      wx.showToast({
-        title: '请输入设备编号',
-        icon: 'none'
-      })
-      return
-    }
-
-    // 前端校验：同组内编号不能重复
-    const exists = this.data.devices.some(d => d.device_id === newId)
-    if (exists) {
-      wx.showToast({
-        title: '该设备编号已存在',
-        icon: 'none'
-      })
-      return
-    }
-
-    const confirmed = await this.confirmAction(`确认添加设备「${newId}」吗？`)
-    if (!confirmed) return
-
-    this.setData({
-      isAddingDevice: true
-    })
-    try {
-      // 取组内第一台设备作为模板，继承所有公共字段
-      const template = this.data.devices[0]
-      const now = new Date().toISOString()
-
-      const newDevice = {
-        device_id: newId,
-        device_name: template.device_name,
-        lab_name: template.lab_name,
-        lab_type: template.lab_type,
-        device_room: template.device_room,
-        device_type: template.device_type,
-        status: 'available',
-        picture: template.picture || '',
-        operation_procedure: template.operation_procedure || '',
-        precautions: template.precautions || '',
-        specifications: template.specifications || {},
-        create_time: now,
-        update_time: now
-      }
-
-      // 写入数据库
-      await db.collection('devices').add({
-        data: newDevice
-      })
-
-      wx.showToast({
-        title: '添加成功',
-        icon: 'success'
-      })
-      this.setData({
-        newDeviceId: '',
-        isAddingDevice: false
-      })
-      // 复用原有加载逻辑刷新列表
-      this.loadDeviceDetail()
-    } catch (err) {
-      console.error('添加设备失败:', err)
-      this.setData({
-        isAddingDevice: false
-      })
-      wx.showToast({
-        title: '添加失败，请重试',
-        icon: 'none'
-      })
-    }
-  },
-
-  // 删除单台仪器实例
-  async deleteDeviceInstance(e) {
-    const docId = e.currentTarget.dataset.id
-    const deviceId = e.currentTarget.dataset.deviceId
-    const displayStatus = e.currentTarget.dataset.displayStatus
-
-    if (!docId || !deviceId) return
-    if (displayStatus === 'using') {
-      wx.showToast({
-        title: '设备正在使用，无法删除',
-        icon: 'none'
-      })
-      return
-    }
-
-    const confirmed = await this.confirmAction(`确认删除设备「${deviceId}」吗？删除后不可恢复。`)
-    if (!confirmed) return
-
-    wx.showLoading({
-      title: '删除中...'
-    })
-    try {
-      await db.collection('devices').doc(docId).remove()
+      console.error('更新设备状态失败:', err)
       wx.hideLoading()
       wx.showToast({
-        title: '删除成功',
-        icon: 'success'
-      })
-      this.loadDeviceDetail()
-    } catch (err) {
-      wx.hideLoading()
-      console.error('删除设备失败:', err)
-      wx.showToast({
-        title: '删除失败，请重试',
+        title: err && err.message ? err.message : '更新失败',
         icon: 'none'
       })
     }
-  },
-  gotoDeviceInstanceDetail(e) {
-    const deviceId = e.currentTarget.dataset.deviceId // 注意大小写：dataset 中的 key 会自动转驼峰
-    if (!deviceId) return
-
-    wx.navigateTo({
-      url: `/pages/device-instance-detail/device-instance-detail?deviceId=${encodeURIComponent(deviceId)}`
-    })
-  },
-  formatUsageTime(startTime, endTime) {
-    const format = (isoStr) => {
-      if (!isoStr) return ''
-      const d = this.parseDateTime(isoStr)
-      if (!d) return ''
-      const pad = n => String(n).padStart(2, '0')
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-    }
-    const start = format(startTime)
-    const end = format(endTime)
-    if (!start) return ''
-    if (!end) return start
-
-    // 如果日期相同，只显示一次日期
-    const startDate = start.split(' ')[0]
-    const endDate = end.split(' ')[0]
-    const startTimeOnly = start.split(' ')[1]
-    const endTimeOnly = end.split(' ')[1]
-
-    if (startDate === endDate) {
-      return `${startDate} ${startTimeOnly} - ${endTimeOnly}`
-    }
-
-    return `${start} - ${end}`
   }
 })

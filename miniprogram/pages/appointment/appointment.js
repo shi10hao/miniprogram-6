@@ -1,5 +1,6 @@
 // pages/appointment/appointment.js
 const datetime = require('../../utils/datetime.js')
+const reserveFilter = require('../../utils/reserveFilter.js')
 
 const db = wx.cloud.database()
 const PAGE_SIZE = 20
@@ -77,7 +78,7 @@ Page({
     this._reservationSeq = 0
     this._usageSeq = 0
 
-    // 从工作台"使用概览"跳入时，带上目标视图
+    // 从「我的」页数据概览跳入时，带上目标视图
     const view = (options && options.view) || ''
     const patch = {}
     if (view === 'upcoming') {
@@ -85,7 +86,10 @@ Page({
       patch.reservationFilter = 'upcoming'
       patch.reservationEmptyText = RESERVATION_EMPTY_TEXT.upcoming
     } else if (view === 'history') {
+      // 概览里的「历史记录」只统计已完成，进来也停在这个筛选上
       patch.activeTab = 'usage'
+      patch.usageFilter = 'completed'
+      patch.usageEmptyText = USAGE_EMPTY_TEXT.completed
     }
     if (Object.keys(patch).length) this.setData(patch)
 
@@ -278,40 +282,8 @@ Page({
   },
 
   buildReservationWhere(userId, filter) {
-    const _ = db.command
-    const base = { user_id: userId }
-    // start_time / end_time 都是 'YYYY-MM-DD HH:mm'，可直接按字符串比较先后
-    const nowText = this.formatNowText()
-
-    switch (filter) {
-      case 'upcoming':
-        // 已通过、还没开始使用、且时段还没结束
-        return Object.assign({}, base, {
-          status: 'approved',
-          usage_status: _.in(['not_started', '']),
-          end_time: _.gte(nowText)
-        })
-      case 'expired':
-        // 已通过、还没开始使用、但时段已经过去（没去用，也没有任何使用记录）
-        return Object.assign({}, base, {
-          status: 'approved',
-          usage_status: _.in(['not_started', '']),
-          end_time: _.lt(nowText)
-        })
-      case 'effective':
-        // 已通过 且 已进入使用/已完成/异常
-        return Object.assign({}, base, {
-          status: 'approved',
-          usage_status: _.in(['active', 'completed', 'abnormal'])
-        })
-      case 'cancelled':
-        // 未通过 / 已取消 / 待审核 等非通过状态
-        return Object.assign({}, base, {
-          status: _.in(['cancelled', 'rejected', 'pending'])
-        })
-      default:
-        return base
-    }
+    // 条件和「我的」页概览数字同源（utils/reserveFilter.js），否则又会对不上
+    return reserveFilter.buildReservationWhere(db.command, { userId: userId, filter: filter })
   },
 
   processReservation(item) {
@@ -499,12 +471,6 @@ Page({
   },
 
   // ============ 时间工具 ============
-  /** 当前时间，格式与 reserves.end_time 一致，用于字符串比较 */
-  formatNowText() {
-    const now = new Date()
-    return `${datetime.formatDateKey(now)} ${datetime.pad2(now.getHours())}:${datetime.pad2(now.getMinutes())}`
-  },
-
   /** Date → 'HH:mm'，无效时间返回 '--:--' */
   formatClock(date) {
     if (!date) return '--:--'

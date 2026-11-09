@@ -1,5 +1,6 @@
 {
   "usingComponents": {},
   "navigationBarTitleText": "安全员打卡",
-  "enablePullDownRefresh": false
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
 }

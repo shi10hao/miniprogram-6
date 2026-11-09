@@ -1,4 +1,4 @@
-const datetime = require('../../utils/datetime.js')
+const reserveFilter = require('../../utils/reserveFilter.js')
 
 const db = wx.cloud.database()
 
@@ -11,7 +11,6 @@ Page({
       using: 0,
       history: 0
     },
-    isLoadingOverview: false,
     userName: ''
   },
 
@@ -23,6 +22,14 @@ Page({
     getApp().refreshMessageBadge()
     this.loadUserState()
     this.loadOverview()
+  },
+
+  // 下拉刷新：重读登录态 + 概览数字
+  onPullDownRefresh() {
+    this.loadUserState()
+    this.loadOverview().finally(() => {
+      wx.stopPullDownRefresh()
+    })
   },
 
   // 读取登录态（不再重复请求用户资料，资料只在"我的"里展示）
@@ -43,28 +50,21 @@ Page({
     const userInfo = wx.getStorageSync('userInfo') || {}
     if (!userInfo.userId) {
       this.setData({
-        overview: { pending: 0, using: 0, history: 0 },
-        isLoadingOverview: false
+        overview: { pending: 0, using: 0, history: 0 }
       })
       return Promise.resolve()
     }
 
-    this.setData({ isLoadingOverview: true })
-
     const reserves = db.collection('reserves')
     const usages = db.collection('device_usage')
-    // end_time 是 'YYYY-MM-DD HH:mm'，同格式字符串可直接比较先后
-    const now = new Date()
-    const nowText = `${datetime.formatDateKey(now)} ${datetime.pad2(now.getHours())}:${datetime.pad2(now.getMinutes())}`
+    // 「待开始」的条件与「我的预约」页、「我的」页同源，见 utils/reserveFilter.js
+    const pendingWhere = reserveFilter.buildReservationWhere(db.command, {
+      userId: userInfo.userId,
+      filter: 'upcoming'
+    })
 
     return Promise.all([
-      // 待开始预约 = 已通过、尚未开始使用、且预约时段还没过去（时段已过的不再算待开始）
-      reserves.where({
-        user_id: userInfo.userId,
-        status: 'approved',
-        usage_status: db.command.in(['not_started', '']),
-        end_time: db.command.gte(nowText)
-      }).count(),
+      reserves.where(pendingWhere).count(),
       usages.where({ user_id: userInfo.userId, status: 'using' }).count(),
       usages.where({ user_id: userInfo.userId, status: 'completed' }).count()
     ]).then((results) => {
@@ -73,12 +73,10 @@ Page({
           pending: (results[0] && results[0].total) || 0,
           using: (results[1] && results[1].total) || 0,
           history: (results[2] && results[2].total) || 0
-        },
-        isLoadingOverview: false
+        }
       })
     }).catch((err) => {
-      console.error('加载使用概览失败:', err)
-      this.setData({ isLoadingOverview: false })
+      console.error('[application] 加载使用概览失败', err)
     })
   },
 
@@ -110,13 +108,6 @@ Page({
           wx.navigateTo({ url: '/pages/auth/auth' })
         }
       }
-    })
-  },
-
-  // 跳转到仪器列表（首页已有入口，这里保留给"使用提示"里的链接）
-  navigateToDeviceList() {
-    wx.navigateTo({
-      url: '/pages/device/list/devicelist'
     })
   }
 })

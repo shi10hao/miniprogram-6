@@ -25,6 +25,8 @@ Page({
     const source = options.source === 'notice' || options.noticeId ? 'notice' : 'message'
     const detailId = options.messageId || options.noticeId || ''
     const emptyState = getEmptyState(source)
+    // 下拉刷新要重新拉同一个 id，onLoad 的参数不会再来一次，先记在实例上
+    this._detailId = detailId
 
     this.setData({
       source,
@@ -46,6 +48,18 @@ Page({
     }
 
     this.getDetail(detailId, source)
+  },
+
+  // 下拉刷新：用 onLoad 记下的 id 重新拉一次详情
+  onPullDownRefresh() {
+    if (!this._detailId) {
+      wx.stopPullDownRefresh()
+      return
+    }
+
+    this.getDetail(this._detailId, this.data.source).finally(() => {
+      wx.stopPullDownRefresh()
+    })
   },
 
   getDetail(detailId, source) {

@@ -1,10 +1,12 @@
-const db = wx.cloud.database()
-
 Page({
   data: {
     username: '',
     password: '',
     isLogging: false
+  },
+  // 登录页没有列表数据，下拉只收起刷新动画（全局开启了 enablePullDownRefresh）
+  onPullDownRefresh() {
+    wx.stopPullDownRefresh()
   },
   //
   onUsernameInput(e) {

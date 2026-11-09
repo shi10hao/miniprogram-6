@@ -1,0 +1,9 @@
+{
+  "name": "getAdminSubMsgCount",
+  "version": "1.0.0",
+  "description": "读取管理端订阅消息剩余可收条数",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~4.0.2"
+  }
+}

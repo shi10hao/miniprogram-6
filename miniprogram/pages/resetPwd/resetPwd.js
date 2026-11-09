@@ -15,6 +15,12 @@ Page({
     }
   },
 
+  // 重置页没有远端列表数据，下拉只清掉上一次的报错提示（不回填已输入的学号）
+  onPullDownRefresh() {
+    this.setData({ errMsg: '' })
+    wx.stopPullDownRefresh()
+  },
+
   // 步骤1：查询用户
   async doQuery() {
     const userId = this.data.userId.trim()

@@ -3,11 +3,8 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const bcrypt = require('bcryptjs')
 
-exports.main = async (event, context) => {
-  const wxContext = cloud.getWXContext()
-  const openid = wxContext.OPENID
-
-  // 从前端传 userId（你存 userInfo 里的），或者从 users 表用 openid 反查
+exports.main = async (event) => {
+  // 从前端传 userId（存在 userInfo 里）
   const { userId, newPassword } = event
 
   if (!userId || !newPassword) {

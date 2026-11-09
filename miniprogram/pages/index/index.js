@@ -33,7 +33,6 @@ Page({
     latestNotices: [],
     isLoading: true,
     isAuthenticated: false,
-    currentGroupName: '',
     unreadReminder: null,
     subMsgCount: 0,
     isSubscribing: false,
@@ -103,7 +102,6 @@ Page({
         return
       }
 
-      this.setData({ currentGroupName: groupName })
       // 登录态变了，订阅次数跟着换人，必须绕过节流重新拉
       this._subMsgCountLoadedAt = 0
 
@@ -256,16 +254,14 @@ Page({
       if (this._commonDeviceSeq !== seq) return
       this.setData({
         commonDevices: cards,
-        isLoading: false,
-        currentGroupName: groupName
+        isLoading: false
       })
     } catch (err) {
       console.error('[index] 加载常用仪器失败', err)
       if (this._commonDeviceSeq !== seq) return
       this.setData({
         commonDevices: [],
-        isLoading: false,
-        currentGroupName: groupName
+        isLoading: false
       })
     }
   },

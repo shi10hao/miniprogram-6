@@ -162,7 +162,7 @@ function buildNoticeItem(item, nowValue) {
  * @returns {Array<Object>} 只包含新增项
  */
 function appendNoticeList(existing, rows, nowValue) {
-  const loadedKeys = new Set((existing || []).map((item) => item.key))
+  const loadedKeys = new Set((existing || []).map(item => item.key))
   const appended = []
   const sourceRows = rows || []
 

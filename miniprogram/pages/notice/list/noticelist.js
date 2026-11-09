@@ -86,7 +86,7 @@ Page({
       .skip(page * PAGE_SIZE)
       .limit(PAGE_SIZE)
       .get()
-      .then((res) => res.data || [])
+      .then(res => res.data || [])
   },
 
   /**
@@ -100,7 +100,7 @@ Page({
     for (let i = 0; i < count; i += 1) {
       tasks.push(this.fetchNotices(from + i))
     }
-    return Promise.all(tasks).then((pages) => pages.reduce((all, list) => all.concat(list), []))
+    return Promise.all(tasks).then(pages => pages.reduce((all, list) => all.concat(list), []))
   },
 
   /**
@@ -110,7 +110,7 @@ Page({
   fetchTotal() {
     return getDb().collection('notice')
       .count()
-      .then((res) => res.total || 0)
+      .then(res => res.total || 0)
       .catch((err) => {
         console.error('[noticelist] 统计公告总数失败', err)
         return 0

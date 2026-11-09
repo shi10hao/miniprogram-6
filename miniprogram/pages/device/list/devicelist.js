@@ -1,4 +1,3 @@
-const db = wx.cloud.database()
 const cloudFile = require('../../../utils/cloudFile.js')
 
 // 每屏渲染的仪器卡片数量（滚动到底部自动追加）
@@ -82,22 +81,6 @@ Page({
   getUserGroupName() {
     const userInfo = wx.getStorageSync('userInfo') || {}
     return (userInfo.groupName || '').trim()
-  },
-
-  getVisibleCondition(groupName) {
-    const _ = db.command
-    if (groupName) {
-      return _.or([{
-        lab_type: 'public'
-      },
-      {
-        lab_name: groupName
-      }
-      ])
-    }
-    return {
-      lab_type: 'public'
-    }
   },
 
   getDeviceModel(device) {

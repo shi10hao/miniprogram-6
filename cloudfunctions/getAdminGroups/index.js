@@ -107,10 +107,10 @@ exports.main = async (event = {}) => {
   }
 
   // 4) 关键词过滤
-  const matched = keyword ? allDevices.filter((d) => matchKeyword(d, keyword)) : allDevices
+  const matched = keyword ? allDevices.filter(d => matchKeyword(d, keyword)) : allDevices
 
   // 5) 查使用中的记录
-  const deviceIds = [...new Set(matched.map((d) => d.device_id).filter(Boolean))]
+  const deviceIds = [...new Set(matched.map(d => d.device_id).filter(Boolean))]
   const usingDeviceIdSet = new Set()
   for (let i = 0; i < deviceIds.length; i += 50) {
     const chunk = deviceIds.slice(i, i + 50)

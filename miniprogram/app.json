@@ -6,7 +6,6 @@
     "pages/usage/usage",
     "pages/notice/list/noticelist",
     "pages/profile/profile",
-    "pages/auth/login/login",
     "pages/auth/auth",
     "pages/device/detail/devicedetail",
     "pages/device/procedure/procedure",
@@ -33,14 +32,6 @@
     "pages/resetPwd/resetPwd",
     "pages/admin/duty-list/duty-list",
     "pages/admin/apply-review/applyreview"
-  ],
-  "subPackages": [
-    {
-      "root": "pages/webview",
-      "pages": [
-        "3dscene/scene3d"
-      ]
-    }
   ],
   "lazyCodeLoading": "requiredComponents",
   "window": {

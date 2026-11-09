@@ -12,6 +12,7 @@
 const db = wx.cloud.database()
 const _ = db.command
 const cloudFile = require('../../utils/cloudFile.js')
+const adminSubMsg = require('./adminSubMsgModel.js')
 
 // ========== 常量 ==========
 
@@ -26,10 +27,9 @@ const MAX_DEVICE_SCAN = 2000 // 可见仪器扫描上限，防御性兜底
 const MAX_RESERVE_SCAN = 1000 // 云函数单集合拉取上限
 const CLIENT_BATCH_SIZE = 20 // 客户端单次查询条数
 const DOC_URL_PATTERN = /^https?:\/\/docs\.qq\.com(\/|$)/
-const SUBSCRIBE_TMPL_IDS = [
-  '9Lr3yHaJzl8LyzC5qbNGFYgu5ILBFc3XSowjJRv1-eg', // 通用（含新注册申请）
-  'rEryURnzJ73glhEiqTmrGi3sNio16MDmUcMrIc0LPiY' // 故障告警
-]
+// 模板 id 与别名的对应关系集中在 adminSubMsgModel.js，这里不再重复维护
+const SUBSCRIBE_TMPL_IDS = adminSubMsg.SUBSCRIBE_TMPL_IDS
+const SUBMSG_REFRESH_GAP = 60000 // 剩余条数刷新间隔，避免每次 onShow 都打云函数
 const EMPTY_RESERVE_STATS = {
   upcoming: 0,
   using: 0,
@@ -98,6 +98,11 @@ Page({
     // 顶部信息
     adminName: '',
     adminRoleText: '管理员',
+
+    // 订阅提醒：剩余可收条数（apply + abnormal），只有本地估算，真值以微信下发结果为准
+    adminSubMsgText: '未订阅',
+    isSubscribing: false,
+    subscribeHint: adminSubMsg.SUBSCRIBE_HINT,
 
     // 退出确认弹窗
     showExitConfirm: false
@@ -178,7 +183,7 @@ Page({
         content: options.content || '',
         confirmText: options.confirmText || '确定',
         confirmColor: options.confirmColor || '#ef4444',
-        success: (res) => resolve({ confirm: !!res.confirm }),
+        success: res => resolve({ confirm: !!res.confirm }),
         fail: () => resolve({ confirm: false })
       })
     })
@@ -207,6 +212,7 @@ Page({
   /** 回到页面时按当前 Tab 刷新，避免从子页返回后看到旧数据 */
   onShow() {
     if (!this._ready) return
+    this.loadAdminSubMsgCount()
     this.refreshCurrentTab()
   },
 
@@ -240,6 +246,7 @@ Page({
       adminRoleText: ROLE_TEXT[session.role] || '管理员'
     })
     await this.loadDeviceStatus()
+    await this.loadAdminSubMsgCount()
   },
 
   /** 清除登录态并回到登录页 */
@@ -545,8 +552,8 @@ Page({
       ])
 
       // 教师角色只统计自己可见的仪器，避免看到别人的预约
-      const reserves = visibleIds ? allReserves.filter((item) => visibleIds[item.device_id]) : allReserves
-      const usages = visibleIds ? allUsages.filter((item) => visibleIds[item.device_id]) : allUsages
+      const reserves = visibleIds ? allReserves.filter(item => visibleIds[item.device_id]) : allReserves
+      const usages = visibleIds ? allUsages.filter(item => visibleIds[item.device_id]) : allUsages
 
       const usingReserveIdMap = {}
       usages.forEach((usage) => {
@@ -752,7 +759,7 @@ Page({
       const result = res.result || {}
       if (result.code !== 0) throw new Error(result.message || '删除失败')
       this.setData({
-        sentMessages: this.data.sentMessages.filter((item) => item._id !== noticeId && item.notice_id !== noticeId)
+        sentMessages: this.data.sentMessages.filter(item => item._id !== noticeId && item.notice_id !== noticeId)
       })
       wx.showToast({ title: '已删除', icon: 'success' })
     } catch (err) {
@@ -772,7 +779,7 @@ Page({
         .orderBy('publish_date', 'desc')
         .limit(20)
         .get()
-      const list = (res.data || []).map((item) => ({
+      const list = (res.data || []).map(item => ({
         ...item,
         dateDisplay: this.formatTime(item.publish_date)
       }))
@@ -822,22 +829,114 @@ Page({
 
   // ==================== 订阅消息 ====================
 
-  /** 请求订阅授权：必须由用户点击触发 */
-  requestSubscribeMessage() {
-    wx.requestSubscribeMessage({
-      tmplIds: SUBSCRIBE_TMPL_IDS,
-      success: (res) => {
-        const accepted = SUBSCRIBE_TMPL_IDS.filter((id) => res[id] === 'accept')
-        wx.showToast({
-          title: accepted.length ? '订阅成功' : '未订阅，可稍后再试',
-          icon: 'none'
-        })
-      },
-      fail: (err) => {
-        console.error('[admin] 订阅授权失败', err)
-        wx.showToast({ title: '订阅失败，请在设置中开启通知', icon: 'none' })
-      }
+  /**
+   * 拉取剩余可收条数
+   * 60 秒内不重复请求；失败静默（顶部小字退回上一次的值，不影响主流程）
+   */
+  async loadAdminSubMsgCount() {
+    const now = Date.now()
+    if (this._subMsgLoadedAt && now - this._subMsgLoadedAt < SUBMSG_REFRESH_GAP) return
+    this._subMsgLoadedAt = now
+    try {
+      const res = await wx.cloud.callFunction({ name: 'getAdminSubMsgCount' })
+      const result = adminSubMsg.readAdminSubMsgResult(res && res.result)
+      if (!result.ok) return
+      this.applyAdminSubMsgCounts(result.counts)
+    } catch (err) {
+      console.error('[admin] 加载订阅剩余条数失败', err)
+    }
+  },
+
+  /** 把云端条数同步到顶部小字 */
+  applyAdminSubMsgCounts(counts) {
+    this.setData({
+      adminSubMsgText: adminSubMsg.buildSubMsgText(counts)
     })
+  },
+
+  /**
+   * 请求订阅授权：必须由用户点击触发，两个模板共用同一个授权面板
+   * 加锁防连点：连点会连续弹面板 + 连续记账，额度会和用户看到的操作次数对不上
+   */
+  async requestSubscribeMessage() {
+    if (this.data.isSubscribing) return
+
+    this.setData({ isSubscribing: true })
+    try {
+      const res = await wx.requestSubscribeMessage({ tmplIds: SUBSCRIBE_TMPL_IDS })
+      const accepted = adminSubMsg.readAcceptedTmplIds(res)
+
+      if (!accepted.length) {
+        this.handleSubscribeRejected(res)
+        return
+      }
+
+      // 只有 accept 才记账：一次 accept = 微信侧一条下发额度
+      // 记账单独 try：云函数没上传时授权其实已经成功，不能报成「订阅失败」
+      let result = null
+      try {
+        const called = await wx.cloud.callFunction({
+          name: 'addAdminSubMsgCount',
+          data: { tmplIds: accepted }
+        })
+        result = adminSubMsg.readAdminSubMsgResult(called && called.result)
+      } catch (err) {
+        console.error('[admin] 订阅次数记账失败', err)
+      }
+
+      if (!result || !result.ok) {
+        // 授权其实已经成功，只是额度没记上：这是配置问题，用弹窗讲清楚（toast 装不下）
+        this._subMsgLoadedAt = 0
+        if (result && result.code === -3) {
+          wx.showModal({
+            title: '订阅成功，但少一个集合',
+            content: '云开发里还没有 admin_sub_msg 集合，剩余次数记不下来。到云开发控制台新建这个集合，再点一次「订阅提醒」即可。',
+            showCancel: false,
+            confirmText: '知道了',
+            confirmColor: '#62BCC4'
+          })
+          return
+        }
+        wx.showToast({
+          title: adminSubMsg.buildSyncFailText(result),
+          icon: 'none',
+          duration: 2500
+        })
+        return
+      }
+
+      this.applyAdminSubMsgCounts(result.counts)
+      this._subMsgLoadedAt = Date.now()
+      // 条数是纯展示：拿不到就只说「订阅成功」，不要写「可收 0 条」误导人
+      const total = adminSubMsg.totalCount(result.counts)
+      wx.showToast({
+        title: total > 0 ? '订阅成功，可收 ' + total + ' 条' : '订阅成功',
+        icon: 'none',
+        duration: 2000
+      })
+    } catch (err) {
+      console.error('[admin] 订阅授权失败', err)
+      wx.showToast({ title: '订阅失败，请稍后重试', icon: 'none' })
+    } finally {
+      this.setData({ isSubscribing: false })
+    }
+  },
+
+  /** 没拿到额度：被系统关掉要引导去设置页，其余按状态给不同文案 */
+  handleSubscribeRejected(res) {
+    const statuses = adminSubMsg.readAllStatuses(res)
+    if (statuses.indexOf(adminSubMsg.SUBSCRIBE_STATUS.BAN) !== -1) {
+      this.showConfirm({
+        title: '通知已被关闭',
+        content: '你在小程序设置里关掉了订阅通知。去设置页重新打开后，再点一次「订阅提醒」即可。',
+        confirmText: '去设置',
+        confirmColor: '#62BCC4'
+      }).then(({ confirm }) => {
+        if (confirm) wx.openSetting({})
+      })
+      return
+    }
+    wx.showToast({ title: adminSubMsg.buildSubscribeFailText(statuses[0]), icon: 'none' })
   },
 
   // ==================== 页面跳转 ====================
@@ -846,10 +945,9 @@ Page({
     wx.navigateTo({ url: '/pages/admin/reserve-list/adminreservelist' })
   },
 
-  /** 3D 看板（分包页面，按角色传参） */
+  /** 3D 看板（暂时下线，入口保留占位，恢复时再接回 scene3d） */
   goTo3DBoard() {
-    const role = this.currentSession ? this.currentSession.role : 'admin'
-    wx.navigateTo({ url: '/pages/webview/3dscene/scene3d?role=' + encodeURIComponent(role) })
+    wx.showToast({ title: '三维看板正在升级，敬请期待', icon: 'none' })
   },
 
   goToDeviceDetail(e) {
@@ -1040,7 +1138,7 @@ Page({
     if (!labName) return wx.showToast({ title: '请输入所属实验室', icon: 'none' })
     if (!deviceRoom) return wx.showToast({ title: '请输入房间位置', icon: 'none' })
 
-    const idList = form.instances.map((item) => String(item.device_id || '').trim()).filter(Boolean)
+    const idList = form.instances.map(item => String(item.device_id || '').trim()).filter(Boolean)
     if (idList.length === 0) return wx.showToast({ title: '请至少填写一台设备编号', icon: 'none' })
 
     const seen = {}

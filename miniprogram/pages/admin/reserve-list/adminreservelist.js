@@ -2,7 +2,6 @@ const db = wx.cloud.database()
 const _ = db.command
 
 const ALLOWED_ROLES = ['teacher', 'admin']
-const PAGE_SIZE = 20
 
 Page({
   data: {
@@ -13,9 +12,7 @@ Page({
     searchKeyword: '',
     hasMore: true,
     currentPage: 0,
-    currentSession: null,
-    pageSize: 20,
-    totalLoaded: 0
+    pageSize: 20
   },
 
   onLoad(options) {
@@ -151,7 +148,6 @@ Page({
     this.setData({
       isLoading: true,
       currentPage: 0,
-      totalLoaded: 0,
       hasMore: true,
       allReserves: []
     })
@@ -246,7 +242,6 @@ Page({
       this.setData({
         allReserves: mergedReserves,
         currentPage: page + 1,
-        totalLoaded: mergedReserves.length,
         hasMore
       })
       const activeUsages = await this.fetchAllByWhere('device_usage', {
@@ -326,7 +321,6 @@ Page({
     this.setData({
       filterStatus: status,
       currentPage: 0,
-      totalLoaded: 0,
       hasMore: true,
       allReserves: [],
       filteredReserves: []
@@ -339,7 +333,6 @@ Page({
     this.setData({
       searchKeyword: e.detail.value,
       currentPage: 0,
-      totalLoaded: 0,
       hasMore: true,
       allReserves: [],
       filteredReserves: []
@@ -352,7 +345,6 @@ Page({
     this.setData({
       searchKeyword: '',
       currentPage: 0,
-      totalLoaded: 0,
       hasMore: true,
       allReserves: [],
       filteredReserves: []
@@ -397,10 +389,6 @@ Page({
     this.setData({
       isLoading: false
     })
-  },
-
-  getReserveDisplayStatus(item, usingReserveIdMap, now) {
-    return getReserveDisplayStatus(item, usingReserveIdMap, now)
   },
 
   gotoReserveDetail(e) {

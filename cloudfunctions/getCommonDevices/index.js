@@ -213,7 +213,7 @@ exports.main = async (event, context) => {
     const statsList = Array.from(stats.values()).sort(compareRank)
     const usedIds = statsList
       .slice(0, MAX_KEYS)
-      .map((item) => item.device_id)
+      .map(item => item.device_id)
       .filter(Boolean)
     const devices = await loadDevicesByIds(usedIds, groupName)
     const deviceMap = new Map()
@@ -240,7 +240,7 @@ exports.main = async (event, context) => {
       msg: 'ok',
       data: {
         list: entries,
-        hasHistory: entries.some((item) => item.source !== 'recommend')
+        hasHistory: entries.some(item => item.source !== 'recommend')
       }
     }
   } catch (err) {

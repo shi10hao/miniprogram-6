@@ -2,5 +2,7 @@
   "navigationBarTitleText": "仪器详情",
   "navigationBarBackgroundColor": "#2d6a6e",
   "navigationBarTextStyle": "white",
+  "backgroundTextStyle": "dark",
+  "enablePullDownRefresh": true,
   "usingComponents": {}
 }

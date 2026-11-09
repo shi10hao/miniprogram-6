@@ -1,301 +1,338 @@
-<view class="container">
-  <view class="header">
-    <text class="device-name">{{deviceName}}</text>
-    <view wx:if="{{filterKeyword && !showAllFiltered}}" class="filter-badge" bindtap="clearFilter">
-      <text class="filter-badge-text">筛选：{{filterKeyword}} ✕</text>
+<view class="page">
+  <!-- ==================== 顶部：仪器身份 ==================== -->
+  <view class="hero">
+    <view class="hero-deco"></view>
+    <view class="hero-top">
+      <view class="hero-eyebrow">
+        <view class="hero-dot"></view>
+        <text class="hero-eyebrow-text">仪器档案</text>
+      </view>
+      <view class="hero-chip chip-{{summary.statusKey}}">{{summary.statusText || '加载中'}}</view>
+    </view>
+
+    <view class="hero-title">{{deviceName || '仪器详情'}}</view>
+
+    <view class="hero-sub">
+      <text class="hero-sub-item">{{labName || '未设置实验室'}}</text>
+      <text class="hero-sub-dot">·</text>
+      <text class="hero-sub-item">{{deviceModel || deviceType || '未设置型号'}}</text>
+    </view>
+
+    <view class="hero-stats">
+      <view class="hero-stat">
+        <text class="hero-stat-num">{{summary.total}}</text>
+        <text class="hero-stat-label">在册实例</text>
+      </view>
+      <view class="hero-stat-line"></view>
+      <view class="hero-stat">
+        <text class="hero-stat-num">{{summary.available}}</text>
+        <text class="hero-stat-label">可借</text>
+      </view>
+      <view class="hero-stat-line"></view>
+      <view class="hero-stat">
+        <text class="hero-stat-num">{{summary.using}}</text>
+        <text class="hero-stat-label">使用中</text>
+      </view>
     </view>
   </view>
 
-  <!-- 仪器信息卡片（展示/编辑模式） -->
-  <view wx:if="{{deviceInfo && !isLoading}}" class="info-card">
-    <view class="info-card-header">
-      <text class="info-card-title">仪器信息</text>
-      <button class="info-edit-btn {{isEditing ? 'cancel' : ''}}" bindtap="toggleEdit">
-        {{isEditing ? '取消编辑' : '编辑仪器信息'}}
-      </button>
+  <view class="body">
+    <!-- ==================== 关键词过滤提示 ==================== -->
+    <view class="filter-bar" wx:if="{{filterKeyword && !showAllFiltered}}">
+      <view class="filter-text ds-ellipsis">已按关键词「{{filterKeyword}}」筛选</view>
+      <view class="filter-action" bindtap="clearFilter">查看全部</view>
+    </view>
+    <view class="filter-bar filter-bar-warn" wx:if="{{noMatch}}">
+      <view class="filter-text">关键词没匹配到设备，其余记录已一并隐藏</view>
+      <view class="filter-action" bindtap="clearFilter">查看全部</view>
     </view>
 
-    <!-- ========== 展示模式 ========== -->
-    <view wx:if="{{!isEditing}}" class="info-card-body">
-      <view class="info-image-wrap">
-        <image class="info-image" src="{{deviceInfo.picture}}" mode="aspectFill"></image>
+    <!-- ==================== 加载中 ==================== -->
+    <view wx:if="{{isLoading}}">
+      <view class="ds-skeleton-card">
+        <view class="ds-skeleton sk-title"></view>
+        <view class="ds-skeleton sk-line"></view>
+        <view class="ds-skeleton sk-line sk-line-short"></view>
       </view>
-      <view class="info-fields">
-        <view class="info-field">
-          <text class="info-label">仪器名称</text>
-          <text class="info-text">{{deviceName}}</text>
-        </view>
-        <view class="info-field">
-          <text class="info-label">仪器简介</text>
-          <text class="info-text">{{deviceInfo.description || '暂无简介'}}</text>
-        </view>
-        <view class="info-field">
-          <text class="info-label">操作视频</text>
-          <text class="info-text">{{deviceInfo.video_url ? '已上传' : '暂无视频'}}</text>
-        </view>
-        <view class="info-field">
-          <text class="info-label">操作规程</text>
-          <text class="info-text">{{deviceInfo.operation_procedure ? '已设置' : '暂无'}}</text>
-        </view>
-        <view class="info-field">
-          <text class="info-label">注意事项</text>
-          <text class="info-text">{{deviceInfo.precautions ? '已设置' : '暂无'}}</text>
-        </view>
-        <!-- <view class="info-field">
-          <text class="info-label">规格参数</text>
-          <text class="info-text">{{deviceInfo.specifications && Object.keys(deviceInfo.specifications).length > 0 ? (Object.keys(deviceInfo.specifications).length + '项') : '暂无'}}</text>
-        </view> -->
+      <view class="ds-skeleton-card">
+        <view class="ds-skeleton sk-line"></view>
+        <view class="ds-skeleton sk-line"></view>
+        <view class="ds-skeleton sk-line sk-line-short"></view>
       </view>
     </view>
 
-    <!-- ========== 编辑模式 ========== -->
-    <view wx:else class="info-card-body edit-mode">
-      <!-- 图片 -->
-      <view class="edit-field">
-        <text class="edit-label">仪器图片</text>
-        <view class="edit-image-row" bindtap="chooseImage">
-          <image class="edit-image" src="{{hasNewPicture ? newPictureUrl : editForm.picture}}" mode="aspectFill"></image>
-          <text class="edit-image-hint">点击更换图片</text>
-        </view>
-      </view>
-
-      <!-- 仪器名称 -->
-      <view class="edit-field">
-        <text class="edit-label">仪器名称</text>
-        <input class="edit-input" value="{{editForm.device_name}}" data-field="device_name" bindinput="onEditInput" placeholder="请输入仪器名称" maxlength="50" />
-      </view>
-
-      <!-- 简介 -->
-      <view class="edit-field">
-        <text class="edit-label">仪器简介</text>
-        <textarea class="edit-textarea" value="{{editForm.description}}" data-field="description" bindinput="onEditInput" placeholder="请输入仪器简介" maxlength="500" auto-height />
-      </view>
-
-      <!-- 操作视频 -->
-      <view class="edit-field">
-        <text class="edit-label">操作视频</text>
-        <view class="edit-video-row" bindtap="chooseVideo">
-          <text class="edit-video-btn">选择视频文件</text>
-          <text class="edit-video-name">{{hasNewVideo ? newVideoName : (editForm.video_url ? '已选择视频' : '未选择')}}</text>
-        </view>
-      </view>
-
-      <!-- 操作规程 -->
-      <view class="edit-field">
-        <text class="edit-label">操作规程</text>
-        <textarea class="edit-textarea" value="{{editForm.operation_procedure}}" data-field="operation_procedure" bindinput="onEditInput" placeholder="请输入操作规程" maxlength="2000" auto-height />
-      </view>
-
-      <!-- 注意事项 -->
-      <view class="edit-field">
-        <text class="edit-label">注意事项</text>
-        <textarea class="edit-textarea" value="{{editForm.precautions}}" data-field="precautions" bindinput="onEditInput" placeholder="请输入注意事项" maxlength="2000" auto-height />
-      </view>
-
-      <!-- 规格参数 -->
-      <view class="edit-field">
-        <text class="edit-label">规格参数</text>
-        <textarea class="edit-textarea" value="{{editForm.specifications}}" data-field="specifications" bindinput="onEditInput" placeholder="每行一项，格式：参数名：参数值" maxlength="2000" auto-height />
-        <text class="edit-hint">每行一项，格式如「型号：GC-2014」</text>
-      </view>
-
-      <!-- 保存按钮 -->
-      <button class="save-btn" bindtap="saveDeviceInfo" disabled="{{isSaving}}">
-        {{isSaving ? '保存中...' : '保存修改'}}
-      </button>
+    <!-- ==================== 加载失败 ==================== -->
+    <view class="ds-card ds-empty" wx:elif="{{loadError}}">
+      <view class="ds-empty-icon">⚠️</view>
+      <view class="ds-empty-title">详情没能加载出来</view>
+      <view class="ds-empty-desc">可能是网络抖动，重试一次即可</view>
+      <view class="ds-btn ds-btn-ghost empty-btn" bindtap="retryLoad">重新加载</view>
     </view>
-  </view>
 
-  <view wx:if="{{isLoading}}" class="center-hint">
-    <view class="loading-spin"></view>
-    <text>加载中...</text>
-  </view>
+    <!-- ==================== 没有这台设备 ==================== -->
+    <view class="ds-card ds-empty" wx:elif="{{notFound}}">
+      <view class="ds-empty-icon">🔍</view>
+      <view class="ds-empty-title">设备不存在或无权限查看</view>
+      <view class="ds-empty-desc">该仪器可能已被删除，或不在你的管理范围内</view>
+    </view>
 
-  <view wx:else class="content">
-    <view class="section">
-      <view class="section-title-wrap" bindtap="toggleSection" data-section="devices">
-        <text class="section-title">仪器实例（{{devices.length}}台）</text>
-        <text class="section-arrow {{sectionCollapsed.devices ? 'collapsed' : ''}}">▾</text>
-      </view>
-      <view wx:if="{{!sectionCollapsed.devices}}">
-        <view wx:if="{{devices.length === 0}}" class="empty-hint">暂无仪器实例</view>
-        <view wx:else class="device-list">
-          <view class="device-item" wx:for="{{renderDevices}}" bind:tap="gotoDeviceInstanceDetail" data-device-id="{{item.device_id}}" wx:key="_id">
-            <view class="device-row">
-              <text class="device-id">{{item.device_id}}</text>
-              <view class="status-badge {{item.displayStatus}}">
-                {{item.displayStatus === 'available' ? '可用' : item.displayStatus === 'using' ? '使用中' : '维护中'}}
+    <block wx:else>
+      <!-- ==================== 仪器信息 ==================== -->
+      <view class="ds-card info-card">
+        <view class="card-head">
+          <view class="ds-section-title">仪器信息</view>
+          <view class="head-action" bindtap="toggleEdit">{{isEditing ? '取消' : '编辑'}}</view>
+        </view>
+
+        <!-- 展示态 -->
+        <block wx:if="{{!isEditing}}">
+          <view class="cover-wrap" wx:if="{{deviceInfo.pictureUrl}}">
+            <image class="cover" src="{{deviceInfo.pictureUrl}}" mode="aspectFill" />
+          </view>
+          <view class="cover-empty" wx:else>
+            <text class="cover-empty-icon">🖼️</text>
+            <text class="cover-empty-text">还没有封面图</text>
+          </view>
+
+          <view class="desc" wx:if="{{deviceInfo.hasDescription}}">{{deviceInfo.description}}</view>
+          <view class="desc desc-muted" wx:else>还没有填写仪器简介</view>
+
+          <view class="spec-block" wx:if="{{deviceInfo.specs.length}}">
+            <view class="block-label">规格参数</view>
+            <view class="spec-row" wx:for="{{deviceInfo.specs}}" wx:key="key">
+              <text class="spec-key">{{item.key}}</text>
+              <text class="spec-value">{{item.value || '—'}}</text>
+            </view>
+          </view>
+
+          <view class="text-block" wx:if="{{deviceInfo.hasProcedure}}">
+            <view class="block-label">操作规程</view>
+            <view class="block-text ds-clamp-2">{{deviceInfo.procedureText}}</view>
+          </view>
+
+          <view class="text-block" wx:if="{{deviceInfo.hasPrecautions}}">
+            <view class="block-label">注意事项</view>
+            <view class="block-text block-text-warn ds-clamp-2">{{deviceInfo.precautionsText}}</view>
+          </view>
+
+          <view class="video-row" wx:if="{{deviceInfo.hasVideo}}" bindtap="previewVideo">
+            <view class="video-icon">▶</view>
+            <view class="video-body">
+              <view class="video-title">操作视频</view>
+              <view class="video-desc">点击全屏播放</view>
+            </view>
+            <view class="video-arrow">›</view>
+          </view>
+        </block>
+
+        <!-- 编辑态 -->
+        <block wx:else>
+          <view class="edit-field">
+            <view class="edit-label">仪器名称</view>
+            <input class="edit-input" value="{{editForm.device_name}}" data-field="device_name" bindinput="onEditInput" placeholder="例如 高效液相色谱仪" maxlength="40" />
+          </view>
+
+          <view class="edit-field">
+            <view class="edit-label">封面图片</view>
+            <view class="edit-cover" bindtap="chooseImage">
+              <image class="edit-cover-img" wx:if="{{newPictureUrl || editPictureUrl}}" src="{{newPictureUrl || editPictureUrl}}" mode="aspectFill" />
+              <view class="edit-cover-tip" wx:else>
+                <text class="edit-cover-plus">+</text>
+                <text>点击选择图片</text>
               </view>
+              <view class="edit-cover-mask" wx:if="{{newPictureUrl || editPictureUrl}}">点击更换</view>
             </view>
-            <text wx:if="{{item.device_room}}" class="device-id-small">📍 {{item.device_room}}</text>
-            <text wx:if="{{item.usingUser}}" class="device-id-small">当前使用人：{{item.usingUser}}</text>
-            <!-- 原维护按钮替换为以下内容 -->
-            <view class="device-btn-row">
-              <button class="maint-btn small {{item.status === 'maintenance' ? 'active' : ''}}" catchtap="toggleMaintenance" data-id="{{item._id}}" data-device-id="{{item.device_id}}" data-display-status="{{item.displayStatus}}" disabled="{{item.displayStatus === 'using'}}">
-                {{item.displayStatus === 'using' ? '使用中' : item.status === 'maintenance' ? '恢复可用' : '设为维护'}}
-              </button>
-              <button class="delete-instance-btn" catchtap="deleteDeviceInstance" data-id="{{item._id}}" data-device-id="{{item.device_id}}" disabled="{{item.displayStatus === 'using'}}">
-                删除
-              </button>
-            </view>
+          </view>
 
-            <!-- <button class="maint-btn {{item.status === 'maintenance' ? 'active' : ''}}" bindtap="toggleMaintenance" data-id="{{item._id}}" data-device-id="{{item.device_id}}" data-display-status="{{item.displayStatus}}" disabled="{{item.displayStatus === 'using'}}">
-              {{item.displayStatus === 'using' ? '使用中不可切换' : item.status === 'maintenance' ? '恢复可用' : '设为维护'}}
-            </button> -->
+          <view class="edit-field">
+            <view class="edit-label">操作视频</view>
+            <view class="edit-video" bindtap="chooseVideo">
+              <view class="edit-video-text ds-ellipsis" wx:if="{{hasNewVideo}}">{{newVideoName}}</view>
+              <view class="edit-video-text ds-ellipsis" wx:elif="{{deviceInfo.hasVideo}}">已上传，点击可更换</view>
+              <view class="edit-video-text ds-ellipsis" wx:else>点击选择视频</view>
+              <view class="edit-video-action">选择</view>
+            </view>
+          </view>
+
+          <view class="edit-field">
+            <view class="edit-label">仪器简介</view>
+            <textarea class="edit-textarea" value="{{editForm.description}}" data-field="description" bindinput="onEditInput" placeholder="一句话说明这台仪器用来做什么" maxlength="200" auto-height />
+          </view>
+
+          <view class="edit-field">
+            <view class="edit-label">操作规程</view>
+            <textarea class="edit-textarea" value="{{editForm.operation_procedure}}" data-field="operation_procedure" bindinput="onEditInput" placeholder="开机、上样、读数、关机的步骤" maxlength="1000" auto-height />
+          </view>
+
+          <view class="edit-field">
+            <view class="edit-label">注意事项</view>
+            <textarea class="edit-textarea" value="{{editForm.precautions}}" data-field="precautions" bindinput="onEditInput" placeholder="安全提醒、耗材要求等" maxlength="1000" auto-height />
+          </view>
+
+          <view class="edit-field">
+            <view class="edit-label">规格参数</view>
+            <textarea class="edit-textarea" value="{{editForm.specifications}}" data-field="specifications" bindinput="onEditInput" placeholder="每行一条，例如：型号：Agilent 1260" maxlength="1000" auto-height />
+            <view class="edit-hint">保存时会按「键：值」解析成规格表</view>
+          </view>
+
+          <view class="save-bar">
+            <view class="ds-btn ds-btn-block {{isSaving ? 'btn-loading' : ''}}" bindtap="saveDeviceInfo">{{isSaving ? '保存中...' : '保存修改'}}</view>
+          </view>
+          <view class="save-tip">保存会同步更新同款仪器的全部 {{summary.total}} 台实例</view>
+        </block>
+      </view>
+
+      <!-- ==================== 仪器实例 ==================== -->
+      <view class="ds-card">
+        <view class="card-head" bindtap="toggleSection" data-section="devices">
+          <view class="ds-section-title">仪器实例</view>
+          <view class="head-meta">
+            <text class="head-count">{{summary.total}} 台</text>
+            <text class="head-arrow {{sectionCollapsed.devices ? 'arrow-folded' : ''}}">›</text>
           </view>
         </view>
 
-        <!-- 新增仪器实例 -->
-        <view class="add-instance-wrap">
-          <input class="add-instance-input" placeholder="输入新设备编号" value="{{newDeviceId}}" bindinput="onNewDeviceIdInput" maxlength="50" />
-          <button class="add-instance-btn" bindtap="addDeviceInstance" disabled="{{!newDeviceId || isAddingDevice}}">
-            {{isAddingDevice ? '添加中...' : '添加'}}
-          </button>
-        </view>
-      </view>
+        <block wx:if="{{!sectionCollapsed.devices}}">
+          <view class="device-list" wx:if="{{renderDevices.length}}">
+            <view class="device-item" wx:for="{{renderDevices}}" wx:key="docId">
+              <view class="device-main" bindtap="gotoDeviceInstanceDetail" data-device-id="{{item.deviceId}}">
+                <view class="device-head">
+                  <text class="device-code">{{item.deviceId || '未编号'}}</text>
+                  <text class="ds-tag {{item.tagClass}}">{{item.statusText}}</text>
+                </view>
+                <view class="device-meta">
+                  <text class="device-meta-item">{{item.room || '未设置房间'}}</text>
+                  <text class="device-meta-dot" wx:if="{{item.model}}">·</text>
+                  <text class="device-meta-item" wx:if="{{item.model}}">{{item.model}}</text>
+                </view>
+                <view class="device-user" wx:if="{{item.usingUser}}">使用人：{{item.usingUser}}</view>
+              </view>
 
-
-      <view wx:if="{{!showAllDevices && devices.length > deviceDisplayLimit}}" class="expand-wrap">
-        <button class="expand-btn" bindtap="expandDevices">展开全部 {{devices.length}} 台</button>
-      </view>
-      <view wx:if="{{showAllDevices}}" class="fold-wrap">
-        <button class="fold-btn" bind:tap="foldDevices">收缩</button>
-      </view>
-    </view>
-
-    <view class="section">
-      <view class="section-title-wrap" bindtap="toggleSection" data-section="usages">
-        <text class="section-title">当前使用（{{usages.length}}）</text>
-        <text class="section-arrow {{sectionCollapsed.usages ? 'collapsed' : ''}}">▾</text>
-      </view>
-      <view wx:if="{{!sectionCollapsed.usages}}">
-        <view wx:if="{{usages.length === 0}}" class="empty-hint">暂无正在使用记录</view>
-        <view wx:else class="usage-list">
-          <view class="usage-item" wx:for="{{usages}}" wx:key="_id" wx:for-item="usage" bindtap="gotoReserveDetail" data-id="{{usage.reserve_id}}">
-            <view class="usage-header">
-              <text class="user-name">{{usage.student_name || usage.user_id}}</text>
-              <text class="duration">已使用 {{usage.durationDisplay}}</text>
-            </view>
-            <text class="device-id-small">设备：{{usage.device_id}}</text>
-
-            <view wx:if="{{usage.startPhotoUrl}}" class="photo-section">
-              <text class="photo-label">开始照片</text>
-              <image class="usage-photo" src="{{usage.startPhotoUrl}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{usage.startPhotoUrl}}" data-urls="{{usage.allPhotoUrls}}"></image>
-            </view>
-
-            <view wx:if="{{usage.usageImageUrls.length > 0}}" class="photo-section">
-              <text class="photo-label">使用照片（{{usage.usageImageUrls.length}}）</text>
-              <view class="photo-grid">
-                <image class="usage-photo" wx:for="{{usage.usageImageUrls}}" wx:key="*this" wx:for-item="photo" src="{{photo}}" mode="aspectFill" bindtap="previewPhoto" data-url="{{photo}}" data-urls="{{usage.allPhotoUrls}}"></image>
+              <view class="device-actions">
+                <view class="mini-btn" bindtap="toggleMaintenance" data-id="{{item.docId}}" data-device-id="{{item.deviceId}}">{{item.statusKey === 'maintenance' ? '恢复可用' : '报修'}}</view>
+                <view class="mini-btn mini-btn-danger" bindtap="deleteDeviceInstance" data-id="{{item.docId}}" data-device-id="{{item.deviceId}}">删除</view>
               </view>
-            </view>
-
-            <!-- 结束信息摘要 -->
-            <view wx:if="{{usage.endChecklistDisplay}}" class="end-checklist-summary" catchtap="gotoReserveDetail" data-id="{{usage.reserve_id}}">
-              <text class="summary-title">结束使用信息</text>
-              <view class="summary-row">
-                <text class="summary-label">仪器关闭</text>
-                <text class="summary-value {{usage.endChecklistDisplay.instrumentOff ? 'yes' : 'no'}}">{{usage.endChecklistDisplay.instrumentOff ? '是' : '否'}}</text>
-              </view>
-              <view class="summary-row">
-                <text class="summary-label">电脑关闭</text>
-                <text class="summary-value {{usage.endChecklistDisplay.computerOff ? 'yes' : 'no'}}">{{usage.endChecklistDisplay.computerOff ? '是' : '否'}}</text>
-              </view>
-              <view class="summary-row">
-                <text class="summary-label">样品总数</text>
-                <text class="summary-value">{{usage.endChecklistDisplay.sampleCount}} 个</text>
-              </view>
-              <view class="summary-row">
-                <text class="summary-label">是否多余预约</text>
-                <text class="summary-value {{usage.endChecklistDisplay.moreSample ? 'yes' : 'no'}}">{{usage.endChecklistDisplay.moreSample ? '是' : '否'}}</text>
-              </view>
-              <view wx:if="{{usage.endChecklistDisplay.moreSample}}" class="summary-row">
-                <text class="summary-label">剩余样品</text>
-                <text class="summary-value">{{usage.endChecklistDisplay.moreSampleCount}} 个</text>
-              </view>
-              <view class="summary-row">
-                <text class="summary-label">补充预约</text>
-                <text class="summary-value {{usage.endChecklistDisplay.needSupplement ? 'yes' : 'no'}}">{{usage.endChecklistDisplay.needSupplement ? '是' : '否'}}</text>
-              </view>
-              <text class="summary-detail-hint">点击查看详情 ›</text>
             </view>
           </view>
-        </view>
-      </view>
-    </view>
 
-    <view class="section">
-      <view class="section-title-wrap" bindtap="toggleSection" data-section="photos">
-        <text class="section-title">使用完成记录（{{usagePhotos.length}}）</text>
-        <text class="section-arrow {{sectionCollapsed.photos ? 'collapsed' : ''}}">▾</text>
+          <view class="ds-empty ds-empty-inline" wx:else>
+            <view class="ds-empty-title">暂无实例</view>
+            <view class="ds-empty-desc">在下方输入编号即可添加第一台</view>
+          </view>
+
+          <view class="expand-btn" wx:if="{{summary.total > deviceDisplayLimit}}" bindtap="toggleDevicesExpand">
+            <text wx:if="{{showAllDevices}}">收起实例列表</text>
+            <text wx:else>展开全部 {{summary.total}} 台</text>
+          </view>
+
+          <view class="add-instance">
+            <input class="add-input" value="{{newDeviceId}}" bindinput="onNewDeviceIdInput" placeholder="输入新设备编号" maxlength="32" />
+            <view class="add-btn {{isAddingDevice ? 'btn-loading' : ''}}" bindtap="addDeviceInstance">{{isAddingDevice ? '添加中' : '添加'}}</view>
+          </view>
+        </block>
       </view>
-      <view wx:if="{{!sectionCollapsed.photos}}">
-        <view wx:if="{{usagePhotos.length === 0}}" class="empty-hint">暂无上传照片记录</view>
-        <view wx:else class="usage-list">
-          <view class="usage-item" wx:for="{{usagePhotos}}" wx:key="_id" wx:for-item="record" bindtap="gotoReserveDetail" data-id="{{record.reserve_id}}">
-            <view class="usage-header">
-              <text class="user-name">{{record.student_name || record.user_id}}</text>
-              <text wx:if="{{record.status === 'using'}}" class="duration">使用中</text>
-              <text wx:elif="{{record.status === 'completed'}}" class="duration">已完成</text>
-              <text wx:else class="duration">{{record.abnormal_time_display}}出现异常</text>
-              <!-- <text class="duration">{{record.status === 'using' ? '使用中' : record.status === 'completed' ? '已完成' : '出现异常'}}</text> -->
-            </view>
-            <view class="device-info-row">
-              <text class="device-id-small">设备：{{record.device_id}}</text>
-              <text class="device-id-small">{{record.usageTimeDisplay}}</text>
-            </view>
-            <!-- 结束信息摘要 -->
-            <view wx:if="{{record.endChecklistDisplay}}" class="end-checklist-summary" catchtap="gotoReserveDetail" data-id="{{record.reserve_id}}">
-              <text class="summary-title">结束使用信息</text>
-              <view class="summary-row">
-                <text class="summary-label">仪器关闭</text>
-                <text class="summary-value {{record.endChecklistDisplay.instrumentOff ? 'yes' : 'no'}}">{{record.endChecklistDisplay.instrumentOff ? '是' : '否'}}</text>
-              </view>
-              <view class="summary-row">
-                <text class="summary-label">电脑关闭</text>
-                <text class="summary-value {{record.endChecklistDisplay.computerOff ? 'yes' : 'no'}}">{{record.endChecklistDisplay.computerOff ? '是' : '否'}}</text>
-              </view>
-              <view class="summary-row">
-                <text class="summary-label">样品总数</text>
-                <text class="summary-value">{{record.endChecklistDisplay.sampleCount}} 个</text>
-              </view>
-              <view class="summary-row">
-                <text class="summary-label">是否多余预约</text>
-                <text class="summary-value {{record.endChecklistDisplay.moreSample ? 'yes' : 'no'}}">{{record.endChecklistDisplay.moreSample ? '是' : '否'}}</text>
-              </view>
-              <view wx:if="{{record.endChecklistDisplay.moreSample}}" class="summary-row">
-                <text class="summary-label">剩余样品</text>
-                <text class="summary-value">{{record.endChecklistDisplay.moreSampleCount}} 个</text>
-              </view>
-              <view class="summary-row">
-                <text class="summary-label">补充预约</text>
-                <text class="summary-value {{record.endChecklistDisplay.needSupplement ? 'yes' : 'no'}}">{{record.endChecklistDisplay.needSupplement ? '是' : '否'}}</text>
-              </view>
-              <text class="summary-detail-hint">点击查看详情 ›</text>
-            </view>
+
+      <!-- ==================== 当前使用 ==================== -->
+      <view class="ds-card">
+        <view class="card-head" bindtap="toggleSection" data-section="usages">
+          <view class="ds-section-title">当前使用</view>
+          <view class="head-meta">
+            <text class="head-count">{{usages.length}} 条</text>
+            <text class="head-arrow {{sectionCollapsed.usages ? 'arrow-folded' : ''}}">›</text>
           </view>
         </view>
-      </view>
-    </view>
 
-    <view class="section">
-      <view class="section-title-wrap" bindtap="toggleSection" data-section="reserves">
-        <text class="section-title">即将到来的预约（{{reserves.length}}）</text>
-        <text class="section-arrow {{sectionCollapsed.reserves ? 'collapsed' : ''}}">▾</text>
-      </view>
-      <view wx:if="{{!sectionCollapsed.reserves}}">
-        <view wx:if="{{reserves.length === 0}}" class="empty-hint">暂无预约</view>
-        <view wx:else class="reserve-list">
-          <view class="reserve-item" wx:for="{{reserves}}" wx:key="_id" bindtap="gotoReserveDetail" data-id="{{item._id}}">
-            <view class="reserve-header">
-              <text class="user-name">{{item.student_name || item.user_id}}</text>
-              <view class="reserve-status {{item.displayStatus}}">{{item.statusText}}</view>
+        <block wx:if="{{!sectionCollapsed.usages}}">
+          <view class="record-list" wx:if="{{usages.length}}">
+            <view class="record-item" wx:for="{{usages}}" wx:key="docId">
+              <view class="record-head">
+                <text class="record-title">{{item.studentName || '未知用户'}}</text>
+                <text class="ds-tag {{item.tagClass}}">{{item.statusText}}</text>
+              </view>
+              <view class="record-time">
+                <text class="record-date">{{item.dateDisplay}}</text>
+                <text class="record-clock">{{item.timeDisplay}}</text>
+              </view>
+              <view class="record-foot" wx:if="{{item.durationLabel}}">
+                <text class="record-duration">{{item.durationLabel}}</text>
+                <text class="record-device">{{item.deviceId}}</text>
+              </view>
             </view>
-            <text class="reserve-time">{{item.start_time}} ~ {{item.end_time}}</text>
-            <text class="device-id-small">设备：{{item.device_id}}</text>
+          </view>
+          <view class="ds-empty ds-empty-inline" wx:else>
+            <view class="ds-empty-title">当前没有人在用</view>
+            <view class="ds-empty-desc">全部实例空闲中</view>
+          </view>
+        </block>
+      </view>
+
+      <!-- ==================== 使用照片 ==================== -->
+      <view class="ds-card">
+        <view class="card-head" bindtap="toggleSection" data-section="photos">
+          <view class="ds-section-title">使用记录</view>
+          <view class="head-meta">
+            <text class="head-count">{{usagePhotos.length}} 条</text>
+            <text class="head-arrow {{sectionCollapsed.photos ? 'arrow-folded' : ''}}">›</text>
           </view>
         </view>
+
+        <block wx:if="{{!sectionCollapsed.photos}}">
+          <view class="photo-record" wx:for="{{usagePhotos}}" wx:key="docId">
+            <view class="photo-head">
+              <text class="photo-title">{{item.studentName || '未知用户'}}</text>
+              <text class="photo-count">{{item.photoCount}} 张</text>
+            </view>
+            <view class="photo-time">
+              <text>{{item.dateDisplay}}</text>
+              <text class="photo-time-dot">·</text>
+              <text>{{item.timeDisplay}}</text>
+              <text class="photo-abnormal" wx:if="{{item.abnormalDisplay}}">异常：{{item.abnormalDisplay}}</text>
+            </view>
+            <view class="photo-grid">
+              <view class="photo-cell" wx:for="{{item.photos}}" wx:for-item="photo" wx:key="fileId" bindtap="previewPhoto" data-url="{{photo.url}}" data-urls="{{item.photoUrls}}">
+                <image class="photo-img" src="{{photo.url}}" mode="aspectFill" lazy-load />
+              </view>
+            </view>
+          </view>
+          <view class="ds-empty ds-empty-inline" wx:if="{{!usagePhotos.length}}">
+            <view class="ds-empty-title">还没有使用照片</view>
+            <view class="ds-empty-desc">学生提交的使用记录会出现在这里</view>
+          </view>
+        </block>
       </view>
-    </view>
+
+      <!-- ==================== 即将到来的预约 ==================== -->
+      <view class="ds-card">
+        <view class="card-head" bindtap="toggleSection" data-section="reserves">
+          <view class="ds-section-title">即将到来的预约</view>
+          <view class="head-meta">
+            <text class="head-count">{{reserves.length}} 条</text>
+            <text class="head-arrow {{sectionCollapsed.reserves ? 'arrow-folded' : ''}}">›</text>
+          </view>
+        </view>
+
+        <block wx:if="{{!sectionCollapsed.reserves}}">
+          <view class="reserve-list" wx:if="{{reserves.length}}">
+            <view class="reserve-item" wx:for="{{reserves}}" wx:key="docId" bindtap="gotoReserveDetail" data-id="{{item.docId}}">
+              <view class="reserve-left">
+                <view class="reserve-date">{{item.dateDisplay}}</view>
+                <view class="reserve-clock">{{item.timeDisplay}}</view>
+              </view>
+              <view class="reserve-right">
+                <view class="reserve-name">{{item.studentName || '未知用户'}}</view>
+                <view class="reserve-device">{{item.deviceId}}</view>
+              </view>
+              <view class="reserve-tag ds-tag {{item.tagClass}}">{{item.statusText}}</view>
+            </view>
+          </view>
+          <view class="ds-empty ds-empty-inline" wx:else>
+            <view class="ds-empty-title">暂无预约</view>
+            <view class="ds-empty-desc">这台仪器最近没人预约</view>
+          </view>
+        </block>
+      </view>
+
+      <view class="foot-note">数据来自云开发数据库，返回本页会自动刷新</view>
+    </block>
   </view>
 </view>
