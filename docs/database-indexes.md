@@ -86,6 +86,39 @@ where({ user_id, status: 'approved', end_ts: _.gte(当天 0 点) }).orderBy('end
 > `end_ts` 由 `cloudfunctions/createReservation` 写入（数字毫秒）。
 > 极早期没有 `end_ts` 的预约不会出现在待使用列表里，这类预约早已结束，不影响使用。
 
+### 3.2 `reserves` —— 预约开始前 30 分钟提醒（定时器，每 5 分钟跑一次）
+
+来源：`cloudfunctions/sendReserveStartRemind`
+
+```js
+where(_.and([
+  {
+    status: 'approved',
+    start_ts: _.gte(now - 5min).and(_.lt(now + 35min)),
+    start_reminder_sent: _.neq(true)
+  },
+  // 「还没开始使用」的三种形态都要收，见函数里的注释
+  _.or([
+    { usage_status: 'not_started' },
+    { usage_status: _.eq('') },
+    { usage_status: null },
+    { usage_status: _.exists(false) }
+  ])
+]))
+```
+
+建议索引：
+
+| 字段顺序 | 说明 |
+| --- | --- |
+| `status` ↑ | 等值（先把范围砍到「已通过」） |
+| `start_ts` ↑ | 范围（35 分钟窗口，命中量很小） |
+| `usage_status` ↑ | 等值 / 不存在 |
+| `start_reminder_sent` ↑ | 等值 / 不存在 |
+
+> `_.or` + `_.exists` 走不满索引，但 `status + start_ts` 已把扫描范围压到窗口内的几十条，
+> 这个定时器每 5 分钟跑一次，不加索引会在预约表变大后持续吃满云函数配额。
+
 
 ---
 
@@ -132,6 +165,28 @@ orderBy('publish_date', 'desc').limit(3)
 ```
 
 建议索引：`publish_date` ↓（单字段即可，用于排序）
+
+### 6.1 `users` —— 订阅消息收件人筛选
+
+来源：`cloudfunctions/sendNoticeSubMsg`（公告推送）、
+`cloudfunctions/notifyAdminNewApply`（新申请提醒）、
+`cloudfunctions/sendAbnormalNotification`（异常告警）
+
+```js
+where({ role: 'student', 'subMsg.count': _.gt(0) })   // 公告：只发给还有额度的学生
+where({ role: 'admin' })                              // 新申请
+where({ role: _.in(['teacher', 'admin']) })            // 异常告警
+```
+
+建议索引：
+
+| 字段顺序 | 说明 |
+| --- | --- |
+| `role` ↑ | 等值 / IN |
+| `subMsg.count` ↑ | 范围（> 0） |
+
+> 公告发布是「查全量 → 逐条发」，`subMsg.count` 的过滤放在服务端能少拉回大量
+> 已经没有额度的用户；`role` 单字段索引也能覆盖另外两条查询。
 
 ### 7. `device_usage` / `reserves` —— 首页「常用仪器」
 

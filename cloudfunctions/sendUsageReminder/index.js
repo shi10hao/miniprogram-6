@@ -72,54 +72,63 @@ exports.main = async () => {
       let messageCreated = false
 
       try {
-        const writeRes = await db.collection('messages')
-          .doc(messageDocId)
-          .set({
-            data: buildUsageReminderMessage(usage, now, messageKey)
-          })
-        messageCreated = !!(writeRes.stats && writeRes.stats.created > 0)
-      } catch (messageErr) {
-        console.error('写入使用提醒消息失败:', usage._id, messageErr)
-        results.push({
-          id: usage._id,
-          error: 'message_write_failed',
-          detail: String(messageErr)
+        // 只创建、不覆盖：doc().set() 会把用户已经读过的那条消息重新写成未读，
+        // 表现为「每次提醒后红点又回来了」。add 带自定义 _id 时重复插入会报错，正好当幂等判断。
+        await db.collection('messages').add({
+          data: Object.assign({ _id: messageDocId }, buildUsageReminderMessage(usage, now, messageKey))
         })
-        continue
+        messageCreated = true
+      } catch (messageErr) {
+        const errMsg = String((messageErr && (messageErr.errMsg || messageErr.message)) || '')
+        const errCode = messageErr && messageErr.errCode
+        const duplicated = errCode === -502001 || /duplicate|E11000|already exists|已存在/i.test(errMsg)
+        if (duplicated) {
+          // 本周期的站内消息之前就写过了，跳过写库、继续看订阅消息要不要补发
+          console.log('本周期的提醒消息已存在，跳过写入:', messageDocId)
+        } else {
+          console.error('写入使用提醒消息失败:', usage._id, messageErr)
+          results.push({
+            id: usage._id,
+            error: 'message_write_failed',
+            detail: String(messageErr)
+          })
+          continue
+        }
       }
 
-      let subscribeResult = messageCreated ? 'skipped' : 'skipped_existing_message'
-      if (messageCreated) {
-        try {
-          const openId = await resolveUsageOpenId(usage)
-          if (openId) {
-            await cloud.openapi.subscribeMessage.send({
-              touser: openId,
-              templateId: TEMPLATE_ID,
-              page: 'pages/usage/usage',
-              data: {
-                thing1: {
-                  value: clipText(usage.device_name || '仪器', 20)
-                },
-                thing9: {
-                  value: clipText('请到仪器使用页，上传“使用中照片”', 20)
-                },
-                time4: {
-                  value: formatTime(now)
-                }
+      // 站内消息用固定 docId 写、天然幂等，只是「已经提醒过」的记账；
+      // 订阅消息能不能发，由上面「周期判断 + last_reminder_time」决定：
+      // 能走到这里就说明本周期的 last_reminder_time 还没被推进，该发就发。
+      // （旧实现拿 messageCreated 当开关：第一次发送失败时 last_reminder_time 没推进、
+      //   但消息文档已经建好，于是 messageCreated 恒为 false，永远不再重试。）
+      let subscribeResult = 'skipped'
+      try {
+        const openId = await resolveUsageOpenId(usage)
+        if (openId) {
+          await cloud.openapi.subscribeMessage.send({
+            touser: openId,
+            templateId: TEMPLATE_ID,
+            page: 'pages/usage/usage',
+            data: {
+              thing1: {
+                value: clipText(usage.device_name || '仪器', 20)
+              },
+              thing9: {
+                value: clipText('请到仪器使用页，上传“使用中照片”', 20)
+              },
+              time4: {
+                value: formatTime(now)
               }
-            })
-            subscribeResult = 'sent'
-          } else {
-            // ========== 【新增】找不到 openid 时记录日志 ==========
-            console.error('发送使用提醒订阅消息失败: 未找到 openid, usage._id:', usage._id)
-            subscribeResult = 'failed'
-            // ========== 新增结束 ==========
-          }
-        } catch (sendErr) {
+            }
+          })
+          subscribeResult = 'sent'
+        } else {
+          console.error('发送使用提醒订阅消息失败: 未找到 openid, usage._id:', usage._id)
           subscribeResult = 'failed'
-          console.error('发送使用提醒订阅消息失败:', usage._id, '错误详情:', JSON.stringify(sendErr))
         }
+      } catch (sendErr) {
+        subscribeResult = 'failed'
+        console.error('发送使用提醒订阅消息失败:', usage._id, '错误详情:', JSON.stringify(sendErr))
       }
 
       if (subscribeResult === 'sent') {
@@ -196,9 +205,7 @@ async function fetchAllByWhere(collectionName, whereCondition) {
 }
 
 function buildUsageReminderMessage(usage, now, messageKey) {
-  const usageStart = usage.start_time
-    ? formatTime(new Date(usage.start_time))
-    : '当前使用时段'
+  const usageStart = formatUsageStart(usage.start_time)
 
   return {
     user_id: usage.user_id,
@@ -214,6 +221,21 @@ function buildUsageReminderMessage(usage, now, messageKey) {
 
 function buildUsageReminderDocId(usageId, timeBucket) {
   return `usage_photo_remind_${usageId}_${timeBucket}`
+}
+
+/**
+ * 站内消息里的「开始时间」：字符串原样透传
+ *
+ * device_usage.start_time 存的就是 'YYYY-MM-DD HH:mm'（用户在东八区面板里选的），
+ * 先 new Date() 再格式化会被云函数运行时区二次偏移（运行时时区可能不是东八区，
+ * '2026-11-09 09:00' 会被当成 UTC，最终显示成 17:00）。
+ * @param {string|Date} value 开始时间
+ * @returns {string}
+ */
+function formatUsageStart(value) {
+  if (!value) return '当前使用时段'
+  if (typeof value === 'string') return value
+  return formatTime(value instanceof Date ? value : new Date(value))
 }
 
 async function resolveUsageOpenId(usage) {
@@ -250,19 +272,33 @@ function clipText(value, maxLength) {
   return `${text.slice(0, maxLength - 1)}…`
 }
 
+// time4 用中文年月日时分：微信 time 类型支持 "2019年10月1日 15:01"，
+// 而纯 "YYYY-MM-DD HH:mm" 属于「日期+时间」拼接，有被拒（47003）的风险。
+// 时区固定按上海算（云函数运行时时区不保证是东八区）。
+const CHINA_TIME_FORMAT = new Intl.DateTimeFormat('zh-CN', {
+  timeZone: 'Asia/Shanghai',
+  hourCycle: 'h23',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit'
+})
+
 function formatTime(date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
     return ''
   }
-  const beijingOffset = 8 * 60 * 60 * 1000 // 8小时的毫秒数
-  const beijingTime = new Date(date.getTime() + beijingOffset)
-  const pad = n => String(n).padStart(2, '0')
-  return [
-    beijingTime.getUTCFullYear(), // 注意：用 getUTC 系列
-    pad(beijingTime.getUTCMonth() + 1),
-    pad(beijingTime.getUTCDate())
-  ].join('-') + ' ' + [
-    pad(beijingTime.getUTCHours()),
-    pad(beijingTime.getUTCMinutes())
-  ].join(':')
+  const parts = CHINA_TIME_FORMAT.formatToParts(date)
+  const pick = (type) => {
+    const hit = parts.find(item => item.type === type)
+    return hit ? hit.value : ''
+  }
+  const year = pick('year')
+  const month = pick('month')
+  const day = pick('day')
+  const hour = pick('hour')
+  const minute = pick('minute')
+  if (!year || !month || !day) return ''
+  return `${year}年${Number(month)}月${Number(day)}日 ${hour}:${minute}`
 }

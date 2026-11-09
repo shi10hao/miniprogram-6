@@ -11,6 +11,12 @@ const USERS = 'users'
 // 不接受客户端传 count：否则任何人都能反复调用把次数刷到天上去。
 const INC_COUNT = 1
 
+// 只认「公告推送」这一个模板：模板 B 同时承载审核结果/新申请/公告，
+// users.subMsg.count 这套记账只服务公告（sendNoticeSubMsg 扣、首页订阅条加）。
+// 不校验的话客户端可以传任意 tmplId 把计数堆起来，前端就显示假的「可收 N 条」。
+// 与 addAdminSubMsgCount 的白名单写法保持一致。
+const ALLOWED_TMPL_IDS = ['9Lr3yHaJzl8LyzC5qbNGFYgu5ILBFc3XSowjJRv1-eg']
+
 /**
  * 记一次订阅
  * @param {Object} event { tmplId: string }
@@ -26,6 +32,10 @@ exports.main = async (event = {}, context) => {
 
   if (!tmplId) {
     return { code: -1, msg: '缺少模板 id' }
+  }
+
+  if (!ALLOWED_TMPL_IDS.includes(tmplId)) {
+    return { code: -1, msg: '不支持的模板 id' }
   }
 
   try {

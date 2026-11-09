@@ -16,6 +16,8 @@ const globals = {
   require: 'readonly',
   module: 'writable',
   exports: 'writable',
+  __dirname: 'readonly',
+  __filename: 'readonly',
   console: 'readonly',
   process: 'readonly',
   Buffer: 'readonly',

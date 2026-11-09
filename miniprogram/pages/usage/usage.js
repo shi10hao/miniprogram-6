@@ -16,6 +16,9 @@ const ELAPSED_REFRESH_MS = 30 * 1000
 const MAX_FEEDBACK_PHOTOS = 3
 // 水印画布的长边上限：原图再大也只画到 1600，避免安卓端 canvas 内存爆掉
 const MAX_WATERMARK_EDGE = 1600
+// 订阅消息：一次授权只换 1 条推送额度，用完就得再问。
+// 但每点一次按钮都弹面板很烦，所以隔一段时间才再问一次（原来是「问过就永久静音」）。
+const SUBSCRIBE_ASK_INTERVAL_MS = 6 * 60 * 60 * 1000
 
 Page({
   data: {
@@ -344,6 +347,9 @@ Page({
       return
     }
 
+    // 同样要在 tap 的同步上下文里请求订阅，不能放到 chooseMedia 之后
+    this.requestSubscribeMessage()
+
     let tempFiles = []
     try {
       const mediaRes = await wx.chooseMedia({
@@ -358,7 +364,6 @@ Page({
     }
     if (!tempFiles.length) return
 
-    this.requestSubscribeMessage()
     this.setData({ isUploading: true })
     wx.showLoading({ title: '上传中…', mask: true })
 
@@ -404,6 +409,9 @@ Page({
     const reserveId = e.currentTarget.dataset.reserveid
     if (!reserveId) return
 
+    // 必须在用户点击的同步上下文里请求订阅（后面全是异步步骤）
+    this.requestSubscribeMessage()
+
     const isNormal = await this.confirmDeviceStart(reserveId)
     if (!isNormal) return
 
@@ -445,7 +453,6 @@ Page({
             resolve(false)
             return
           }
-          this.requestSubscribeMessage()
           resolve(true)
         },
         fail: () => resolve(false)
@@ -1077,16 +1084,27 @@ Page({
   },
 
   requestSubscribeMessage() {
-    // 同一次会话里只问一次，用户拒绝后不再骚扰
-    if (wx.getStorageSync(`msg_subscribed_${TEMPLATE_ID}`)) return
+    // 两条注意：
+    // ① 一次性订阅的额度只有 1 条，用完必须重新授权，所以「问过」只静音 6 小时，不是永久；
+    // ② wx.requestSubscribeMessage 只能在用户点击的同步上下文里调，
+    //    放在 chooseMedia / showModal 的回调之后会直接 fail（不在 tap 手势里），
+    //    所以调用点都挪到了各按钮 handler 的最前面。
+    const storageKey = `msg_subscribed_${TEMPLATE_ID}`
+    const lastAsk = Number(wx.getStorageSync(storageKey)) || 0
+    if (lastAsk && Date.now() - lastAsk < SUBSCRIBE_ASK_INTERVAL_MS) return
     wx.requestSubscribeMessage({
       tmplIds: [TEMPLATE_ID],
       success: (res) => {
-        if (res && res[TEMPLATE_ID] === 'accept') {
-          wx.setStorageSync(`msg_subscribed_${TEMPLATE_ID}`, true)
+        // 同意或拒绝都记时间：拒绝也不该每点一次就弹一遍
+        wx.setStorageSync(storageKey, Date.now())
+        if (!res || res[TEMPLATE_ID] !== 'accept') {
+          console.warn('[usage] 用户未开启使用提醒订阅')
         }
       },
-      fail: err => console.warn('[usage] 订阅消息授权失败', err)
+      fail: (err) => {
+        wx.setStorageSync(storageKey, Date.now())
+        console.warn('[usage] 订阅消息授权失败', err)
+      }
     })
   },
 

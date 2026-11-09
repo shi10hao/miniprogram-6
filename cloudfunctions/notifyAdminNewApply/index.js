@@ -23,18 +23,36 @@ function cutStr(str, len = 20) {
 }
 
 // time3 可读时间格式
+//
+// 云函数运行时区不保证是东八区（同 sendNoticeSubMsg 的处理），所以固定按上海时区输出，
+// 不用 getFullYear/getHours 这类本地时区接口，避免出现「差 8 小时」。
+// 入参可能是 Date（db.serverDate 读回来的）、ISO 串或毫秒时间戳，都能吃。
+const CHINA_TIME_FORMAT = new Intl.DateTimeFormat('zh-CN', {
+  timeZone: 'Asia/Shanghai',
+  hourCycle: 'h23',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit'
+})
+
 function formatTime(input) {
   if (!input) return ''
-  let d
-  if (input instanceof Date) d = input
-  else d = new Date(String(input).replace(/-/g, '/'))
-  if (isNaN(d.getTime())) return String(input)
-  const y = d.getFullYear()
-  const m = d.getMonth() + 1
-  const day = d.getDate()
-  const h = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  return `${y}年${m}月${day}日 ${h}:${min}`
+  const date = input instanceof Date ? input : new Date(input)
+  if (Number.isNaN(date.getTime())) return ''
+  const parts = CHINA_TIME_FORMAT.formatToParts(date)
+  const pick = (type) => {
+    const hit = parts.find(item => item.type === type)
+    return hit ? hit.value : ''
+  }
+  const year = pick('year')
+  const month = pick('month')
+  const day = pick('day')
+  const hour = pick('hour')
+  const minute = pick('minute')
+  if (!year || !month || !day) return ''
+  return `${year}年${Number(month)}月${Number(day)}日 ${hour}:${minute}`
 }
 
 function normalizeCount(value) {

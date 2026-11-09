@@ -186,9 +186,11 @@ exports.main = async (event) => {
   const finalUserName = reserve.student_name || reserve.user_id || userName || '未知用户'
 
   // ===== 只通知真正的管理员 =====
+  // 云函数端 get() 默认只返回 100 条，管理员多的时候会被静默截断，这里显式放宽
   const adminUsers = await db.collection('users')
     .where({ role: _.in(['teacher', 'admin']) })
     .field({ user_id: true, wx_openid: true, role: true })
+    .limit(1000)
     .get()
   const admins = (adminUsers.data || []).filter(a => a.user_id)
 
@@ -235,10 +237,11 @@ exports.main = async (event) => {
               templateId: ABNORMAL_TMPL_ID,
               page: 'pages/admin/reserve-list/adminreservelist',
               data: {
-                thing1: { value: (finalDeviceName || '未知仪器').slice(0, 20) },
-                thing2: { value: `${(feedbackTitle || '异常反馈').slice(0, 20)}${feedbackContent ? '...' : ''}` },
-                date4: { value: formatTime(now) },
-                character_string25: { value: (finalDeviceId || '').slice(0, 32) }
+                thing1: { value: clipText(finalDeviceName || '未知仪器', 20) },
+                thing2: { value: buildFeedbackSummary(feedbackTitle, feedbackContent) },
+                date4: { value: formatDate(now) },
+                // character_string 不能是空串，否则整条消息被拒；没有编号时给个占位
+                character_string25: { value: (finalDeviceId || '未知编号').slice(0, 32) }
               }
             })
             await consumeQuota(admin.wx_openid, quotaMap[admin.wx_openid])
@@ -262,7 +265,55 @@ exports.main = async (event) => {
   return { success: true, sentCount, msgSent, msgSkipped }
 }
 
-function formatTime(d) {
-  const pad = n => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+// 模板 date4 是「日期」类型：微信只认 "2019年10月1日" 或 "2019-10-01"，
+// 带时分秒有被拒（47003）的风险，所以这里只输出日期部分。
+// 时区固定按上海算，不依赖云函数运行时时区（同 sendNoticeSubMsg）。
+const CHINA_DATE_FORMAT = new Intl.DateTimeFormat('zh-CN', {
+  timeZone: 'Asia/Shanghai',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+})
+
+function formatDate(input) {
+  const date = input instanceof Date ? input : new Date(input)
+  if (Number.isNaN(date.getTime())) return ''
+  const parts = CHINA_DATE_FORMAT.formatToParts(date)
+  const pick = (type) => {
+    const hit = parts.find(item => item.type === type)
+    return hit ? hit.value : ''
+  }
+  const year = pick('year')
+  const month = pick('month')
+  const day = pick('day')
+  if (!year || !month || !day) return ''
+  return `${year}年${Number(month)}月${Number(day)}日`
+}
+
+/**
+ * 截断到 thing 类型允许的 20 字以内
+ * @param {string} value 原始文本
+ * @param {number} maxLength 最大字符数
+ * @returns {string}
+ */
+function clipText(value, maxLength) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim()
+  if (text.length <= maxLength) return text
+  return `${text.slice(0, maxLength - 1)}…`
+}
+
+/**
+ * 把「标题 + 是否有详细描述」压成一行 thing2
+ *
+ * 原写法是「标题截 20 字」再拼 '...'，标题满 20 字时整串 23 字，会被微信按超长拒掉（47003）。
+ * 这里保证输出一定 ≤20 字：有正文时最多 19 字标题 + 一个省略号。
+ * @param {string} title 反馈标题
+ * @param {string} content 反馈正文
+ * @returns {string}
+ */
+function buildFeedbackSummary(title, content) {
+  const head = String(title || '').replace(/\s+/g, ' ').trim() || '异常反馈'
+  const tail = String(content || '').replace(/\s+/g, ' ').trim()
+  if (!tail) return clipText(head, 20)
+  return `${clipText(head, 19)}…`
 }
